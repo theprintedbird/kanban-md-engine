@@ -7,19 +7,19 @@ local M = {}
 local config = {
 	-- Indentation
 	task_indent = "",
-	
+
 	-- Spacing
 	blank_lines_between_sections = true,
 	blank_line_after_title = true,
 	blank_line_after_config = false,
-	
+
 	-- Property formatting
 	property_separator = ", ",
 	wrap_properties_at = 80,  -- Wrap long property lists
-	
+
 	-- Timestamp formatting
 	timestamp_format = "epoch",  -- "epoch", "iso", "date"
-	
+
 	-- Comment style
 	use_multiline_comments = false,  -- Use multi-line for long comments
 	multiline_threshold = 100,  -- Characters before switching to multi-line
@@ -33,7 +33,7 @@ end
 -- Format a timestamp based on config
 local function format_timestamp(timestamp)
 	if not timestamp then return nil end
-	
+
 	if config.timestamp_format == "iso" then
 		return os.date("!%Y-%m-%dT%H:%M:%SZ", timestamp)
 	elseif config.timestamp_format == "date" then
@@ -73,18 +73,18 @@ local function properties_to_comment(properties, prefix)
 	if not properties or vim.tbl_isempty(properties) then
 		return nil
 	end
-	
+
 	local parts = {}
-	
+
 	-- Add prefix if provided (e.g., "kanban:config" or "column:config")
 	if prefix then
 		table.insert(parts, prefix)
 	end
-	
+
 	-- Sort properties for consistent output
 	local keys = vim.tbl_keys(properties)
 	table.sort(keys)
-	
+
 	for _, key in ipairs(keys) do
 		local value = properties[key]
 		local formatted = format_property_value(value)
@@ -92,9 +92,9 @@ local function properties_to_comment(properties, prefix)
 			table.insert(parts, string.format("%s: %s", key, formatted))
 		end
 	end
-	
+
 	local content = table.concat(parts, config.property_separator)
-	
+
 	-- Decide on single-line vs multi-line comment
 	if config.use_multiline_comments and #content > config.multiline_threshold then
 		-- Multi-line comment
@@ -115,13 +115,13 @@ end
 local function write_task(task)
 	local checkbox = task.complete and "[x]" or "[ ]"
 	local line = string.format("%s- %s %s", config.task_indent, checkbox, task.text)
-	
+
 	-- Add properties as inline comment if present
 	local props_to_write = {}
-	
+
 	-- Filter out certain properties that might be internal
 	local skip_properties = { "id" }  -- We might want to keep ID actually
-	
+
 	for key, value in pairs(task.properties or {}) do
 		local should_skip = false
 		for _, skip in ipairs(skip_properties) do
@@ -130,7 +130,7 @@ local function write_task(task)
 				break
 			end
 		end
-		
+
 		if not should_skip then
 			props_to_write[key] = value
 		else
@@ -138,7 +138,7 @@ local function write_task(task)
 			props_to_write[key] = value
 		end
 	end
-	
+
 	local comment = properties_to_comment(props_to_write)
 	if comment then
 		if type(comment) == "table" then
@@ -149,17 +149,17 @@ local function write_task(task)
 			return line .. " " .. comment
 		end
 	end
-	
+
 	return line
 end
 
 -- Write a column section
 local function write_column(column)
 	local lines = {}
-	
+
 	-- Column header
 	table.insert(lines, "## " .. column.name)
-	
+
 	-- Column configuration comment if present
 	if column.config and not vim.tbl_isempty(column.config) then
 		local config_comment = properties_to_comment(column.config, "column:config")
@@ -171,7 +171,7 @@ local function write_column(column)
 			table.insert(lines, config_comment)
 		end
 	end
-	
+
 	-- Tasks
 	for _, task in ipairs(column.tasks or {}) do
 		local task_output = write_task(task)
@@ -183,21 +183,21 @@ local function write_column(column)
 			table.insert(lines, task_output)
 		end
 	end
-	
+
 	return lines
 end
 
 -- Main writer function
 function M.write(board)
 	local lines = {}
-	
+
 	-- Board title
 	table.insert(lines, "# " .. (board.title or "Untitled Board"))
-	
+
 	if config.blank_line_after_title then
 		table.insert(lines, "")
 	end
-	
+
 	-- Board configuration
 	if board.config and not vim.tbl_isempty(board.config) then
 		local config_comment = properties_to_comment(board.config, "kanban:config")
@@ -208,64 +208,64 @@ function M.write(board)
 		else
 			table.insert(lines, config_comment)
 		end
-		
+
 		if config.blank_line_after_config then
 			table.insert(lines, "")
 		end
 	end
-	
+
 	-- Add blank line before columns section if we have columns
 	if board.columns and #board.columns > 0 and config.blank_lines_between_sections then
 		table.insert(lines, "")
 	end
-	
+
 	-- Regular columns
 	for i, column in ipairs(board.columns or {}) do
 		if i > 1 and config.blank_lines_between_sections then
 			table.insert(lines, "")
 		end
-		
+
 		local column_lines = write_column(column)
 		for _, line in ipairs(column_lines) do
 			table.insert(lines, line)
 		end
 	end
-	
+
 	-- Archive section
 	if board.archive then
 		if config.blank_lines_between_sections then
 			table.insert(lines, "")
 		end
-		
+
 		local archive_lines = write_column(board.archive)
 		for _, line in ipairs(archive_lines) do
 			table.insert(lines, line)
 		end
 	end
-	
+
 	-- Stats section (if needed - usually generated dynamically)
 	if board.stats and board.include_stats_section then
 		if config.blank_lines_between_sections then
 			table.insert(lines, "")
 		end
-		
+
 		table.insert(lines, "## __STATS__")
 		table.insert(lines, string.format("<!-- generated: %s -->", os.date("%Y-%m-%d %H:%M:%S")))
-		
+
 		-- Write statistics as a comment block or markdown list
 		if board.stats.total_tasks > 0 then
 			table.insert(lines, string.format("- Total tasks: %d", board.stats.total_tasks))
 			table.insert(lines, string.format("- Completed: %d", board.stats.completed_tasks))
 			table.insert(lines, string.format("- In progress: %d", board.stats.in_progress_tasks))
-			
+
 			if board.stats.average_cycle_time then
 				local unit = board.config.cycle_time_unit or "seconds"
-				table.insert(lines, string.format("- Average cycle time: %.2f %s", 
+				table.insert(lines, string.format("- Average cycle time: %.2f %s",
 					board.stats.average_cycle_time, unit))
 			end
 		end
 	end
-	
+
 	return lines
 end
 
@@ -273,16 +273,16 @@ end
 function M.write_to_file(board, filepath)
 	local lines = M.write(board)
 	local content = table.concat(lines, "\n")
-	
+
 	-- Write to file
 	local file = io.open(filepath, "w")
 	if not file then
 		return false, "Could not open file for writing: " .. filepath
 	end
-	
+
 	file:write(content)
 	file:close()
-	
+
 	return true
 end
 
@@ -290,40 +290,40 @@ end
 function M.write_to_buffer(board, bufnr)
 	bufnr = bufnr or vim.api.nvim_get_current_buf()
 	local lines = M.write(board)
-	
+
 	-- Save cursor position
 	local cursor = vim.api.nvim_win_get_cursor(0)
-	
+
 	-- Update buffer
 	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-	
+
 	-- Try to restore cursor position intelligently
 	local max_line = vim.api.nvim_buf_line_count(bufnr)
 	if cursor[1] > max_line then
 		cursor[1] = max_line
 	end
-	
+
 	-- Restore cursor
 	pcall(vim.api.nvim_win_set_cursor, 0, cursor)
-	
+
 	return true
 end
 
 -- Update a single task in place (minimal change)
 function M.update_task_in_buffer(board, task_id, bufnr)
 	bufnr = bufnr or vim.api.nvim_get_current_buf()
-	
+
 	-- Find the task in the board
 	local parser = require("kanban-md.parser")
-	local task, column = parser.find_task(board, task_id)
-	
+	local task, _column = parser.find_task(board, task_id)
+
 	if not task or not task.line_number then
 		return false, "Task not found or missing line number"
 	end
-	
+
 	-- Generate the updated task line
 	local updated_line = write_task(task)
-	
+
 	if type(updated_line) == "table" then
 		-- Multi-line (shouldn't happen often for tasks)
 		vim.api.nvim_buf_set_lines(bufnr, task.line_number - 1, task.line_number, false, updated_line)
@@ -331,14 +331,14 @@ function M.update_task_in_buffer(board, task_id, bufnr)
 		-- Single line (normal case)
 		vim.api.nvim_buf_set_lines(bufnr, task.line_number - 1, task.line_number, false, { updated_line })
 	end
-	
+
 	return true
 end
 
 -- Append a new task to a column
 function M.append_task_to_column(board, column_name, task_text, properties)
 	local column = nil
-	
+
 	-- Find the column
 	for _, col in ipairs(board.columns) do
 		if col.name == column_name then
@@ -346,11 +346,11 @@ function M.append_task_to_column(board, column_name, task_text, properties)
 			break
 		end
 	end
-	
+
 	if not column then
 		return nil, "Column not found: " .. column_name
 	end
-	
+
 	-- Create the new task
 	local new_task = {
 		complete = false,
@@ -358,7 +358,7 @@ function M.append_task_to_column(board, column_name, task_text, properties)
 		properties = properties or {},
 		column = column_name,
 	}
-	
+
 	-- Generate ID if not provided
 	if not new_task.properties.id then
 		local id_source = task_text .. os.time()
@@ -368,34 +368,37 @@ function M.append_task_to_column(board, column_name, task_text, properties)
 		end
 		new_task.properties.id = string.format("%08x", hash)
 	end
-	
+
 	-- Add created timestamp if not provided
 	if not new_task.properties.created then
 		new_task.properties.created = os.time()
 	end
-	
+
 	-- Add to column
 	table.insert(column.tasks, new_task)
-	
+
 	return new_task
 end
 
 -- Move a task between columns
 function M.move_task(board, task_id, target_column_name)
 	local parser = require("kanban-md.parser")
-	
+
 	-- Find the task
 	local task, source_column = parser.find_task(board, task_id)
 	if not task then
 		return false, "Task not found"
 	end
-	
+	if not source_column then
+		return false, "This task has no column, it is corrupted"
+	end
+
 	-- Find target column
 	local target_column = parser.get_column(board, target_column_name)
 	if not target_column then
 		return false, "Target column not found"
 	end
-	
+
 	-- Remove from source
 	for i, t in ipairs(source_column.tasks) do
 		if t.properties.id == task_id then
@@ -403,7 +406,7 @@ function M.move_task(board, task_id, target_column_name)
 			break
 		end
 	end
-	
+
 	-- Update task properties based on column
 	local timestamp_map = {
 		["Ready"] = "ready",
@@ -412,12 +415,12 @@ function M.move_task(board, task_id, target_column_name)
 		["Done"] = "done",
 		["__ARCHIVE__"] = "archived"
 	}
-	
+
 	local timestamp_key = timestamp_map[target_column_name]
 	if timestamp_key and not task.properties[timestamp_key] then
 		task.properties[timestamp_key] = os.time()
 	end
-	
+
 	-- Update completion status for Done column
 	if target_column_name == "Done" or target_column_name == "__ARCHIVE__" then
 		task.complete = true
@@ -426,13 +429,13 @@ function M.move_task(board, task_id, target_column_name)
 		task.complete = false
 		task.properties.done = nil
 	end
-	
+
 	-- Update task's column reference
 	task.column = target_column_name
-	
+
 	-- Add to target
 	table.insert(target_column.tasks, task)
-	
+
 	return true
 end
 
@@ -440,7 +443,7 @@ end
 function M.archive_done_tasks(board, older_than_days)
 	older_than_days = older_than_days or 0
 	local cutoff_time = os.time() - (older_than_days * 86400)
-	
+
 	-- Ensure archive exists
 	if not board.archive then
 		board.archive = {
@@ -450,16 +453,16 @@ function M.archive_done_tasks(board, older_than_days)
 			is_archive = true,
 		}
 	end
-	
+
 	local archived_count = 0
-	
+
 	-- Check all columns for completed tasks
 	for _, column in ipairs(board.columns) do
 		local tasks_to_keep = {}
-		
+
 		for _, task in ipairs(column.tasks) do
 			local should_archive = false
-			
+
 			if task.complete then
 				if older_than_days > 0 then
 					-- Check if old enough
@@ -472,7 +475,7 @@ function M.archive_done_tasks(board, older_than_days)
 					should_archive = true
 				end
 			end
-			
+
 			if should_archive then
 				-- Add archived timestamp
 				task.properties.archived = os.time()
@@ -482,10 +485,10 @@ function M.archive_done_tasks(board, older_than_days)
 				table.insert(tasks_to_keep, task)
 			end
 		end
-		
+
 		column.tasks = tasks_to_keep
 	end
-	
+
 	return archived_count
 end
 if _G._TEST then

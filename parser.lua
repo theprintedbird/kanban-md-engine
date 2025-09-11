@@ -29,6 +29,51 @@ local patterns = {
 	stats_section = "^##%s+__STATS__",
 }
 
+-- Convert ISO timestamp to epoch (Unix timestamp)
+local function iso_to_epoch(iso_string)
+	-- Parse ISO format: YYYY-MM-DDTHH:MM:SSZ
+	local year, month, day, hour, min, sec = iso_string:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)Z")
+	if not year then
+		-- Try simple date format: YYYY-MM-DD
+		year, month, day = iso_string:match("(%d+)-(%d+)-(%d+)")
+		if not year then
+			return nil -- Not a recognized format
+		end
+		hour, min, sec = 0, 0, 0 -- Default to start of day
+	end
+	
+	-- Convert to numbers
+	year, month, day = tonumber(year), tonumber(month), tonumber(day)
+	hour, min, sec = tonumber(hour), tonumber(min), tonumber(sec)
+	
+	-- Manual calculation using POSIX formula for UTC time
+	-- This avoids timezone issues with os.time()
+	
+	-- Days since Jan 1, 1970
+	local function is_leap_year(y)
+		return (y % 4 == 0 and y % 100 ~= 0) or (y % 400 == 0)
+	end
+	
+	local days = 0
+	for y = 1970, year - 1 do
+		days = days + (is_leap_year(y) and 366 or 365)
+	end
+	
+	local days_in_month = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+	if is_leap_year(year) then
+		days_in_month[2] = 29
+	end
+	
+	for m = 1, month - 1 do
+		days = days + days_in_month[m]
+	end
+	
+	days = days + day - 1 -- day is 1-based
+	
+	-- Convert to seconds
+	return days * 86400 + hour * 3600 + min * 60 + sec
+end
+
 -- Parse properties from a comment string
 local function parse_properties(comment_text)
 	local props = {}
@@ -77,6 +122,15 @@ local function parse_properties(comment_text)
 		elseif value:match("^%d+%.%d+$") then
 			-- Float
 			props[key] = tonumber(value)
+		elseif value:match("^%d%d%d%d%-%d%d%-%d%d") then
+			-- ISO timestamp (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SSZ) - convert to epoch
+			local epoch = iso_to_epoch(value)
+			if epoch then
+				props[key] = epoch
+			else
+				-- Fallback to string if parsing fails
+				props[key] = value
+			end
 		elseif value:lower() == "true" then
 			props[key] = true
 		elseif value:lower() == "false" then

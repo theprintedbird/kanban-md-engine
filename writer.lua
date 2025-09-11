@@ -214,9 +214,14 @@ function M.write(board)
 		end
 	end
 	
+	-- Add blank line before columns section if we have columns
+	if board.columns and #board.columns > 0 and config.blank_lines_between_sections then
+		table.insert(lines, "")
+	end
+	
 	-- Regular columns
 	for i, column in ipairs(board.columns or {}) do
-		if i > 1 or config.blank_lines_between_sections then
+		if i > 1 and config.blank_lines_between_sections then
 			table.insert(lines, "")
 		end
 		
@@ -482,6 +487,11 @@ function M.archive_done_tasks(board, older_than_days)
 	end
 	
 	return archived_count
+end
+if _G._TEST then
+  M._private = {
+    config = config,
+  }
 end
 
 return M

@@ -55,6 +55,24 @@ function M.setup(opts)
 	config = vim.tbl_extend("force", config, opts or {})
 end
 
+-- Helper function to derive column flow from board structure
+-- TODO integrate this in place of column_flow. When should it be called?
+local function get_column_flow(board)
+	local flow = {}
+
+	-- Add all regular columns in order
+	for _, column in ipairs(board.columns) do
+		table.insert(flow, column.name)
+	end
+
+	-- Archive is always last if it exists
+	if board.archive then
+		table.insert(flow, "__ARCHIVE__")
+	end
+
+	return flow
+end
+
 -- Helper: Get current board from buffer
 local function get_current_board(bufnr)
 	bufnr = bufnr or vim.api.nvim_get_current_buf()
@@ -371,21 +389,24 @@ function M.move_task_forward()
 		return
 	end
 
+	-- Use board structure for flow instead of hardcoded config
+	local flow = get_column_flow(board)
+	
 	-- Find next column in flow
 	local current_idx = nil
-	for i, col_name in ipairs(config.column_flow) do
+	for i, col_name in ipairs(flow) do
 		if col_name == column.name then
 			current_idx = i
 			break
 		end
 	end
 
-	if not current_idx or current_idx >= #config.column_flow then
+	if not current_idx or current_idx >= #flow then
 		vim.notify("Task is already in final column", vim.log.levels.WARN)
 		return
 	end
 
-	local next_column = config.column_flow[current_idx + 1]
+	local next_column = flow[current_idx + 1]
 	M.move_task(task.properties.id, next_column)
 end
 
@@ -399,9 +420,12 @@ function M.move_task_backward()
 		return
 	end
 
+	-- Use board structure for flow instead of hardcoded config
+	local flow = get_column_flow(board)
+	
 	-- Find previous column in flow
 	local current_idx = nil
-	for i, col_name in ipairs(config.column_flow) do
+	for i, col_name in ipairs(flow) do
 		if col_name == column.name then
 			current_idx = i
 			break
@@ -413,7 +437,7 @@ function M.move_task_backward()
 		return
 	end
 
-	local prev_column = config.column_flow[current_idx - 1]
+	local prev_column = flow[current_idx - 1]
 	M.move_task(task.properties.id, prev_column)
 end
 
@@ -796,6 +820,9 @@ function M.jump_to_column()
 		vim.api.nvim_win_set_cursor(0, { board.archive.line_number, 0 })
 	end
 end
+
+-- Expose get_column_flow for testing and external use
+M.get_column_flow = get_column_flow
 
 if _G._TEST then
   M._private = {

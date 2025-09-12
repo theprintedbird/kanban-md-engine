@@ -27,20 +27,20 @@ local config = {
 	-- WIP limit behavior
 	block_on_wip_exceeded = false,
 	warn_on_wip_exceeded = true,
-	
+
 	-- Auto-features
 	auto_timestamp = true,
 	auto_archive_after_days = 30,
 	auto_id = true,
-	
+
 	-- UI behavior
 	use_telescope = true,
 	use_input = true,  -- Use vim.ui.input/select
 	confirm_destructive = true,
-	
+
 	-- Default columns for new boards
 	default_columns = { "Backlog", "Ready", "In Progress", "Done" },
-	
+
 	-- Column progression (for smart movement)
 	column_flow = { "Backlog", "Ready", "In Progress", "Done", "__ARCHIVE__" },
 }
@@ -76,32 +76,32 @@ local function check_wip_limit(board, column_name)
 	if not column or not column.config.wip_limit then
 		return true, nil
 	end
-	
+
 	local current_wip = 0
 	for _, task in ipairs(column.tasks) do
 		if not task.complete then
 			current_wip = current_wip + 1
 		end
 	end
-	
+
 	if current_wip >= column.config.wip_limit then
 		local msg = string.format("WIP limit exceeded in %s: %d/%d", 
 			column_name, current_wip + 1, column.config.wip_limit)
-		
+
 		if config.block_on_wip_exceeded then
 			return false, msg
 		elseif config.warn_on_wip_exceeded then
 			vim.notify(msg, vim.log.levels.WARN)
 		end
 	end
-	
+
 	return true, nil
 end
 
 -- Helper: Get task under cursor
 local function get_task_under_cursor(board)
 	local line_num = vim.api.nvim_win_get_cursor(0)[1]
-	
+
 	-- Find task at current line
 	for _, column in ipairs(board.columns) do
 		for _, task in ipairs(column.tasks) do
@@ -110,7 +110,7 @@ local function get_task_under_cursor(board)
 			end
 		end
 	end
-	
+
 	-- Check archive
 	if board.archive then
 		for _, task in ipairs(board.archive.tasks) do
@@ -119,7 +119,7 @@ local function get_task_under_cursor(board)
 			end
 		end
 	end
-	
+
 	return nil, nil
 end
 
@@ -132,7 +132,7 @@ local function select_from_list(items, prompt, format_fn)
 		local conf = require("telescope.config").values
 		local actions = require("telescope.actions")
 		local action_state = require("telescope.actions.state")
-		
+
 		pickers.new({}, {
 			prompt_title = prompt,
 			finder = finders.new_table {
@@ -157,7 +157,7 @@ local function select_from_list(items, prompt, format_fn)
 				return true
 			end,
 		}):find()
-		
+
 		-- Wait for selection
 		M._select_coroutine = coroutine.running()
 		return coroutine.yield()
@@ -167,7 +167,7 @@ local function select_from_list(items, prompt, format_fn)
 		for _, item in ipairs(items) do
 			table.insert(formatted_items, format_fn and format_fn(item) or tostring(item))
 		end
-		
+
 		local choice = nil
 		vim.ui.select(formatted_items, {
 			prompt = prompt,
@@ -176,7 +176,7 @@ local function select_from_list(items, prompt, format_fn)
 				choice = items[idx]
 			end
 		end)
-		
+
 		-- Wait for vim.ui.select to complete
 		vim.wait(1000, function() return choice ~= nil end, 10)
 		return choice
@@ -188,49 +188,49 @@ function M.create_board()
 	-- Get board name
 	local board_name = vim.fn.input("Board name: ", "New Board")
 	if board_name == "" then return end
-	
+
 	-- Create board structure
 	local lines = { "# " .. board_name, "" }
-	
+
 	-- Add default configuration
 	table.insert(lines, "<!-- kanban:config")
 	table.insert(lines, "wip_limit: 10")
 	table.insert(lines, "cycle_time_unit: days")
 	table.insert(lines, "-->")
 	table.insert(lines, "")
-	
+
 	-- Add default columns
 	for _, column_name in ipairs(config.default_columns) do
 		table.insert(lines, "## " .. column_name)
-		
+
 		-- Add WIP limit for certain columns
 		if column_name == "In Progress" or column_name == "Ready" then
 			table.insert(lines, "<!-- column:config wip_limit: 3 -->")
 		end
-		
+
 		table.insert(lines, "")
 	end
-	
+
 	-- Add archive section
 	table.insert(lines, "## __ARCHIVE__")
 	table.insert(lines, "<!-- Completed tasks older than 30 days -->")
-	
+
 	-- Create new buffer or use current
 	local bufnr = vim.api.nvim_get_current_buf()
 	local buf_name = vim.api.nvim_buf_get_name(bufnr)
-	
+
 	if buf_name ~= "" then
 		-- Current buffer has a file, create new buffer
 		vim.cmd("enew")
 		bufnr = vim.api.nvim_get_current_buf()
 	end
-	
+
 	-- Set content
 	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-	
+
 	-- Set filetype
 	vim.api.nvim_buf_set_option(bufnr, "filetype", "markdown")
-	
+
 	vim.notify("Created board: " .. board_name, vim.log.levels.INFO)
 end
 
@@ -238,7 +238,7 @@ end
 function M.create_task(column_name)
 	local board = get_current_board()
 	save_undo_state(board)
-	
+
 	-- If no column specified, show selector
 	if not column_name then
 		local columns = {}
@@ -248,41 +248,41 @@ function M.create_task(column_name)
 				table.insert(columns, col.name)
 			end
 		end
-		
+
 		column_name = select_from_list(columns, "Select column for new task")
 		if not column_name then return end
 	end
-	
+
 	-- Check WIP limit
 	local can_add, msg = check_wip_limit(board, column_name)
 	if not can_add then
 		vim.notify(msg, vim.log.levels.ERROR)
 		return
 	end
-	
+
 	-- Get task description
 	local task_text = vim.fn.input("Task description: ")
 	if task_text == "" then return end
-	
+
 	-- Get optional complexity
 	local complexity = vim.fn.input("Complexity (1-5, or Enter to skip): ")
 	local properties = {}
 	if complexity ~= "" then
 		properties.complexity = tonumber(complexity) or 1
 	end
-	
+
 	-- Add timestamp
 	if config.auto_timestamp then
 		properties.created = os.time()
 	end
-	
+
 	-- Create the task
 	local new_task = writer.append_task_to_column(board, column_name, task_text, properties)
-	
+
 	if new_task then
 		-- Write to buffer
 		writer.write_to_buffer(board)
-		
+
 		-- Find and jump to the new task
 		local new_board = get_current_board()
 		for _, col in ipairs(new_board.columns) do
@@ -297,7 +297,7 @@ function M.create_task(column_name)
 				end
 			end
 		end
-		
+
 		vim.notify("Created task in " .. column_name, vim.log.levels.INFO)
 	end
 end
@@ -306,7 +306,7 @@ end
 function M.move_task(task_id, target_column)
 	local board = get_current_board()
 	save_undo_state(board)
-	
+
 	-- If no task specified, use task under cursor
 	if not task_id then
 		local task, column = get_task_under_cursor(board)
@@ -316,14 +316,14 @@ function M.move_task(task_id, target_column)
 		end
 		task_id = task.properties.id
 	end
-	
+
 	-- Find the task
 	local task, source_column = parser.find_task(board, task_id)
 	if not task then
 		vim.notify("Task not found", vim.log.levels.ERROR)
 		return
 	end
-	
+
 	-- If no target specified, show selector
 	if not target_column then
 		local columns = {}
@@ -332,27 +332,27 @@ function M.move_task(task_id, target_column)
 				table.insert(columns, col.name)
 			end
 		end
-		
+
 		-- Add archive if task is complete
 		if task.complete and not source_column.is_archive then
 			table.insert(columns, "__ARCHIVE__")
 		end
-		
+
 		target_column = select_from_list(columns, 
 			string.format("Move '%s' to:", task.text:sub(1, 30)))
 		if not target_column then return end
 	end
-	
+
 	-- Check WIP limit
 	local can_move, msg = check_wip_limit(board, target_column)
 	if not can_move then
 		vim.notify(msg, vim.log.levels.ERROR)
 		return
 	end
-	
+
 	-- Perform the move
 	local success, err = writer.move_task(board, task_id, target_column)
-	
+
 	if success then
 		writer.write_to_buffer(board)
 		vim.notify(string.format("Moved task to %s", target_column), vim.log.levels.INFO)
@@ -365,12 +365,12 @@ end
 function M.move_task_forward()
 	local board = get_current_board()
 	local task, column = get_task_under_cursor(board)
-	
+
 	if not task then
 		vim.notify("No task under cursor", vim.log.levels.ERROR)
 		return
 	end
-	
+
 	-- Find next column in flow
 	local current_idx = nil
 	for i, col_name in ipairs(config.column_flow) do
@@ -379,12 +379,12 @@ function M.move_task_forward()
 			break
 		end
 	end
-	
+
 	if not current_idx or current_idx >= #config.column_flow then
 		vim.notify("Task is already in final column", vim.log.levels.WARN)
 		return
 	end
-	
+
 	local next_column = config.column_flow[current_idx + 1]
 	M.move_task(task.properties.id, next_column)
 end
@@ -393,12 +393,12 @@ end
 function M.move_task_backward()
 	local board = get_current_board()
 	local task, column = get_task_under_cursor(board)
-	
+
 	if not task then
 		vim.notify("No task under cursor", vim.log.levels.ERROR)
 		return
 	end
-	
+
 	-- Find previous column in flow
 	local current_idx = nil
 	for i, col_name in ipairs(config.column_flow) do
@@ -407,12 +407,12 @@ function M.move_task_backward()
 			break
 		end
 	end
-	
+
 	if not current_idx or current_idx <= 1 then
 		vim.notify("Task is already in first column", vim.log.levels.WARN)
 		return
 	end
-	
+
 	local prev_column = config.column_flow[current_idx - 1]
 	M.move_task(task.properties.id, prev_column)
 end
@@ -421,17 +421,17 @@ end
 function M.toggle_task_complete()
 	local board = get_current_board()
 	local task, column = get_task_under_cursor(board)
-	
+
 	if not task then
 		vim.notify("No task under cursor", vim.log.levels.ERROR)
 		return
 	end
-	
+
 	save_undo_state(board)
-	
+
 	-- Toggle completion
 	task.complete = not task.complete
-	
+
 	-- Update timestamps
 	if config.auto_timestamp then
 		if task.complete then
@@ -440,10 +440,10 @@ function M.toggle_task_complete()
 			task.properties.done = nil
 		end
 	end
-	
+
 	-- Update just this task
 	writer.update_task_in_buffer(board, task.properties.id)
-	
+
 	local status = task.complete and "completed" or "uncompleted"
 	vim.notify("Task " .. status, vim.log.levels.INFO)
 end
@@ -451,7 +451,7 @@ end
 -- Action: Delete task
 function M.delete_task(task_id)
 	local board = get_current_board()
-	
+
 	-- If no task specified, use task under cursor
 	if not task_id then
 		local task, column = get_task_under_cursor(board)
@@ -460,7 +460,7 @@ function M.delete_task(task_id)
 			return
 		end
 		task_id = task.properties.id
-		
+
 		-- Confirm deletion
 		if config.confirm_destructive then
 			local confirm = vim.fn.input(
@@ -471,9 +471,9 @@ function M.delete_task(task_id)
 			end
 		end
 	end
-	
+
 	save_undo_state(board)
-	
+
 	-- Find and remove the task
 	local found = false
 	for _, column in ipairs(board.columns) do
@@ -486,7 +486,7 @@ function M.delete_task(task_id)
 		end
 		if found then break end
 	end
-	
+
 	-- Check archive
 	if not found and board.archive then
 		for i, task in ipairs(board.archive.tasks) do
@@ -497,7 +497,7 @@ function M.delete_task(task_id)
 			end
 		end
 	end
-	
+
 	if found then
 		writer.write_to_buffer(board)
 		vim.notify("Task deleted", vim.log.levels.INFO)
@@ -510,11 +510,11 @@ end
 function M.archive_done_tasks(older_than_days)
 	local board = get_current_board()
 	save_undo_state(board)
-	
+
 	older_than_days = older_than_days or config.auto_archive_after_days or 0
-	
+
 	local count = writer.archive_done_tasks(board, older_than_days)
-	
+
 	if count > 0 then
 		writer.write_to_buffer(board)
 		vim.notify(string.format("Archived %d task(s)", count), vim.log.levels.INFO)
@@ -527,14 +527,14 @@ end
 function M.edit_task()
 	local board = get_current_board()
 	local task, column = get_task_under_cursor(board)
-	
+
 	if not task then
 		vim.notify("No task under cursor", vim.log.levels.ERROR)
 		return
 	end
-	
+
 	save_undo_state(board)
-	
+
 	-- Edit task text
 	local new_text = vim.fn.input("Edit task: ", task.text)
 	if new_text ~= "" and new_text ~= task.text then
@@ -548,34 +548,34 @@ end
 function M.edit_task_property()
 	local board = get_current_board()
 	local task, column = get_task_under_cursor(board)
-	
+
 	if not task then
 		vim.notify("No task under cursor", vim.log.levels.ERROR)
 		return
 	end
-	
+
 	save_undo_state(board)
-	
+
 	-- Select property to edit
 	local properties = { "complexity", "assignee", "tags", "blocker", "custom..." }
 	local prop = select_from_list(properties, "Select property to edit")
-	
+
 	if not prop then return end
-	
+
 	if prop == "custom..." then
 		prop = vim.fn.input("Property name: ")
 		if prop == "" then return end
 	end
-	
+
 	-- Get current value
 	local current = task.properties[prop] or ""
 	if type(current) == "table" then
 		current = table.concat(current, ", ")
 	end
-	
+
 	-- Get new value
 	local new_value = vim.fn.input(string.format("Set %s: ", prop), tostring(current))
-	
+
 	if new_value ~= "" then
 		-- Parse value type
 		if prop == "tags" and new_value:match(",") then
@@ -598,7 +598,7 @@ function M.edit_task_property()
 		-- Remove property
 		task.properties[prop] = nil
 	end
-	
+
 	writer.update_task_in_buffer(board, task.properties.id)
 	vim.notify("Property updated", vim.log.levels.INFO)
 end
@@ -607,12 +607,12 @@ end
 function M.show_task_details()
 	local board = get_current_board()
 	local task, column = get_task_under_cursor(board)
-	
+
 	if not task then
 		vim.notify("No task under cursor", vim.log.levels.ERROR)
 		return
 	end
-	
+
 	local details = {
 		"Task: " .. task.text,
 		"Column: " .. column.name,
@@ -621,7 +621,7 @@ function M.show_task_details()
 		"",
 		"Properties:",
 	}
-	
+
 	-- Add properties
 	for key, value in pairs(task.properties) do
 		local formatted_value = value
@@ -633,22 +633,22 @@ function M.show_task_details()
 		end
 		table.insert(details, string.format("  %s: %s", key, formatted_value))
 	end
-	
+
 	-- Calculate cycle time if applicable
 	if task.properties.created and task.properties.done then
 		local cycle_time = (task.properties.done - task.properties.created) / 86400
 		table.insert(details, "")
 		table.insert(details, string.format("Cycle time: %.1f days", cycle_time))
 	end
-	
+
 	-- Show in floating window
 	local buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, details)
 	vim.api.nvim_buf_set_option(buf, "modifiable", false)
-	
+
 	local width = 50
 	local height = #details
-	
+
 	local opts = {
 		relative = "cursor",
 		width = width,
@@ -660,9 +660,9 @@ function M.show_task_details()
 		title = " Task Details ",
 		title_pos = "center",
 	}
-	
+
 	local win = vim.api.nvim_open_win(buf, false, opts)
-	
+
 	-- Close on any key press
 	vim.api.nvim_buf_set_keymap(buf, "n", "<Esc>", 
 		":close<CR>", { noremap = true, silent = true })
@@ -673,12 +673,12 @@ end
 -- Action: Filter tasks
 function M.filter_tasks(filter)
 	local board = get_current_board()
-	
+
 	if not filter then
 		filter = vim.fn.input("Filter (tag:backend, assignee:john, etc.): ")
 		if filter == "" then return end
 	end
-	
+
 	-- Parse filter
 	local key, value = filter:match("(%w+):(.+)")
 	if not key then
@@ -686,14 +686,14 @@ function M.filter_tasks(filter)
 		key = "text"
 		value = filter
 	end
-	
+
 	-- Find matching tasks
 	local matches = {}
-	
+
 	local check_column = function(column)
 		for _, task in ipairs(column.tasks) do
 			local match = false
-			
+
 			if key == "text" then
 				match = task.text:lower():match(value:lower())
 			elseif key == "tag" or key == "tags" then
@@ -716,7 +716,7 @@ function M.filter_tasks(filter)
 					end
 				end
 			end
-			
+
 			if match then
 				table.insert(matches, {
 					task = task,
@@ -726,7 +726,7 @@ function M.filter_tasks(filter)
 			end
 		end
 	end
-	
+
 	-- Check all columns
 	for _, column in ipairs(board.columns) do
 		check_column(column)
@@ -734,13 +734,13 @@ function M.filter_tasks(filter)
 	if board.archive then
 		check_column(board.archive)
 	end
-	
+
 	-- Show results
 	if #matches == 0 then
 		vim.notify("No tasks match filter", vim.log.levels.INFO)
 		return
 	end
-	
+
 	-- Use quickfix list
 	local qf_items = {}
 	for _, match in ipairs(matches) do
@@ -751,7 +751,7 @@ function M.filter_tasks(filter)
 			text = string.format("[%s] %s", match.column, match.task.text),
 		})
 	end
-	
+
 	vim.fn.setqflist(qf_items, "r")
 	vim.cmd("copen")
 	vim.notify(string.format("Found %d matching task(s)", #matches), vim.log.levels.INFO)
@@ -763,7 +763,7 @@ function M.undo()
 		vim.notify("Nothing to undo", vim.log.levels.INFO)
 		return
 	end
-	
+
 	local previous_state = table.remove(undo_stack)
 	writer.write_to_buffer(previous_state)
 	vim.notify("Undone last action", vim.log.levels.INFO)
@@ -772,7 +772,7 @@ end
 -- Action: Jump to column
 function M.jump_to_column()
 	local board = get_current_board()
-	
+
 	local columns = {}
 	for _, col in ipairs(board.columns) do
 		table.insert(columns, col.name)
@@ -780,10 +780,10 @@ function M.jump_to_column()
 	if board.archive then
 		table.insert(columns, "__ARCHIVE__")
 	end
-	
+
 	local column_name = select_from_list(columns, "Jump to column")
 	if not column_name then return end
-	
+
 	-- Find column line number
 	for _, col in ipairs(board.columns) do
 		if col.name == column_name and col.line_number then
@@ -791,7 +791,7 @@ function M.jump_to_column()
 			return
 		end
 	end
-	
+
 	if board.archive and column_name == "__ARCHIVE__" and board.archive.line_number then
 		vim.api.nvim_win_set_cursor(0, { board.archive.line_number, 0 })
 	end

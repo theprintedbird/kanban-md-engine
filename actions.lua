@@ -797,4 +797,11 @@ function M.jump_to_column()
 	end
 end
 
+if _G._TEST then
+  M._private = {
+		get_current_board = get_current_board,
+    get_task_under_cursor = get_task_under_cursor,
+  }
+end
+
 return M

@@ -3,37 +3,44 @@
 
 local M = {}
 
--- Configuration for output formatting
-local config = {
-	-- Indentation
-	task_indent = "",
+-- Dependencies
+local config_module = require("kanban-md.config")
+local helpers = require("kanban-md.helpers")
+local triggers_module = require("kanban-md.actions.triggers")
+local add_timestamp = function(task)
+	-- Normalize column name to valid property name
+	local normalize_column_name = function(column_name)
+		-- Special case for archive
+		if column_name == "__ARCHIVE__" then
+			return "archived"
+		end
 
-	-- Spacing
-	blank_lines_between_sections = true,
-	blank_line_after_title = true,
-	blank_line_after_config = false,
+		-- Convert to lowercase and replace spaces/special chars with underscores
+		return column_name:lower():gsub("[^%w_]", "_")
+	end
+	-- Add timestamp for the target column (always add, allowing multiple visits)
+	local timestamp_key = normalize_column_name(task.column)
+	task.properties[timestamp_key] = os.time()
+	return task
+end
 
-	-- Property formatting
-	property_separator = ", ",
-	wrap_properties_at = 80,  -- Wrap long property lists
+triggers_module.register_trigger("card_moved", "add_timestamp", add_timestamp)
+triggers_module.register_trigger("card_created", "add_timestamp", add_timestamp)
 
-	-- Timestamp formatting
-	timestamp_format = "epoch",  -- "epoch", "iso", "date"
 
-	-- Comment style
-	use_multiline_comments = false,  -- Use multi-line for long comments
-	multiline_threshold = 100,  -- Characters before switching to multi-line
-}
-
--- Set configuration
+-- Set configuration (deprecated - use config_module.setup instead)
 function M.setup(opts)
-	config = vim.tbl_extend("force", config, opts or {})
+	-- For backward compatibility, pass to config module
+	if opts then
+		config_module.setup(opts)
+	end
 end
 
 -- Format a timestamp based on config
 local function format_timestamp(timestamp)
 	if not timestamp then return nil end
 
+	local config = config_module.get()
 	if config.timestamp_format == "iso" then
 		return os.date("!%Y-%m-%dT%H:%M:%SZ", timestamp)
 	elseif config.timestamp_format == "date" then
@@ -93,6 +100,7 @@ local function properties_to_comment(properties, prefix)
 		end
 	end
 
+	local config = config_module.get()
 	local content = table.concat(parts, config.property_separator)
 
 	-- Decide on single-line vs multi-line comment
@@ -112,8 +120,11 @@ local function properties_to_comment(properties, prefix)
 end
 
 -- Write a task line
-local function write_task(task)
-	local checkbox = task.complete and "[x]" or "[ ]"
+local function write_task(task, column_name)
+	local config = config_module.get()
+	-- Determine completion based on column or done timestamp
+	local is_completed = (column_name == "Done") or task.properties.done
+	local checkbox = is_completed and "[x]" or "[ ]"
 	local line = string.format("%s- %s %s", config.task_indent, checkbox, task.text)
 
 	-- Add properties as inline comment if present
@@ -174,7 +185,7 @@ local function write_column(column)
 
 	-- Tasks
 	for _, task in ipairs(column.tasks or {}) do
-		local task_output = write_task(task)
+		local task_output = write_task(task, column.name)
 		if type(task_output) == "table" then
 			for _, line in ipairs(task_output) do
 				table.insert(lines, line)
@@ -189,6 +200,7 @@ end
 
 -- Main writer function
 function M.write(board)
+	local config = config_module.get()
 	local lines = {}
 
 	-- Board title
@@ -315,14 +327,14 @@ function M.update_task_in_buffer(board, task_id, bufnr)
 
 	-- Find the task in the board
 	local parser = require("kanban-md.parser")
-	local task, _column = parser.find_task(board, task_id)
+	local task, column = parser.find_task(board, task_id)
 
 	if not task or not task.line_number then
 		return false, "Task not found or missing line number"
 	end
 
 	-- Generate the updated task line
-	local updated_line = write_task(task)
+	local updated_line = write_task(task, column.name)
 
 	if type(updated_line) == "table" then
 		-- Multi-line (shouldn't happen often for tasks)
@@ -359,19 +371,17 @@ function M.append_task_to_column(board, column_name, task_text, properties)
 		column = column_name,
 	}
 
-	-- Generate ID if not provided
-	if not new_task.properties.id then
-		local id_source = task_text .. os.time()
-		local hash = 0
-		for i = 1, #id_source do
-			hash = (hash * 31 + string.byte(id_source, i)) % 0x100000000
-		end
-		new_task.properties.id = string.format("%08x", hash)
+	-- Get configuration
+	local config = config_module.get()
+
+	-- Generate ID if enabled in config
+	if config.auto_id then
+		new_task = helpers.generate_id(new_task)
 	end
 
-	-- Add created timestamp if not provided
-	if not new_task.properties.created then
-		new_task.properties.created = os.time()
+	-- Add timestamp if enabled in config
+	if config.auto_timestamp then
+		triggers_module.call_trigger("card_created", "add_timestamp", new_task)
 	end
 
 	-- Add to column
@@ -379,6 +389,7 @@ function M.append_task_to_column(board, column_name, task_text, properties)
 
 	return new_task
 end
+
 
 -- Move a task between columns
 function M.move_task(board, task_id, target_column_name)
@@ -407,33 +418,14 @@ function M.move_task(board, task_id, target_column_name)
 		end
 	end
 
-	-- Update task properties based on column
-	local timestamp_map = {
-		["Ready"] = "ready",
-		["In Progress"] = "started",
-		["Doing"] = "started",
-		["Done"] = "done",
-		["__ARCHIVE__"] = "archived"
-	}
-
-	local timestamp_key = timestamp_map[target_column_name]
-	if timestamp_key and not task.properties[timestamp_key] then
-		task.properties[timestamp_key] = os.time()
-	end
-
-	-- Update completion status for Done column
-	if target_column_name == "Done" or target_column_name == "__ARCHIVE__" then
-		task.complete = true
-	elseif source_column.name == "Done" and target_column_name ~= "__ARCHIVE__" then
-		-- Moving backwards from Done
-		task.complete = false
-		task.properties.done = nil
-	end
-
 	-- Update task's column reference
 	task.column = target_column_name
 
+	-- TODO run all triggers
+	triggers_module.call_trigger("card_moved", "add_timestamp", task)
+
 	-- Add to target
+	-- TODO make target_column an object so that triggers can be set on it
 	table.insert(target_column.tasks, task)
 
 	return true
@@ -441,6 +433,7 @@ end
 
 -- Archive completed tasks
 function M.archive_done_tasks(board, older_than_days)
+	-- TODO create trigger and config setting for this
 	older_than_days = older_than_days or 0
 	local cutoff_time = os.time() - (older_than_days * 86400)
 
@@ -463,9 +456,15 @@ function M.archive_done_tasks(board, older_than_days)
 		for _, task in ipairs(column.tasks) do
 			local should_archive = false
 
-			if task.complete then
+			-- Task is completed if in Done column or has done timestamp
+			-- TOOD fix this so it either uses the column type of "completed"
+			--      or it checks if it's the last column before the specials.
+			local is_completed = column.name == "Done" or task.properties.done
+
+			if is_completed then
 				if older_than_days > 0 then
 					-- Check if old enough
+					-- TODO generalise, using non "done" or "created"
 					local done_time = task.properties.done or task.properties.created or 0
 					if done_time < cutoff_time then
 						should_archive = true
@@ -478,7 +477,11 @@ function M.archive_done_tasks(board, older_than_days)
 
 			if should_archive then
 				-- Add archived timestamp
-				task.properties.archived = os.time()
+				-- TODO replace with general timestamp update
+				-- Update task's column reference
+				task.column = "__ARCHIVE__"
+				triggers_module.call_trigger("card_moved", "add_timestamp", task)
+				-- TODO when columns get triggers, move trigger to there
 				table.insert(board.archive.tasks, task)
 				archived_count = archived_count + 1
 			else

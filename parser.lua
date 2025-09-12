@@ -1,6 +1,7 @@
 -- lua/user/kanban-md/parser.lua
 -- Parser for Markdown Kanban boards
 
+local helpers = require("kanban-md.helpers")
 local M = {}
 
 -- Patterns for parsing
@@ -160,7 +161,6 @@ end
 -- Parse a task line and extract properties
 local function parse_task(line, is_complete)
 	local task = {
-		complete = is_complete,
 		text = "",
 		properties = {},
 		raw = line,
@@ -190,15 +190,7 @@ local function parse_task(line, is_complete)
 	end
 
 	-- Generate ID if not present
-	if not task.properties.id then
-		-- Simple ID generation based on text hash and timestamp
-		local id_source = task.text .. os.time()
-		local hash = 0
-		for i = 1, #id_source do
-			hash = (hash * 31 + string.byte(id_source, i)) % 0x100000000
-		end
-		task.properties.id = string.format("%08x", hash)
-	end
+	task = helpers.generate_id(task)
 
 	return task
 end
@@ -396,12 +388,15 @@ function M.calculate_stats(board)
 		for _, task in ipairs(column.tasks) do
 			stats.total_tasks = stats.total_tasks + 1
 
-			if not task.complete then
+			-- Task is completed if in Done column or has done timestamp
+			local is_completed = column.name == "Done" or task.properties.done
+
+			if not is_completed then
 				wip_count = wip_count + 1
 				stats.in_progress_tasks = stats.in_progress_tasks + 1
 			end
 
-			if task.complete then
+			if is_completed then
 				stats.completed_tasks = stats.completed_tasks + 1
 
 				-- Calculate cycle time if timestamps exist
@@ -521,6 +516,7 @@ end
 
 -- Find a task by ID
 function M.find_task(board, task_id)
+	-- TODO guards
 	-- Search regular columns
 	for _, column in ipairs(board.columns) do
 		for _, task in ipairs(column.tasks) do

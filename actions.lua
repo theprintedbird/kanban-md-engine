@@ -21,42 +21,28 @@ local M = {}
 -- Dependencies
 local parser = require("kanban-md.parser")
 local writer = require("kanban-md.writer")
-
--- Configuration
-local config = {
-	-- WIP limit behavior
-	block_on_wip_exceeded = false,
-	warn_on_wip_exceeded = true,
-
-	-- Auto-features
-	auto_timestamp = true,
-	auto_archive_after_days = 30,
-	auto_id = true,
-
-	-- UI behavior
-	use_telescope = true,
-	use_input = true,  -- Use vim.ui.input/select
-	confirm_destructive = true,
-
-	-- Default columns for new boards
-	default_columns = { "Backlog", "Ready", "In Progress", "Done" },
-
-	-- Column progression (for smart movement)
-	column_flow = { "Backlog", "Ready", "In Progress", "Done", "__ARCHIVE__" },
-}
+local checker = require("kanban-md.actions.checker")
+local config_module = require("kanban-md.config")
 
 -- Local state
 local last_board = nil
 local undo_stack = {}
 local undo_limit = 50
 
--- Setup function
+-- Helper to get config
+local function get_config()
+	return config_module.get()
+end
+
+-- Setup function (deprecated - use config_module.setup instead)
 function M.setup(opts)
-	config = vim.tbl_extend("force", config, opts or {})
+	-- For backward compatibility, pass to config module
+	if opts then
+		config_module.setup(opts)
+	end
 end
 
 -- Helper function to derive column flow from board structure
--- TODO integrate this in place of column_flow. When should it be called?
 local function get_column_flow(board)
 	local flow = {}
 
@@ -88,33 +74,6 @@ local function save_undo_state(board)
 	end
 end
 
--- Helper: Check WIP limits
-local function check_wip_limit(board, column_name)
-	local column = parser.get_column(board, column_name)
-	if not column or not column.config.wip_limit then
-		return true, nil
-	end
-
-	local current_wip = 0
-	for _, task in ipairs(column.tasks) do
-		if not task.complete then
-			current_wip = current_wip + 1
-		end
-	end
-
-	if current_wip >= column.config.wip_limit then
-		local msg = string.format("WIP limit exceeded in %s: %d/%d", 
-			column_name, current_wip + 1, column.config.wip_limit)
-
-		if config.block_on_wip_exceeded then
-			return false, msg
-		elseif config.warn_on_wip_exceeded then
-			vim.notify(msg, vim.log.levels.WARN)
-		end
-	end
-
-	return true, nil
-end
 
 -- Helper: Get task under cursor
 local function get_task_under_cursor(board)
@@ -143,6 +102,7 @@ end
 
 -- Helper: Select from list
 local function select_from_list(items, prompt, format_fn)
+	local config = get_config()
 	if config.use_telescope and pcall(require, "telescope") then
 		-- Use telescope if available
 		local pickers = require("telescope.pickers")
@@ -218,6 +178,7 @@ function M.create_board()
 	table.insert(lines, "")
 
 	-- Add default columns
+	local config = get_config()
 	for _, column_name in ipairs(config.default_columns) do
 		table.insert(lines, "## " .. column_name)
 
@@ -253,6 +214,7 @@ function M.create_board()
 end
 
 -- Action: Create new task
+-- TODO use config setting for starting column, or use first column
 function M.create_task(column_name)
 	local board = get_current_board()
 	save_undo_state(board)
@@ -262,6 +224,7 @@ function M.create_task(column_name)
 		local columns = {}
 		for _, col in ipairs(board.columns) do
 			-- Skip Done column for new tasks
+			-- TODO remove hardcoded Done column
 			if col.name ~= "Done" then
 				table.insert(columns, col.name)
 			end
@@ -272,7 +235,9 @@ function M.create_task(column_name)
 	end
 
 	-- Check WIP limit
-	local can_add, msg = check_wip_limit(board, column_name)
+	-- TODO move to trigger
+	local config = get_config()
+	local can_add, msg = checker.check_wip_limit{board=board, column=column_name, config=config}
 	if not can_add then
 		vim.notify(msg, vim.log.levels.ERROR)
 		return
@@ -289,10 +254,6 @@ function M.create_task(column_name)
 		properties.complexity = tonumber(complexity) or 1
 	end
 
-	-- Add timestamp
-	if config.auto_timestamp then
-		properties.created = os.time()
-	end
 
 	-- Create the task
 	local new_task = writer.append_task_to_column(board, column_name, task_text, properties)
@@ -320,10 +281,53 @@ function M.create_task(column_name)
 	end
 end
 
--- Action: Move task
-function M.move_task(task_id, target_column)
-	local board = get_current_board()
+
+-- stub
+-- TODO replace this
+function M.decide_task(something, yes_no)
+end
+
+-- Enhanced movement function
+local function move_task_advanced(options)
+	local board = options.board or get_current_board()
 	save_undo_state(board)
+	local task_id = options.task_id
+	local target_column = options.target_column
+
+	local task, source_column = parser.find_task(board, task_id)
+
+	-- Check if move is allowed
+	local allowed, errors, warnings = checker.check_transition_rules(
+		board, task, source_column, target_column
+	)
+
+	if not allowed then
+		local error_msg = type(errors) == "table" and table.concat(errors, "; ") or errors
+		vim.notify("Cannot move task: " .. error_msg, vim.log.levels.ERROR)
+		return false, errors
+	end
+
+	-- Show warnings if any
+	if warnings then
+		if type(warnings) == "table" then
+			for _, warning in ipairs(warnings) do
+				vim.notify("Warning: " .. warning, vim.log.levels.WARN)
+			end
+		else
+			vim.notify("Warning: " .. warnings, vim.log.levels.WARN)
+		end
+	end
+
+	-- Proceed with move
+	return writer.move_task(board, task_id, target_column)
+end
+
+-- Action: Move task
+function M.move_task(options)
+	local board = options.board or get_current_board()
+	save_undo_state(board)
+	local task_id = options.task_id
+	local target_column = options.target_column
 
 	-- If no task specified, use task under cursor
 	if not task_id then
@@ -341,6 +345,10 @@ function M.move_task(task_id, target_column)
 		vim.notify("Task not found", vim.log.levels.ERROR)
 		return
 	end
+	if not source_column then
+		vim.notify("Source column for task " .. task_id .. " not found.")
+		return
+	end
 
 	-- If no target specified, show selector
 	if not target_column then
@@ -351,25 +359,26 @@ function M.move_task(task_id, target_column)
 			end
 		end
 
-		-- Add archive if task is complete
-		if task.complete and not source_column.is_archive then
+		-- Add archive option
+		if not source_column.is_archive then
 			table.insert(columns, "__ARCHIVE__")
 		end
 
-		target_column = select_from_list(columns, 
+		target_column = select_from_list(columns,
 			string.format("Move '%s' to:", task.text:sub(1, 30)))
 		if not target_column then return end
 	end
 
 	-- Check WIP limit
-	local can_move, msg = check_wip_limit(board, target_column)
+	local config = get_config()
+	local can_move, msg = checker.check_wip_limit{board=board, column=target_column, config=config}
 	if not can_move then
 		vim.notify(msg, vim.log.levels.ERROR)
 		return
 	end
 
 	-- Perform the move
-	local success, err = writer.move_task(board, task_id, target_column)
+	local success, err = move_task_advanced{board=board,task_id=task_id, target_column=target_column}
 
 	if success then
 		writer.write_to_buffer(board)
@@ -379,10 +388,20 @@ function M.move_task(task_id, target_column)
 	end
 end
 
+
 -- Action: Move task forward in workflow
-function M.move_task_forward()
-	local board = get_current_board()
-	local task, column = get_task_under_cursor(board)
+-- TODO think about replacing this with move_task_advanced
+function M.move_task_forward(options)
+	local board = options and options.board or get_current_board()
+	local task_id = options and options.task_id
+	local target_column = options and options.target_column
+	local task, source_column
+
+	if task_id then
+		task, source_column = parser.find_task(board, task_id)
+	else
+		task, source_column = get_task_under_cursor(board)
+	end
 
 	if not task then
 		vim.notify("No task under cursor", vim.log.levels.ERROR)
@@ -390,30 +409,41 @@ function M.move_task_forward()
 	end
 
 	-- Use board structure for flow instead of hardcoded config
-	local flow = get_column_flow(board)
-	
+
 	-- Find next column in flow
-	local current_idx = nil
-	for i, col_name in ipairs(flow) do
-		if col_name == column.name then
-			current_idx = i
-			break
+	if not target_column then
+		local flow = get_column_flow(board)
+		local current_idx = nil
+		for i, col_name in ipairs(flow) do
+			if col_name == source_column.name then
+				current_idx = i
+				break
+			end
 		end
+		if not current_idx or current_idx >= #flow then
+			vim.notify("Task is already in final column", vim.log.levels.WARN)
+			return
+		end
+
+		target_column = flow[current_idx + 1]
 	end
 
-	if not current_idx or current_idx >= #flow then
-		vim.notify("Task is already in final column", vim.log.levels.WARN)
-		return
-	end
-
-	local next_column = flow[current_idx + 1]
-	M.move_task(task.properties.id, next_column)
+	M.move_task({task_id = task.properties.id, target_column = target_column})
 end
 
 -- Action: Move task backward in workflow
-function M.move_task_backward()
-	local board = get_current_board()
-	local task, column = get_task_under_cursor(board)
+-- TODO think about replacing this with move_task_advanced
+function M.move_task_backward(options)
+	local board = options and options.board or get_current_board()
+	local task_id = options and options.task_id
+	local target_column = options and options.target_column
+	local task, source_column
+
+	if task_id then
+		task, source_column = parser.find_task(board, task_id)
+	else
+		task, source_column = get_task_under_cursor(board)
+	end
 
 	if not task then
 		vim.notify("No task under cursor", vim.log.levels.ERROR)
@@ -421,56 +451,28 @@ function M.move_task_backward()
 	end
 
 	-- Use board structure for flow instead of hardcoded config
-	local flow = get_column_flow(board)
+	if not target_column then
+		local flow = get_column_flow(board)
 	
-	-- Find previous column in flow
-	local current_idx = nil
-	for i, col_name in ipairs(flow) do
-		if col_name == column.name then
-			current_idx = i
-			break
+		-- Find previous column in flow
+		local current_idx = nil
+		for i, col_name in ipairs(flow) do
+			if col_name == source_column.name then
+				current_idx = i
+				break
+			end
 		end
-	end
 
-	if not current_idx or current_idx <= 1 then
-		vim.notify("Task is already in first column", vim.log.levels.WARN)
-		return
-	end
+		if not current_idx or current_idx <= 1 then
+			vim.notify("Task is already in first column", vim.log.levels.WARN)
+			return
+		end
 
-	local prev_column = flow[current_idx - 1]
-	M.move_task(task.properties.id, prev_column)
+		target_column = flow[current_idx - 1]
+	end
+	M.move_task({task_id = task.properties.id, target_column = target_column})
 end
 
--- Action: Complete/uncomplete task
-function M.toggle_task_complete()
-	local board = get_current_board()
-	local task, column = get_task_under_cursor(board)
-
-	if not task then
-		vim.notify("No task under cursor", vim.log.levels.ERROR)
-		return
-	end
-
-	save_undo_state(board)
-
-	-- Toggle completion
-	task.complete = not task.complete
-
-	-- Update timestamps
-	if config.auto_timestamp then
-		if task.complete then
-			task.properties.done = os.time()
-		else
-			task.properties.done = nil
-		end
-	end
-
-	-- Update just this task
-	writer.update_task_in_buffer(board, task.properties.id)
-
-	local status = task.complete and "completed" or "uncompleted"
-	vim.notify("Task " .. status, vim.log.levels.INFO)
-end
 
 -- Action: Delete task
 function M.delete_task(task_id)
@@ -486,6 +488,7 @@ function M.delete_task(task_id)
 		task_id = task.properties.id
 
 		-- Confirm deletion
+		local config = get_config()
 		if config.confirm_destructive then
 			local confirm = vim.fn.input(
 				string.format("Delete '%s'? (y/n): ", task.text:sub(1, 50))
@@ -535,6 +538,7 @@ function M.archive_done_tasks(older_than_days)
 	local board = get_current_board()
 	save_undo_state(board)
 
+	local config = get_config()
 	older_than_days = older_than_days or config.auto_archive_after_days or 0
 
 	local count = writer.archive_done_tasks(board, older_than_days)
@@ -640,7 +644,6 @@ function M.show_task_details()
 	local details = {
 		"Task: " .. task.text,
 		"Column: " .. column.name,
-		"Status: " .. (task.complete and "Complete" or "Incomplete"),
 		"ID: " .. (task.properties.id or "none"),
 		"",
 		"Properties:",
@@ -821,13 +824,13 @@ function M.jump_to_column()
 	end
 end
 
--- Expose get_column_flow for testing and external use
-M.get_column_flow = get_column_flow
 
 if _G._TEST then
   M._private = {
 		get_current_board = get_current_board,
     get_task_under_cursor = get_task_under_cursor,
+		move_task_advanced = move_task_advanced,
+		get_column_flow = get_column_flow,
   }
 end
 

@@ -5,14 +5,14 @@ local M = {}
 M.parser = require("kanban-md.parser")
 M.writer = require("kanban-md.writer")
 M.actions = require("kanban-md.actions")
+M.config = require("kanban-md.config")
 
 -- Setup function
 function M.setup(opts)
     opts = opts or {}
     
-    -- Configure modules
-    M.actions.setup(opts.actions or {})
-    M.writer.setup(opts.writer or {})
+    -- Configure centralized config with user options
+    M.config.setup(opts)
     
     -- Create commands
     vim.api.nvim_create_user_command("KanbanNewBoard", M.actions.create_board, {})
@@ -20,7 +20,6 @@ function M.setup(opts)
     vim.api.nvim_create_user_command("KanbanMoveTask", M.actions.move_task, {})
     vim.api.nvim_create_user_command("KanbanMoveForward", M.actions.move_task_forward, {})
     vim.api.nvim_create_user_command("KanbanMoveBackward", M.actions.move_task_backward, {})
-    vim.api.nvim_create_user_command("KanbanToggleComplete", M.actions.toggle_task_complete, {})
     vim.api.nvim_create_user_command("KanbanDeleteTask", M.actions.delete_task, {})
     vim.api.nvim_create_user_command("KanbanEditTask", M.actions.edit_task, {})
     vim.api.nvim_create_user_command("KanbanEditProperty", M.actions.edit_task_property, {})
@@ -45,7 +44,6 @@ function M.setup_keybindings()
         { "<leader>km", "<cmd>KanbanMoveTask<CR>", desc = "Move task" },
         { "<leader>kf", "<cmd>KanbanMoveForward<CR>", desc = "Move forward" },
         { "<leader>kF", "<cmd>KanbanMoveBackward<CR>", desc = "Move backward" },
-        { "<leader>kx", "<cmd>KanbanToggleComplete<CR>", desc = "Toggle complete" },
         { "<leader>kd", "<cmd>KanbanDeleteTask<CR>", desc = "Delete task" },
 				{ "<leader>ke", "<cmd>KanbanEditTask<CR>", desc = "Edit task" },
        { "<leader>kp", "<cmd>KanbanEditProperty<CR>", desc = "Edit property" },
@@ -67,9 +65,6 @@ function M.setup_keybindings()
            vim.keymap.set("n", "<M-Left>", "<cmd>KanbanMoveBackward<CR>", 
                { buffer = true, desc = "Move task backward" })
            
-           -- Quick complete toggle with Space
-           vim.keymap.set("n", "<leader><Space>", "<cmd>KanbanToggleComplete<CR>", 
-               { buffer = true, desc = "Toggle task complete" })
        end
    })
 end

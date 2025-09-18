@@ -17,8 +17,11 @@
 -- |card_prioritised| Reorder within column				| task			|
 -- |card_estimated	| Add/update complexity				| task			|
 -- |card_tagged			| Add tags for filtering			| task			|
--- |on_enter||
--- |on_exit||
+-- |on_enter				|General trigger for entering a column|task,column|
+-- |on_exit					|General trigger for exiting a column|task,column|
+-- |on_enter_COLUMN	| Specific triggers for column|task|
+-- |on_exit_COLUMN	| Specific triggers for column|task|
+
 
 local M = {}
 local triggers = {}
@@ -264,5 +267,44 @@ function M.list_triggers()
 	end
 end
 
+local add_timestamp = function(task)
+	-- Normalize column name to valid property name
+	local normalize_column_name = function(column_name)
+		-- Special case for archive
+		if column_name == "__ARCHIVE__" then
+			return "archived"
+		end
+
+		-- Convert to lowercase and replace spaces/special chars with underscores
+		return column_name:lower():gsub("[^%w_]", "_")
+	end
+	-- Add timestamp for the target column (always add, allowing multiple visits)
+	local timestamp_key = normalize_column_name(task.column)
+	task.properties[timestamp_key] = os.time()
+	return task
+end
+
+M.register_trigger("card_moved", "add_timestamp", add_timestamp)
+M.register_trigger("card_created", "add_timestamp", add_timestamp)
+
+-- assign_id - Generate unique ID for new tasks 
+-- M.register_trigger("card_created", "assign_id", add_timestamp)
+-- archive_task - Handle archiving logic when moved to archive
+-- M.register_trigger("card_created", "archive_task", add_timestamp)
+-- calculate_stats - Board-level statistics calculation
+-- M.register_trigger("card_created", "calculate_stats", add_timestamp)
+-- validate_wip_limits - Check and warn about WIP limit violations
+-- M.register_trigger("card_created", "validate_wip_limits", add_timestamp)
+-- soft_delete - Mark task as deleted before hard removal
+-- M.register_trigger("card_created", "soft_delete", add_timestamp)
+
+-- add_blocker - Add/update blocker property
+-- M.register_trigger("card_created", "add_blocker", add_timestamp)
+-- reorder_in_column - Handle task prioritization within column
+-- M.register_trigger("card_created", "reorder_in_column", add_timestamp)
+-- update_complexity - Add/update complexity estimates
+-- M.register_trigger("card_created", "update_complexity", add_timestamp)
+-- add_tags - Handle task tagging functionality
+-- M.register_trigger("card_created", "add_tags", add_timestamp)
 
 return M

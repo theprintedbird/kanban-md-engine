@@ -8,26 +8,6 @@ local config_module = require("kanban-md.config")
 local helpers = require("kanban-md.helpers")
 local triggers_module = require("kanban-md.actions.triggers")
 local checker = require("kanban-md.actions.checker")
-local add_timestamp = function(task)
-	-- Normalize column name to valid property name
-	local normalize_column_name = function(column_name)
-		-- Special case for archive
-		if column_name == "__ARCHIVE__" then
-			return "archived"
-		end
-
-		-- Convert to lowercase and replace spaces/special chars with underscores
-		return column_name:lower():gsub("[^%w_]", "_")
-	end
-	-- Add timestamp for the target column (always add, allowing multiple visits)
-	local timestamp_key = normalize_column_name(task.column)
-	task.properties[timestamp_key] = os.time()
-	return task
-end
-
-triggers_module.register_trigger("card_moved", "add_timestamp", add_timestamp)
-triggers_module.register_trigger("card_created", "add_timestamp", add_timestamp)
-
 
 -- Set configuration (deprecated - use config_module.setup instead)
 function M.setup(opts)
@@ -496,6 +476,8 @@ function M.archive_done_tasks(board, older_than_days)
 
 	return archived_count
 end
+
+
 if _G._TEST then
   M._private = {
     config = config,

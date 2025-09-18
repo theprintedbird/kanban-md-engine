@@ -26,7 +26,7 @@ local patterns = {
 
 	-- Special sections
 	archive_section = "^##%s+__ARCHIVE__",
-	stats_section = "^##%s+__STATS__",
+	stats_section = "^##%s+__STAT(ISTIC)?S__",
 }
 
 -- Convert ISO timestamp to epoch (Unix timestamp)

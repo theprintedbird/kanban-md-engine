@@ -2,6 +2,7 @@
 -- Parser for Markdown Kanban boards
 
 local helpers = require("kanban-md.helpers")
+local checker = require("kanban-md.actions.checker")
 local M = {}
 
 -- Patterns for parsing
@@ -379,8 +380,7 @@ function M.calculate_stats(board)
 			stats.total_tasks = stats.total_tasks + 1
 
 			-- Task is completed if in completion column or has done timestamp
-			local is_completed = (column.config and column.config.completion_column) or 
-			                    column.name == "Done" or task.properties.done
+			local is_completed = checker.is_completion_column(column, board) or task.properties.done
 
 			if not is_completed then
 				wip_count = wip_count + 1

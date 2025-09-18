@@ -7,6 +7,7 @@ local M = {}
 local config_module = require("kanban-md.config")
 local helpers = require("kanban-md.helpers")
 local triggers_module = require("kanban-md.actions.triggers")
+local checker = require("kanban-md.actions.checker")
 local add_timestamp = function(task)
 	-- Normalize column name to valid property name
 	local normalize_column_name = function(column_name)
@@ -453,10 +454,8 @@ function M.archive_done_tasks(board, older_than_days)
 		for _, task in ipairs(column.tasks) do
 			local should_archive = false
 
-			-- Task is completed if in Done column or has done timestamp
-			-- TOOD fix this so it either uses the column type of "completed"
-			--      or it checks if it's the last column before the specials.
-			local is_completed = column.name == "Done" or task.properties.done
+			-- Task is completed if in completion column or has done timestamp
+			local is_completed = checker.is_completion_column(column, board) or task.properties.done
 
 			if is_completed then
 				if older_than_days > 0 then

@@ -1,25 +1,82 @@
 -- lua/kanban-md/transition_rules.lua
 -- Transition rules engine for validating task movements
 
-local parser = require("kanban-md.parser")
 -- local config = require("kanban-md.config")
 
 local M = {}
+
+function M.is_completion_column(column, board)
+  -- Priority order:
+  -- 1. Explicit property
+  if column.properties and column.properties.is_completion_state then
+    return true
+  end
+
+  -- 2. Has completion triggers (Phase 2)
+  if column.triggers and vim.tbl_contains(column.triggers.on_enter or {}, "mark_complete") then
+    return true
+  end
+
+  -- 3. Position-based fallback (maintains backwards compatibility)
+  local columns = board.columns
+  local regular_columns = {}
+
+  -- Collect all non-special columns
+  for _, col in ipairs(columns) do
+    if not col.name:match("^__") then
+      table.insert(regular_columns, col)
+    end
+  end
+
+  -- Check if column name suggests it's not a completion column
+  local non_completion_patterns = {
+    "progress", "doing", "working", "wip", "active", "current",
+    "backlog", "todo", "ready", "waiting", "blocked", "review"
+  }
+
+  local column_name_lower = column.name:lower()
+  for _, pattern in ipairs(non_completion_patterns) do
+    if column_name_lower:match(pattern) then
+      return false
+    end
+  end
+
+  -- Check for explicit completion patterns
+  local completion_patterns = {
+    "done", "complete", "finished", "shipped", "deployed", "closed"
+  }
+
+  for _, pattern in ipairs(completion_patterns) do
+    if column_name_lower:match(pattern) then
+      return true
+    end
+  end
+
+  -- Don't use position-based fallback if there's only one column
+  if #regular_columns <= 1 then
+    return false
+  end
+
+  -- Only consider the last column as completion if there are multiple columns
+  -- and the name doesn't suggest otherwise
+  return column == regular_columns[#regular_columns]
+end
+
 -- Helper: Check WIP limits
 function M.check_wip_limit(options)
 	local board = options.board
 	local column_name = options.column
 	local config = options.config
 
-	local column = parser.get_column(board, column_name)
+	local column = M.get_column(board, column_name)
 	if not column or not column.config.wip_limit then
 		return true, nil
 	end
 
 	local current_wip = 0
 	for _, task in ipairs(column.tasks) do
-		-- Task is completed if in Done column or has done timestamp
-		local is_completed = column.name == "Done" or task.properties.done
+		-- Task is completed if in completion column or has done timestamp
+		local is_completed = M.is_completion_column(column, board) or task.properties.done
 		if not is_completed then
 			current_wip = current_wip + 1
 		end
@@ -115,6 +172,7 @@ function M.check_transition_rules(board, task, source_column, target_column_name
 end
 
 -- 1. Workflow constraint checking
+-- TODO convert to triggers, probably entry triggers
 function M.check_workflow_allows(board, source_name, target_name)
   -- If no workflow defined, allow any transition
   if not board.config or not board.config.workflow then
@@ -138,6 +196,7 @@ function M.check_workflow_allows(board, source_name, target_name)
 end
 
 -- 2. Column entry requirements
+-- TODO convert to entry triggers
 function M.check_column_entry_requirements(task, target_column)
   if not target_column.config then
     return true
@@ -186,17 +245,11 @@ function M.check_column_entry_requirements(task, target_column)
 end
 
 -- 3. Task dependencies
+-- TODO convert to triggers
 function M.check_dependencies_satisfied(board, task, target_column_name)
-  -- Special rules for moving to "Done" or similar completion columns
-  local completion_columns = {"Done", "Complete", "Shipped", "Deployed"}
-  local is_completion_move = false
-
-  for _, col in ipairs(completion_columns) do
-    if target_column_name == col then
-      is_completion_move = true
-      break
-    end
-  end
+  -- Special rules for moving to completion columns
+  local target_column = M.get_column(board, target_column_name)
+  local is_completion_move = target_column and M.is_completion_column(target_column, board)
 
   -- Only check dependencies for completion moves
   if not is_completion_move then
@@ -210,15 +263,15 @@ function M.check_dependencies_satisfied(board, task, target_column_name)
 
   -- Check each dependency
   for _, dep_id in ipairs(task.properties.depends_on) do
-    local dep_task, dep_column = parser.find_task(board, dep_id)
+    local dep_task, dep_column = M.find_task(board, dep_id)
 
     if not dep_task then
       -- Dependency not found, this is an error
       return false
     end
 
-    -- Check if dependency is complete (in Done column or has done timestamp)
-    local is_completed = (dep_column and dep_column.name == "Done") or dep_task.properties.done
+    -- Check if dependency is complete (in completion column or has done timestamp)
+    local is_completed = (dep_column and M.is_completion_column(dep_column, board)) or dep_task.properties.done
     if not is_completed then
       return false
     end
@@ -228,21 +281,23 @@ function M.check_dependencies_satisfied(board, task, target_column_name)
 end
 
 -- 5. Business rules for specific scenarios
+-- TODO convert to triggers
 function M.check_business_rules(board, task, source_name, target_name)
   local errors = {}
 
   -- Example business rules
 
   -- Rule: Can't skip Review for high-complexity tasks
-  if source_name == "In Progress" and target_name == "Done" then
+  local target_column = M.get_column(board, target_name)
+  if source_name == "In Progress" and target_column and M.is_completion_column(target_column, board) then
     if task.properties.complexity and task.properties.complexity >= 5 then
       table.insert(errors, "High complexity tasks must go through Review")
     end
   end
 
-  -- Rule: Can't move directly from Backlog to Done
-  if source_name == "Backlog" and target_name == "Done" then
-    table.insert(errors, "Tasks cannot skip from Backlog directly to Done")
+  -- Rule: Can't move directly from Backlog to completion
+  if source_name == "Backlog" and target_column and M.is_completion_column(target_column, board) then
+    table.insert(errors, "Tasks cannot skip from Backlog directly to completion")
   end
 
   -- Rule: Blocked tasks must go through Ready when unblocked
@@ -260,7 +315,7 @@ function M.check_business_rules(board, task, source_name, target_name)
   end
 
   -- Rule: Check SLA requirements
-  if target_name == "Done" and task.properties.sla then
+  if target_column and M.is_completion_column(target_column, board) and task.properties.sla then
     local sla_deadline = task.properties.created + (task.properties.sla * 86400)  -- SLA in days
     if os.time() > sla_deadline then
       table.insert(errors, "Task has exceeded SLA deadline")
@@ -273,7 +328,8 @@ end
 -- 6. Sub-task checking
 function M.check_subtasks_ready(board, task, target_column_name)
   -- Only check for completion moves
-  if target_column_name ~= "Done" and target_column_name ~= "Complete" then
+  local target_column = M.get_column(board, target_column_name)
+  if not target_column or not M.is_completion_column(target_column, board) then
     return true
   end
 
@@ -284,15 +340,15 @@ function M.check_subtasks_ready(board, task, target_column_name)
 
   -- Check each subtask
   for _, subtask_id in ipairs(task.properties.subtasks) do
-    local subtask, subtask_column = parser.find_task(board, subtask_id)
+    local subtask, subtask_column = M.find_task(board, subtask_id)
 
     if not subtask then
       -- Subtask not found
       return false
     end
 
-    -- All subtasks must be complete (in Done column or has done timestamp)
-    local is_completed = (subtask_column and subtask_column.name == "Done") or subtask.properties.done
+    -- All subtasks must be complete (in completion column or has done timestamp)
+    local is_completed = (subtask_column and M.is_completion_column(subtask_column, board)) or subtask.properties.done
     if not is_completed then
       return false
     end

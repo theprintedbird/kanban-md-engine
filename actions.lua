@@ -223,9 +223,8 @@ function M.create_task(column_name)
 	if not column_name then
 		local columns = {}
 		for _, col in ipairs(board.columns) do
-			-- Skip Done column for new tasks
-			-- TODO remove hardcoded Done column
-			if col.name ~= "Done" then
+			-- Skip completion columns for new tasks
+			if not checker.is_completion_column(col, board) then
 				table.insert(columns, col.name)
 			end
 		end

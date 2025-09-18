@@ -454,14 +454,20 @@ function M.archive_done_tasks(board, older_than_days)
 		for _, task in ipairs(column.tasks) do
 			local should_archive = false
 
-			-- Task is completed if in completion column or has done timestamp
-			local is_completed = checker.is_completion_column(column, board) or task.properties.done
+			-- Task is completed if in completion column
+			local is_completed = checker.is_completion_column(column, board)
 
 			if is_completed then
 				if older_than_days > 0 then
 					-- Check if old enough
-					-- TODO generalise, using non "done" or "created"
-					local done_time = task.properties.done or task.properties.created or 0
+					local completion_column_name
+					for _, col in ipairs(board.columns) do
+						if checker.is_completion_column(col, board) then
+							completion_column_name = col.name:lower()
+							break
+						end
+					end
+					local done_time = task.properties[completion_column_name] or 0
 					if done_time < cutoff_time then
 						should_archive = true
 					end

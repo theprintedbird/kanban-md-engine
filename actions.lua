@@ -23,6 +23,7 @@ local parser = require("kanban-md.parser")
 local writer = require("kanban-md.writer")
 local checker = require("kanban-md.actions.checker")
 local config_module = require("kanban-md.config")
+local stats_utils = require("kanban-md.stats")
 
 -- Local state
 local last_board = nil
@@ -661,10 +662,11 @@ function M.show_task_details()
 	end
 
 	-- Calculate cycle time if applicable
-	if task.properties.created and task.properties.done then
-		local cycle_time = (task.properties.done - task.properties.created) / 86400
+	local cycle_time = stats_utils.calculate_cycle_time(task.properties)
+	if cycle_time then
+		local cycle_time_days = cycle_time / 86400
 		table.insert(details, "")
-		table.insert(details, string.format("Cycle time: %.1f days", cycle_time))
+		table.insert(details, string.format("Cycle time: %.1f days", cycle_time_days))
 	end
 
 	-- Show in floating window

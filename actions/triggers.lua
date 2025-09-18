@@ -17,6 +17,8 @@
 -- |card_prioritised| Reorder within column				| task			|
 -- |card_estimated	| Add/update complexity				| task			|
 -- |card_tagged			| Add tags for filtering			| task			|
+-- |on_enter||
+-- |on_exit||
 
 local M = {}
 local triggers = {}

@@ -3,6 +3,7 @@
 
 local helpers = require("kanban-md.helpers")
 local checker = require("kanban-md.actions.checker")
+local stats_utils = require("kanban-md.stats")
 local M = {}
 
 -- Patterns for parsing
@@ -379,8 +380,8 @@ function M.calculate_stats(board)
 		for _, task in ipairs(column.tasks) do
 			stats.total_tasks = stats.total_tasks + 1
 
-			-- Task is completed if in completion column or has done timestamp
-			local is_completed = checker.is_completion_column(column, board) or task.properties.done
+			-- Task is completed if in completion column
+			local is_completed = checker.is_completion_column(column, board)
 
 			if not is_completed then
 				wip_count = wip_count + 1
@@ -391,8 +392,8 @@ function M.calculate_stats(board)
 				stats.completed_tasks = stats.completed_tasks + 1
 
 				-- Calculate cycle time if timestamps exist
-				if task.properties.created and task.properties.done then
-					local cycle_time = task.properties.done - task.properties.created
+				local cycle_time = stats_utils.calculate_cycle_time(task.properties)
+				if cycle_time then
 					table.insert(stats.cycle_times, cycle_time)
 				end
 			end
@@ -415,8 +416,8 @@ function M.calculate_stats(board)
 			stats.total_tasks = stats.total_tasks + 1
 			stats.completed_tasks = stats.completed_tasks + 1
 
-			if task.properties.created and task.properties.done then
-				local cycle_time = task.properties.done - task.properties.created
+			local cycle_time = stats_utils.calculate_cycle_time(task.properties)
+			if cycle_time then
 				table.insert(stats.cycle_times, cycle_time)
 			end
 		end

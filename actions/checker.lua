@@ -76,7 +76,7 @@ function M.check_wip_limit(options)
 	local current_wip = 0
 	for _, task in ipairs(column.tasks) do
 		-- Task is completed if in completion column or has done timestamp
-		local is_completed = M.is_completion_column(column, board) or task.properties.done
+		local is_completed = M.is_completion_column(column, board)
 		if not is_completed then
 			current_wip = current_wip + 1
 		end
@@ -271,7 +271,7 @@ function M.check_dependencies_satisfied(board, task, target_column_name)
     end
 
     -- Check if dependency is complete (in completion column or has done timestamp)
-    local is_completed = (dep_column and M.is_completion_column(dep_column, board)) or dep_task.properties.done
+    local is_completed = (dep_column and M.is_completion_column(dep_column, board))
     if not is_completed then
       return false
     end
@@ -348,7 +348,7 @@ function M.check_subtasks_ready(board, task, target_column_name)
     end
 
     -- All subtasks must be complete (in completion column or has done timestamp)
-    local is_completed = (subtask_column and M.is_completion_column(subtask_column, board)) or subtask.properties.done
+    local is_completed = (subtask_column and M.is_completion_column(subtask_column, board))
     if not is_completed then
       return false
     end

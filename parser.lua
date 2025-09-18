@@ -12,10 +12,8 @@ local patterns = {
 	-- Column header (## Column Name)
 	column_header = "^##%s+(.+)$",
 
-	-- Task item with checkbox
-	task_incomplete = "^%s*%-%s*%[%s*%]%s*(.+)$",
-	task_complete = "^%s*%-%s*%[x%]%s*(.+)$",
-	task_complete_upper = "^%s*%-%s*%[X%]%s*(.+)$",
+	-- Task item (simple list)
+	task_item = "^%s*%-%s*(.+)$",
 
 	-- HTML comment blocks
 	comment_block_start = "^%s*<!%-%-%s*(.-)$",
@@ -159,7 +157,7 @@ local function parse_properties(comment_text)
 end
 
 -- Parse a task line and extract properties
-local function parse_task(line, is_complete)
+local function parse_task(line)
 	local task = {
 		text = "",
 		properties = {},
@@ -167,19 +165,14 @@ local function parse_task(line, is_complete)
 	}
 
 	-- Extract task text
-	local text
-	if is_complete then
-		text = line:match(patterns.task_complete) or line:match(patterns.task_complete_upper)
-	else
-		text = line:match(patterns.task_incomplete)
-	end
+	local text = line:match(patterns.task_item)
 
 	if not text then
 		return nil
 	end
 
 	-- Check for inline comment with properties
-	-- e.g. - [ ] Complex task <!-- created: 1735862400, started: 1735948800, complexity: 3 -->
+	-- e.g. - Complex task <!-- created: 1735862400, started: 1735948800, complexity: 3 -->
 	local task_text, comment = text:match("^(.-)%s*<!%-%-%s*(.-)%s*%-%->%s*$")
 
 	if task_text and comment then
@@ -336,12 +329,9 @@ function M.parse(content)
 			elseif current_column and not current_column.is_stats then
 				local task = nil
 
-				-- Check for incomplete task
-				if line:match(patterns.task_incomplete) then
-					task = parse_task(line, false)
-				-- Check for complete task
-				elseif line:match(patterns.task_complete) or line:match(patterns.task_complete_upper) then
-					task = parse_task(line, true)
+				-- Check for task item
+				if line:match(patterns.task_item) then
+					task = parse_task(line)
 				end
 
 				if task then
@@ -388,8 +378,9 @@ function M.calculate_stats(board)
 		for _, task in ipairs(column.tasks) do
 			stats.total_tasks = stats.total_tasks + 1
 
-			-- Task is completed if in Done column or has done timestamp
-			local is_completed = column.name == "Done" or task.properties.done
+			-- Task is completed if in completion column or has done timestamp
+			local is_completed = (column.config and column.config.completion_column) or 
+			                    column.name == "Done" or task.properties.done
 
 			if not is_completed then
 				wip_count = wip_count + 1

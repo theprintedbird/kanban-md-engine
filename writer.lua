@@ -122,10 +122,8 @@ end
 -- Write a task line
 local function write_task(task, column_name)
 	local config = config_module.get()
-	-- Determine completion based on column or done timestamp
-	local is_completed = (column_name == "Done") or task.properties.done
-	local checkbox = is_completed and "[x]" or "[ ]"
-	local line = string.format("%s- %s %s", config.task_indent, checkbox, task.text)
+	-- Simple list item (no checkboxes)
+	local line = string.format("%s- %s", config.task_indent, task.text)
 
 	-- Add properties as inline comment if present
 	local props_to_write = {}
@@ -365,7 +363,6 @@ function M.append_task_to_column(board, column_name, task_text, properties)
 
 	-- Create the new task
 	local new_task = {
-		complete = false,
 		text = task_text,
 		properties = properties or {},
 		column = column_name,

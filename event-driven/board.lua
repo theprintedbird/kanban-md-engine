@@ -62,14 +62,29 @@
 
 local Triggerable = require('kanban-md.event-driven.triggerable')
 local Column = require('kanban-md.event-driven.column')
+local StatsMixin = require('kanban-md.event-driven.stats')
+local ParserMixin = require('kanban-md.event-driven.parser')
 
--- Board class with transaction support
+-- Board class with transaction support, stats calculation, and parsing capabilities
 local Board = {}
 Board.__index = Board
 setmetatable(Board, { __index = Triggerable })
 
+-- Apply mixins to Board
+for k, v in pairs(StatsMixin) do
+  if k ~= "_private" then  -- Don't copy private test functions
+    Board[k] = v
+  end
+end
+
+for k, v in pairs(ParserMixin) do
+  if k ~= "_private" then  -- Don't copy private test functions
+    Board[k] = v
+  end
+end
+
 function Board:new()
-  local obj = { 
+  local obj = {
     id = "board_" .. os.time(),
     columns = {},
     config = {}

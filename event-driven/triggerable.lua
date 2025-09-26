@@ -66,7 +66,7 @@ function Triggerable:execute_trigger_with_logging(event_type, name, ...)
     -- Fallback for triggers without rollback
     command = Command:new(
       string.format("%s.%s.%s", self.id or "unknown", event_type, name),
-      function() return self.triggers[event_type][name](self, ...) end,
+      function() return self.triggers[event_type][name](self, unpack(args)) end,
       nil  -- No rollback
     )
   end

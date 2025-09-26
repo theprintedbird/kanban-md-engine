@@ -1,9 +1,8 @@
 -- Trigger system with dynamic function registration
 
--- | Trigger_				| Default triggers						| Arguments	|
+-- | State/trigger	| Transition									| Arguments	|
 -- |----------------|-----------------------------|-----------|
--- |card_created		| Add column timestamp				| task			|
--- |								| Assign ID										| task			|
+-- |card_created		| Assign ID										| task			|
 -- |card_moved			| Add column timestamp				| task			|
 -- |								| Check WIP limits						| task			|
 -- |								| Check transition rules			| task			|
@@ -11,6 +10,8 @@
 -- |card_archived		| Add column timestamp				| task			|
 -- |card_deleted		| Soft delete, then hard			| task			|
 -- |board_opened		| Calculate and display stats	| board			|
+-- |column added		| Calculate and display stats	| board,column|
+-- |								| Add triggers								| board			|
 -- |board_saved			| Update statistics						| board			|
 -- |								| Validate WIP limits					| board			|
 -- |card_blocked		| Add blocker property				| task			|

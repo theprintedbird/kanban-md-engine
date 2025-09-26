@@ -64,6 +64,7 @@ local Triggerable = require('kanban-md.event-driven.triggerable')
 local Column = require('kanban-md.event-driven.column')
 local StatsMixin = require('kanban-md.event-driven.stats')
 local ParserMixin = require('kanban-md.event-driven.parser')
+local WriterMixin = require('kanban-md.event-driven.writer_mixin')
 
 -- Board class with transaction support, stats calculation, and parsing capabilities
 local Board = {}
@@ -78,6 +79,12 @@ for k, v in pairs(StatsMixin) do
 end
 
 for k, v in pairs(ParserMixin) do
+  if k ~= "_private" then  -- Don't copy private test functions
+    Board[k] = v
+  end
+end
+
+for k, v in pairs(WriterMixin) do
   if k ~= "_private" then  -- Don't copy private test functions
     Board[k] = v
   end
@@ -119,32 +126,32 @@ end
 function Board:move_card_with_rollback(card_id, from_column_id, to_column_id)
   -- Begin transaction for complex operation
   self.command_log:begin_transaction()
-  
+
   local from_column = self:get_column(from_column_id)
   local to_column = self:get_column(to_column_id)
-  
+
   if not from_column or not to_column then
     self.command_log:rollback_transaction()
     return false, "Invalid columns"
   end
-  
+
   local card = from_column:remove_card(card_id)
   if not card then
     self.command_log:rollback_transaction()
     return false, "Card not found"
   end
-  
+
   -- Try to add to new column
   local success, err = pcall(function()
     to_column:add_card(card)
   end)
-  
+
   if not success then
     -- Rollback the transaction on error
     self.command_log:rollback_transaction()
     return false, err
   end
-  
+
   -- Commit the transaction
   self.command_log:commit_transaction()
   return true
@@ -164,14 +171,14 @@ end
 function Board:export_command_log(n)
   n = n or 100
   local entries = self.command_log:get_last_n(n)
-  
+
   -- Convert to serialisable format
   local export_data = {
     board_id = self.id,
     timestamp = os.time(),
     entries = {}
   }
-  
+
   for _, entry in ipairs(entries) do
     table.insert(export_data.entries, {
       command_name = entry.command.name,
@@ -181,7 +188,7 @@ function Board:export_command_log(n)
       -- but could be configured to do so
     })
   end
-  
+
   return export_data
 end
 
@@ -189,38 +196,38 @@ end
 local function example_usage()
   local Card = require('kanban-md.event-driven.card')
   local triggers = require('kanban-md.event-driven.triggers')
-  
+
   local board = Board:new()
   local column1 = board:add_column("col1", "To Do")
   local column2 = board:add_column("col2", "In Progress")
-  
+
   -- Register triggers with rollback
   local timestamp_exec, timestamp_rollback = triggers.timestamp()
   column1:register_trigger_with_rollback("on_enter", "add_timestamp", timestamp_exec, timestamp_rollback)
   column2:register_trigger_with_rollback("on_enter", "add_timestamp", timestamp_exec, timestamp_rollback)
-  
+
   local wip_exec, wip_rollback = triggers.wip_limit(2)
   column2:register_trigger_with_rollback("on_enter", "check_wip", wip_exec, wip_rollback)
-  
+
   local assign_exec, assign_rollback = triggers.assignment()
   column2:register_trigger_with_rollback("on_enter", "auto_assign", assign_exec, assign_rollback)
   column2.config.assignees = {"alice", "bob", "charlie"}
-  
+
   -- Create and move cards
   local card1 = Card:new("card1", "Implement feature", {complexity = 3})
   column1:add_card(card1)
-  
+
   -- Move card with full rollback support
   local success, err = board:move_card_with_rollback("card1", "col1", "col2")
-  
+
   if not success then
     print("Move failed, all changes rolled back: " .. err)
   end
-  
+
   -- Undo last action
   local undone, undo_errors = column2:undo(1)
   print(string.format("Undone %d actions", undone))
-  
+
   -- Export log for persistence
   local log_export = board:export_command_log(50)
   -- Could save this to board metadata for migration

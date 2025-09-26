@@ -44,35 +44,34 @@ local function iso_to_epoch(iso_string)
 		end
 		hour, min, sec = 0, 0, 0 -- Default to start of day
 	end
-	
+
 	-- Convert to numbers
 	year, month, day = tonumber(year), tonumber(month), tonumber(day)
 	hour, min, sec = tonumber(hour), tonumber(min), tonumber(sec)
-	
 	-- Manual calculation using POSIX formula for UTC time
 	-- This avoids timezone issues with os.time()
-	
+
 	-- Days since Jan 1, 1970
 	local function is_leap_year(y)
 		return (y % 4 == 0 and y % 100 ~= 0) or (y % 400 == 0)
 	end
-	
+
 	local days = 0
 	for y = 1970, year - 1 do
 		days = days + (is_leap_year(y) and 366 or 365)
 	end
-	
+
 	local days_in_month = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 	if is_leap_year(year) then
 		days_in_month[2] = 29
 	end
-	
+
 	for m = 1, month - 1 do
 		days = days + days_in_month[m]
 	end
-	
+
 	days = days + day - 1 -- day is 1-based
-	
+
 	-- Convert to seconds
 	return days * 86400 + hour * 3600 + min * 60 + sec
 end
@@ -212,7 +211,7 @@ function ParserMixin:parse(content)
 	self.columns = {} -- Reset columns for fresh parse
 	self.archive = nil
 	self.stats = {}
-	
+
 	local lines = split_content_to_lines(content)
 	self.raw_lines = lines
 
@@ -345,7 +344,7 @@ function ParserMixin:parse(content)
 					card.line_number = task_data.line_number
 					card.column = task_data.column
 					card.raw = task_data.raw
-					
+
 					-- Use column's add_card method to properly integrate with event system
 					current_column:add_card(card)
 				end

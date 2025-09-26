@@ -9,15 +9,15 @@ local function create_timestamp_trigger()
       end
       return column_name:lower():gsub("[^%w_]", "_")
     end
-    
+
     local timestamp_key = normalize_column_name(self.name or self.id)
     local old_value = card.properties[timestamp_key]
     card.properties[timestamp_key] = os.time()
-    
+
     -- Return old value for rollback
     return old_value
   end
-  
+
   local rollback_fn = function(self, context)
     local card = context.args[1]
     local normalize_column_name = function(column_name)
@@ -26,19 +26,19 @@ local function create_timestamp_trigger()
       end
       return column_name:lower():gsub("[^%w_]", "_")
     end
-    
+
     local timestamp_key = normalize_column_name(self.name or self.id)
-    
+
     -- Restore previous value (might be nil)
     if context.result then
       card.properties[timestamp_key] = context.result
     else
       card.properties[timestamp_key] = nil
     end
-    
+
     return true
   end
-  
+
   return execute_fn, rollback_fn
 end
 
@@ -50,12 +50,12 @@ local function create_wip_limit_trigger(wip_limit)
     end
     return true
   end
-  
+
   local rollback_fn = function(self, context)
     -- Nothing to rollback for validation
     return true
   end
-  
+
   return execute_fn, rollback_fn
 end
 
@@ -63,35 +63,35 @@ end
 local function create_assignment_trigger()
   local execute_fn = function(self, card)
     local old_assignee = card.properties.assignee
-    
+
     -- Simple round-robin assignment
     local assignees = self.config.assignees or {"unassigned"}
     local last_assigned = self.last_assigned_index or 0
     local next_index = (last_assigned % #assignees) + 1
-    
+
     card.properties.assignee = assignees[next_index]
     self.last_assigned_index = next_index
-    
+
     return old_assignee, last_assigned
   end
-  
+
   local rollback_fn = function(self, context)
     local card = context.args[1]
     local old_assignee, old_index = context.result[1], context.result[2]
-    
+
     -- Restore previous assignee
     if old_assignee then
       card.properties.assignee = old_assignee
     else
       card.properties.assignee = nil
     end
-    
+
     -- Restore index
     self.last_assigned_index = old_index
-    
+
     return true
   end
-  
+
   return execute_fn, rollback_fn
 end
 

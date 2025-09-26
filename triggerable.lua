@@ -115,6 +115,75 @@ function Triggerable:undo(n)
   return successes, errors
 end
 
+-- Simple trigger registration methods (for testing and basic usage)
+function Triggerable:register_trigger(event_type, name, execute_fn)
+  self:init_commands()
+  
+  if not self.triggers[event_type] then
+    self.triggers[event_type] = {}
+  end
+  
+  self.triggers[event_type][name] = execute_fn
+end
+
+function Triggerable:register_on_enter(name, execute_fn, rollback_fn)
+  if rollback_fn then
+    self:register_trigger_with_rollback("on_enter", name, execute_fn, rollback_fn)
+  else
+    self:register_trigger("on_enter", name, execute_fn)
+  end
+end
+
+function Triggerable:register_on_exit(name, execute_fn, rollback_fn)
+  if rollback_fn then
+    self:register_trigger_with_rollback("on_exit", name, execute_fn, rollback_fn)
+  else
+    self:register_trigger("on_exit", name, execute_fn)
+  end
+end
+
+function Triggerable:register_on_stay(name, execute_fn, rollback_fn)
+  if rollback_fn then
+    self:register_trigger_with_rollback("on_stay", name, execute_fn, rollback_fn)
+  else
+    self:register_trigger("on_stay", name, execute_fn)
+  end
+end
+
+function Triggerable:get_triggers(event_type)
+  self:init_commands()
+  return self.triggers[event_type] or {}
+end
+
+function Triggerable:execute_triggers(event_type, context)
+  self:init_commands()
+  
+  if not self.triggers[event_type] then
+    return {}, {}
+  end
+  
+  local results = {}
+  local errors = {}
+  
+  -- Execute triggers in registration order (table iteration order)
+  for name, trigger_fn in pairs(self.triggers[event_type]) do
+    local success, result = self:execute_trigger_with_logging(event_type, name, context)
+    
+    table.insert(results, {
+      name = name,
+      success = success,
+      result = success and result or nil,
+      error = not success and result or nil
+    })
+    
+    if not success then
+      table.insert(errors, {name = name, error = result})
+    end
+  end
+  
+  return results, errors
+end
+
 -- Capture current state (to be overridden by specific classes)
 function Triggerable:capture_state()
   -- Default implementation - override in Card/Column/Board

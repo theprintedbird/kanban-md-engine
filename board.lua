@@ -1,4 +1,4 @@
--- lua/kanban-md/event-driven/board-with-commands.lua
+-- lua/kanban-md/board-with-commands.lua
 -- Enhanced board with command pattern, logging, and rollback capabilities
 -- A command pattern system with rollback capabilities for use with triggers.
 -- This will make the board truly migratable and provide robust undo/transaction support.## Key Design Features
@@ -60,11 +60,11 @@
 --
 -- The system gracefully handles both reversible and non-reversible operations, providing warnings when rollback isn't possible whilst maintaining board integrity through the transaction system.
 
-local Triggerable = require('kanban-md.event-driven.triggerable')
-local Column = require('kanban-md.event-driven.column')
-local StatsMixin = require('kanban-md.event-driven.stats')
-local ParserMixin = require('kanban-md.event-driven.parser')
-local WriterMixin = require('kanban-md.event-driven.writer_mixin')
+local Triggerable = require('kanban-md.triggerable')
+local Column = require('kanban-md.column')
+local StatsMixin = require('kanban-md.stats')
+local ParserMixin = require('kanban-md.parser')
+local WriterMixin = require('kanban-md.writer_mixin')
 
 -- Board class with transaction support, stats calculation, and parsing capabilities
 local Board = {}
@@ -194,8 +194,8 @@ end
 
 -- Example usage
 local function example_usage()
-  local Card = require('kanban-md.event-driven.card')
-  local triggers = require('kanban-md.event-driven.triggers')
+  local Card = require('kanban-md.card')
+  local triggers = require('kanban-md.triggers')
 
   local board = Board:new()
   local column1 = board:add_column("col1", "To Do")

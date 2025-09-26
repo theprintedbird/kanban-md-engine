@@ -1,4 +1,4 @@
-local Triggerable = require('kanban-md.event-driven.triggerable')
+local Triggerable = require('kanban-md.triggerable')
 
 -- Column class with enhanced capabilities
 local Column = {}

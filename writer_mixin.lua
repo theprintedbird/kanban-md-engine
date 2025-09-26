@@ -1,21 +1,14 @@
--- lua/user/kanban-md/writer.lua
--- Writer for Markdown Kanban boards - converts data structure back to markdown
-
-local M = {}
+-- lua/kanban-md/writer_mixin.lua
+-- Writer mixin for Board class - converts data structure back to markdown
 
 -- Dependencies
 local config_module = require("kanban-md.config")
 local helpers = require("kanban-md.helpers")
-local triggers_module = require("kanban-md.actions.triggers")
+local triggers_module = require("kanban-md.triggers")
 local checker = require("kanban-md.actions.checker")
 
--- Set configuration (deprecated - use config_module.setup instead)
-function M.setup(opts)
-	-- For backward compatibility, pass to config module
-	if opts then
-		config_module.setup(opts)
-	end
-end
+-- Writer mixin that can be applied to Board instances
+local WriterMixin = {}
 
 -- Format a timestamp based on config
 local function format_timestamp(timestamp)
@@ -178,20 +171,20 @@ local function write_column(column)
 end
 
 -- Main writer function
-function M.write(board)
+function WriterMixin:write()
 	local config = config_module.get()
 	local lines = {}
 
 	-- Board title
-	table.insert(lines, "# " .. (board.title or "Untitled Board"))
+	table.insert(lines, "# " .. (self.title or "Untitled Board"))
 
 	if config.blank_line_after_title then
 		table.insert(lines, "")
 	end
 
 	-- Board configuration
-	if board.config and not vim.tbl_isempty(board.config) then
-		local config_comment = properties_to_comment(board.config, "kanban:config")
+	if self.config and not vim.tbl_isempty(self.config) then
+		local config_comment = properties_to_comment(self.config, "kanban:config")
 		if type(config_comment) == "table" then
 			for _, line in ipairs(config_comment) do
 				table.insert(lines, line)
@@ -206,12 +199,12 @@ function M.write(board)
 	end
 
 	-- Add blank line before columns section if we have columns
-	if board.columns and #board.columns > 0 and config.blank_lines_between_sections then
+	if self.columns and #self.columns > 0 and config.blank_lines_between_sections then
 		table.insert(lines, "")
 	end
 
 	-- Regular columns
-	for i, column in ipairs(board.columns or {}) do
+	for i, column in ipairs(self.columns or {}) do
 		if i > 1 and config.blank_lines_between_sections then
 			table.insert(lines, "")
 		end
@@ -223,19 +216,19 @@ function M.write(board)
 	end
 
 	-- Archive section
-	if board.archive then
+	if self.archive then
 		if config.blank_lines_between_sections then
 			table.insert(lines, "")
 		end
 
-		local archive_lines = write_column(board.archive)
+		local archive_lines = write_column(self.archive)
 		for _, line in ipairs(archive_lines) do
 			table.insert(lines, line)
 		end
 	end
 
 	-- Stats section (if needed - usually generated dynamically)
-	if board.stats and board.include_stats_section then
+	if self.stats and self.include_stats_section then
 		if config.blank_lines_between_sections then
 			table.insert(lines, "")
 		end
@@ -244,15 +237,15 @@ function M.write(board)
 		table.insert(lines, string.format("<!-- generated: %s -->", os.date("%Y-%m-%d %H:%M:%S")))
 
 		-- Write statistics as a comment block or markdown list
-		if board.stats.total_tasks > 0 then
-			table.insert(lines, string.format("- Total tasks: %d", board.stats.total_tasks))
-			table.insert(lines, string.format("- Completed: %d", board.stats.completed_tasks))
-			table.insert(lines, string.format("- In progress: %d", board.stats.in_progress_tasks))
+		if self.stats.total_tasks > 0 then
+			table.insert(lines, string.format("- Total tasks: %d", self.stats.total_tasks))
+			table.insert(lines, string.format("- Completed: %d", self.stats.completed_tasks))
+			table.insert(lines, string.format("- In progress: %d", self.stats.in_progress_tasks))
 
-			if board.stats.average_cycle_time then
-				local unit = board.config.cycle_time_unit or "seconds"
+			if self.stats.average_cycle_time then
+				local unit = self.config.cycle_time_unit or "seconds"
 				table.insert(lines, string.format("- Average cycle time: %.2f %s",
-					board.stats.average_cycle_time, unit))
+					self.stats.average_cycle_time, unit))
 			end
 		end
 	end
@@ -261,8 +254,8 @@ function M.write(board)
 end
 
 -- Write board to file
-function M.write_to_file(board, filepath)
-	local lines = M.write(board)
+function WriterMixin:write_to_file(filepath)
+	local lines = self:write()
 	local content = table.concat(lines, "\n")
 
 	-- Write to file
@@ -278,9 +271,9 @@ function M.write_to_file(board, filepath)
 end
 
 -- Write board to buffer
-function M.write_to_buffer(board, bufnr)
+function WriterMixin:write_to_buffer(bufnr)
 	bufnr = bufnr or vim.api.nvim_get_current_buf()
-	local lines = M.write(board)
+	local lines = self:write()
 
 	-- Save cursor position
 	local cursor = vim.api.nvim_win_get_cursor(0)
@@ -301,12 +294,12 @@ function M.write_to_buffer(board, bufnr)
 end
 
 -- Update a single task in place (minimal change)
-function M.update_task_in_buffer(board, task_id, bufnr)
+function WriterMixin:update_task_in_buffer(task_id, bufnr)
 	bufnr = bufnr or vim.api.nvim_get_current_buf()
 
 	-- Find the task in the board
 	local parser = require("kanban-md.parser")
-	local task, column = parser.find_task(board, task_id)
+	local task, column = parser.find_task(self, task_id)
 
 	if not task or not task.line_number then
 		return false, "Task not found or missing line number"
@@ -327,11 +320,11 @@ function M.update_task_in_buffer(board, task_id, bufnr)
 end
 
 -- Append a new task to a column
-function M.append_task_to_column(board, column_name, task_text, properties)
+function WriterMixin:append_task_to_column(column_name, task_text, properties)
 	local column = nil
 
 	-- Find the column
-	for _, col in ipairs(board.columns) do
+	for _, col in ipairs(self.columns) do
 		if col.name == column_name then
 			column = col
 			break
@@ -359,7 +352,8 @@ function M.append_task_to_column(board, column_name, task_text, properties)
 
 	-- Add timestamp if enabled in config
 	if config.auto_timestamp then
-		triggers_module.call_trigger("card_created", "add_timestamp", new_task)
+		local timestamp_execute_fn = triggers_module.timestamp()
+		timestamp_execute_fn({ name = column_name }, new_task)
 	end
 
 	-- Add to column
@@ -368,13 +362,12 @@ function M.append_task_to_column(board, column_name, task_text, properties)
 	return new_task
 end
 
-
 -- Move a task between columns
-function M.move_task(board, task_id, target_column_name)
+function WriterMixin:move_task(task_id, target_column_name)
 	local parser = require("kanban-md.parser")
 
 	-- Find the task
-	local task, source_column = parser.find_task(board, task_id)
+	local task, source_column = parser.find_task(self, task_id)
 	if not task then
 		return false, "Task not found"
 	end
@@ -383,7 +376,7 @@ function M.move_task(board, task_id, target_column_name)
 	end
 
 	-- Find target column
-	local target_column = parser.get_column(board, target_column_name)
+	local target_column = parser.get_column(self, target_column_name)
 	if not target_column then
 		return false, "Target column not found"
 	end
@@ -400,7 +393,8 @@ function M.move_task(board, task_id, target_column_name)
 	task.column = target_column_name
 
 	-- TODO run all triggers
-	triggers_module.call_trigger("card_moved", "add_timestamp", task)
+	local timestamp_execute_fn = triggers_module.timestamp()
+	timestamp_execute_fn({ name = target_column_name }, task)
 
 	-- Add to target
 	-- TODO make target_column an object so that triggers can be set on it
@@ -410,14 +404,14 @@ function M.move_task(board, task_id, target_column_name)
 end
 
 -- Archive completed tasks
-function M.archive_done_tasks(board, older_than_days)
+function WriterMixin:archive_done_tasks(older_than_days)
 	-- TODO create trigger and config setting for this
 	older_than_days = older_than_days or 0
 	local cutoff_time = os.time() - (older_than_days * 86400)
 
 	-- Ensure archive exists
-	if not board.archive then
-		board.archive = {
+	if not self.archive then
+		self.archive = {
 			name = "__ARCHIVE__",
 			tasks = {},
 			config = {},
@@ -428,21 +422,21 @@ function M.archive_done_tasks(board, older_than_days)
 	local archived_count = 0
 
 	-- Check all columns for completed tasks
-	for _, column in ipairs(board.columns) do
+	for _, column in ipairs(self.columns) do
 		local tasks_to_keep = {}
 
 		for _, task in ipairs(column.tasks) do
 			local should_archive = false
 
 			-- Task is completed if in completion column
-			local is_completed = checker.is_completion_column(column, board)
+			local is_completed = checker.is_completion_column(column, self)
 
 			if is_completed then
 				if older_than_days > 0 then
 					-- Check if old enough
 					local completion_column_name
-					for _, col in ipairs(board.columns) do
-						if checker.is_completion_column(col, board) then
+					for _, col in ipairs(self.columns) do
+						if checker.is_completion_column(col, self) then
 							completion_column_name = col.name:lower()
 							break
 						end
@@ -462,9 +456,10 @@ function M.archive_done_tasks(board, older_than_days)
 				-- TODO replace with general timestamp update
 				-- Update task's column reference
 				task.column = "__ARCHIVE__"
-				triggers_module.call_trigger("card_moved", "add_timestamp", task)
+				local timestamp_execute_fn = triggers_module.timestamp()
+				timestamp_execute_fn({ name = "__ARCHIVE__" }, task)
 				-- TODO when columns get triggers, move trigger to there
-				table.insert(board.archive.tasks, task)
+				table.insert(self.archive.tasks, task)
 				archived_count = archived_count + 1
 			else
 				table.insert(tasks_to_keep, task)
@@ -477,11 +472,15 @@ function M.archive_done_tasks(board, older_than_days)
 	return archived_count
 end
 
-
+-- For testing, conditionally export private functions
 if _G._TEST then
-  M._private = {
-    config = config,
+  WriterMixin._private = {
+    format_timestamp = format_timestamp,
+    format_property_value = format_property_value,
+    properties_to_comment = properties_to_comment,
+    write_task = write_task,
+    write_column = write_column
   }
 end
 
-return M
+return WriterMixin

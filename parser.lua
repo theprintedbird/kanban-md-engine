@@ -1,10 +1,12 @@
--- lua/user/kanban-md/parser.lua
--- Parser for Markdown Kanban boards
+-- lua/kanban-md/parser.lua
+-- Parser mixin for Board class - converts Markdown to Board instances
 
 local helpers = require("kanban-md.helpers")
-local checker = require("kanban-md.actions.checker")
-local stats_utils = require("kanban-md.stats")
-local M = {}
+local Column = require("kanban-md.column")
+local Card = require("kanban-md.card")
+
+-- Parser mixin that can be applied to Board instances
+local ParserMixin = {}
 
 -- Patterns for parsing
 local patterns = {
@@ -42,35 +44,34 @@ local function iso_to_epoch(iso_string)
 		end
 		hour, min, sec = 0, 0, 0 -- Default to start of day
 	end
-	
+
 	-- Convert to numbers
 	year, month, day = tonumber(year), tonumber(month), tonumber(day)
 	hour, min, sec = tonumber(hour), tonumber(min), tonumber(sec)
-	
 	-- Manual calculation using POSIX formula for UTC time
 	-- This avoids timezone issues with os.time()
-	
+
 	-- Days since Jan 1, 1970
 	local function is_leap_year(y)
 		return (y % 4 == 0 and y % 100 ~= 0) or (y % 400 == 0)
 	end
-	
+
 	local days = 0
 	for y = 1970, year - 1 do
 		days = days + (is_leap_year(y) and 366 or 365)
 	end
-	
+
 	local days_in_month = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 	if is_leap_year(year) then
 		days_in_month[2] = 29
 	end
-	
+
 	for m = 1, month - 1 do
 		days = days + days_in_month[m]
 	end
-	
+
 	days = days + day - 1 -- day is 1-based
-	
+
 	-- Convert to seconds
 	return days * 86400 + hour * 3600 + min * 60 + sec
 end
@@ -202,20 +203,17 @@ local function split_content_to_lines(content)
 	return lines
 end
 
--- Main parser function
-function M.parse(content)
-	local board = {
-		title = "Untitled Board",
-		config = {},
-		columns = {},
-		archive = nil,
-		stats = {},
-		raw_lines = {},
-	}
+-- Parse markdown content and populate this Board instance
+function ParserMixin:parse(content)
+	-- Initialize board properties if not already set
+	self.title = self.title or "Untitled Board"
+	self.config = self.config or {}
+	self.columns = {} -- Reset columns for fresh parse
+	self.archive = nil
+	self.stats = {}
 
 	local lines = split_content_to_lines(content)
-
-	board.raw_lines = lines
+	self.raw_lines = lines
 
 	local current_column = nil
 	local in_comment_block = false
@@ -239,7 +237,7 @@ function M.parse(content)
 					if config_type == "board" and comment_buffer:match("kanban:config") then
 						local config_content = comment_buffer:match("^%s*kanban:config%s*,?%s*(.*)")
 						if config_content and config_content ~= "" then
-								board.config = parse_properties(config_content)
+							self.config = parse_properties(config_content)
 						end
 					-- e.g. <!-- column:config wip_limit: 3 -->"
 					elseif config_type == "column" and comment_buffer:match("column:config") then
@@ -269,7 +267,7 @@ function M.parse(content)
 					if comment_content:match("kanban:config") then
 						local config_content = comment_content:match("^%s*kanban:config%s*,?%s*(.*)")
 						if config_content and config_content ~= "" then
-							board.config = parse_properties(config_content)
+							self.config = parse_properties(config_content)
 						end
 					elseif comment_content:match("column:config") and current_column then
 						local config_content = comment_content:match("^%s*column:config%s*,?%s*(.*)")
@@ -296,233 +294,92 @@ function M.parse(content)
 				end
 			-- Parse board title
 			elseif line:match(patterns.board_title) then
-				board.title = line:match(patterns.board_title)
+				self.title = line:match(patterns.board_title)
 			-- Parse archive section
 			elseif line:match(patterns.archive_section) then
-				current_column = {
-					name = "__ARCHIVE__",
-					tasks = {},
-					config = {},
-					is_archive = true,
-					line_number = line_number,
-				}
-				board.archive = current_column
+				current_column = Column:new("__ARCHIVE__", "__ARCHIVE__")
+				current_column.is_archive = true
+				current_column.line_number = line_number
+				current_column.command_log = self.command_log -- Share command log
+				self.archive = current_column
 			-- Parse stats section
 			elseif line:match(patterns.stats_section) then
-				current_column = {
-					name = "__STATS__",
-					is_stats = true,
-					line_number = line_number,
-				}
+				current_column = Column:new("__STATS__", "__STATS__")
+				current_column.is_stats = true
+				current_column.line_number = line_number
+				current_column.command_log = self.command_log -- Share command log
 			-- Parse column headers
 			elseif line:match(patterns.column_header) then
 				local column_name = line:match(patterns.column_header)
 
 				if not column_name:match("^__") then  -- Regular column
-					current_column = {
-						name = column_name,
-						tasks = {},
-						config = {},
-						line_number = line_number,
-					}
-					table.insert(board.columns, current_column)
+					current_column = Column:new("column_" .. #self.columns + 1, column_name)
+					current_column.line_number = line_number
+					current_column.command_log = self.command_log -- Share command log
+					table.insert(self.columns, current_column)
 				end
 			-- Parse tasks
 			elseif current_column and not current_column.is_stats then
-				local task = nil
+				local task_data = nil
 
 				-- Check for task item
 				if line:match(patterns.task_item) then
-					task = parse_task(line)
+					task_data = parse_task(line)
 				end
 
-				if task then
-					task.line_number = line_number
-					task.column = current_column.name
+				if task_data then
+					task_data.line_number = line_number
+					task_data.column = current_column.name
 
 					-- Apply pending config if any
 					if pending_config then
 						for k, v in pairs(pending_config.properties) do
-							task.properties[k] = v
+							task_data.properties[k] = v
 						end
 						pending_config = nil
 					end
 
-					table.insert(current_column.tasks, task)
+					-- Create Card object and add to column
+					local card = Card:new(task_data.properties.id, task_data.text, task_data.properties)
+					card.line_number = task_data.line_number
+					card.column = task_data.column
+					card.raw = task_data.raw
+
+					-- Use column's add_card method to properly integrate with event system
+					current_column:add_card(card)
 				end
 			end
 		end
 	end
 
-	-- Post-processing
-	M.calculate_stats(board)
-	M.validate_board(board)
+	-- Post-processing - delegate to stats mixin if available
+	if self.calculate_stats then
+		self:calculate_stats()
+	end
+	if self.validate then
+		self:validate()
+	end
 
-	return board
+	return self
 end
 
--- Calculate board statistics
-function M.calculate_stats(board)
-	local stats = {
-		total_tasks = 0,
-		completed_tasks = 0,
-		in_progress_tasks = 0,
-		blocked_tasks = 0,
-		total_complexity = 0,
-		wip_by_column = {},
-		cycle_times = {},
-	}
-
-	-- Process regular columns
-	for _, column in ipairs(board.columns) do
-		local wip_count = 0
-
-		for _, task in ipairs(column.tasks) do
-			stats.total_tasks = stats.total_tasks + 1
-
-			-- Task is completed if in completion column
-			local is_completed = checker.is_completion_column(column, board)
-
-			if not is_completed then
-				wip_count = wip_count + 1
-				stats.in_progress_tasks = stats.in_progress_tasks + 1
-			end
-
-			if is_completed then
-				stats.completed_tasks = stats.completed_tasks + 1
-
-				-- Calculate cycle time if timestamps exist
-				local cycle_time = stats_utils.calculate_cycle_time(task.properties)
-				if cycle_time then
-					table.insert(stats.cycle_times, cycle_time)
-				end
-			end
-
-			if task.properties.blocked then
-				stats.blocked_tasks = stats.blocked_tasks + 1
-			end
-
-			if task.properties.complexity then
-				stats.total_complexity = stats.total_complexity + task.properties.complexity
-			end
-		end
-
-		stats.wip_by_column[column.name] = wip_count
-	end
-
-	-- Process archive
-	if board.archive then
-		for _, task in ipairs(board.archive.tasks) do
-			stats.total_tasks = stats.total_tasks + 1
-			stats.completed_tasks = stats.completed_tasks + 1
-
-			local cycle_time = stats_utils.calculate_cycle_time(task.properties)
-			if cycle_time then
-				table.insert(stats.cycle_times, cycle_time)
-			end
-		end
-	end
-
-	-- Calculate average cycle time
-	if #stats.cycle_times > 0 then
-		local sum = 0
-		for _, time in ipairs(stats.cycle_times) do
-			sum = sum + time
-		end
-		stats.average_cycle_time = sum / #stats.cycle_times
-
-		-- Convert to days if needed
-		if board.config.cycle_time_unit == "days" then
-			stats.average_cycle_time = stats.average_cycle_time / 86400
-		elseif board.config.cycle_time_unit == "hours" then
-			stats.average_cycle_time = stats.average_cycle_time / 3600
-		end
-	end
-
-	board.stats = stats
-end
-
--- Check for duplicate task IDs in a task list
-local function check_tasks_for_duplicates(tasks, location, seen_ids, validation)
-	for _, task in ipairs(tasks) do
-		local id = task.properties.id
-		if id then
-			if seen_ids[id] then
-				table.insert(validation.errors,
-					string.format("Duplicate task ID '%s' in %s", id, location))
-				validation.valid = false
-			end
-			seen_ids[id] = true
-		end
-	end
-end
-
-	-- Validate board structure and WIP limits
-	function M.validate_board(board)
-		board.validation = {
-			valid = true,
-			warnings = {},
-			errors = {},
-		}
-
-		-- Check board-level WIP limit
-		if board.config and board.config.wip_limit then
-			local total_wip = 0
-			for _, count in pairs(board.stats.wip_by_column) do
-				total_wip = total_wip + count
-			end
-
-			if total_wip > board.config.wip_limit then
-				table.insert(board.validation.warnings,
-					string.format("Board WIP limit exceeded: %d/%d", total_wip, board.config.wip_limit))
-				board.validation.valid = false  -- Set to false when limits exceeded
-			end
-		end
-
-		-- Check column-level WIP limits
-		for _, column in ipairs(board.columns) do
-			if column.config and column.config.wip_limit then
-				local wip = board.stats.wip_by_column[column.name] or 0
-				if wip > column.config.wip_limit then
-					table.insert(board.validation.warnings,
-						string.format("Column '%s' WIP limit exceeded: %d/%d",
-								column.name, wip, column.config.wip_limit))
-					board.validation.valid = false  -- Set to false when limits exceeded
-				end
-			end
-		end
-
-		-- Check for duplicate task IDs
-		local seen_ids = {}
-
-		for _, column in ipairs(board.columns) do
-			check_tasks_for_duplicates(column.tasks, column.name, seen_ids, board.validation)
-		end
-
-		if board.archive then
-			check_tasks_for_duplicates(board.archive.tasks, "__ARCHIVE__", seen_ids, board.validation)
-		end
-
-		return board.validation.valid
-	end
-
--- Find a task by ID
-function M.find_task(board, task_id)
+-- Find a task/card by ID
+function ParserMixin:find_task(task_id)
 	-- TODO guards
 	-- Search regular columns
-	for _, column in ipairs(board.columns) do
-		for _, task in ipairs(column.tasks) do
-			if task.properties.id == task_id then
-				return task, column
+	for _, column in ipairs(self.columns) do
+		for _, card in ipairs(column.cards) do
+			if card.properties and card.properties.id == task_id then
+				return card, column
 			end
 		end
 	end
 
 	-- Search archive
-	if board.archive then
-		for _, task in ipairs(board.archive.tasks) do
-			if task.properties.id == task_id then
-				return task, board.archive
+	if self.archive then
+		for _, card in ipairs(self.archive.cards) do
+			if card.properties and card.properties.id == task_id then
+				return card, self.archive
 			end
 		end
 	end
@@ -530,16 +387,16 @@ function M.find_task(board, task_id)
 	return nil, nil
 end
 
--- Get column by name
-function M.get_column(board, column_name)
-	for _, column in ipairs(board.columns) do
+-- Get column by name (different from existing get_column which uses ID)
+function ParserMixin:get_column_by_name(column_name)
+	for _, column in ipairs(self.columns) do
 		if column.name == column_name then
 			return column
 		end
 	end
 
-	if board.archive and column_name == "__ARCHIVE__" then
-		return board.archive
+	if self.archive and column_name == "__ARCHIVE__" then
+		return self.archive
 	end
 
 	return nil
@@ -547,11 +404,10 @@ end
 
 -- For testing, conditionally export private functions
 if _G._TEST then
-  M._private = {
+  ParserMixin._private = {
     parse_properties = parse_properties,
-		split_content_to_lines = split_content_to_lines,
-		check_tasks_for_duplicates = check_tasks_for_duplicates
+	split_content_to_lines = split_content_to_lines
   }
 end
 
-return M
+return ParserMixin

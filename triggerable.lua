@@ -1,5 +1,5 @@
-local Command = require('kanban-md.event-driven.command')
-local CommandLog = require('kanban-md.event-driven.command_log')
+local Command = require('kanban-md.command')
+local CommandLog = require('kanban-md.command_log')
 
 -- Enhanced Triggerable mixin with command pattern
 local Triggerable = {}

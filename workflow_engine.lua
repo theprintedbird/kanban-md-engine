@@ -1,4 +1,4 @@
--- lua/kanban-md/event-driven/workflow_engine.lua
+-- lua/kanban-md/workflow_engine.lua
 -- Event-driven workflow engine for validating and executing card transitions
 -- Example usage
 -- In the Board or refactored actions
@@ -14,7 +14,7 @@
 --     end
 -- end
 
-local Command = require('kanban-md.event-driven.command')
+local Command = require('kanban-md.command')
 local checker = require('kanban-md.actions.checker')
 
 -- WorkflowEngine class for managing card transitions and validations

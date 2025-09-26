@@ -8,29 +8,29 @@ local default_config = {
   -- Board defaults
   default_columns = {"Backlog", "Ready", "In Progress", "Done"},
   archive_after_days = 30,
-  
+
   -- WIP limits
   default_wip_limit = nil,
   warn_on_wip_exceeded = true,
   block_on_wip_exceeded = false,
-  
+
   -- Display
   show_stats_virtual_text = true,
   show_cycle_time = true,
   date_format = "epoch", -- or "iso", "relative"
-  
+
   -- Automation
   auto_archive = true,
   auto_timestamp = true,
   auto_id = true,
-  
+
   -- Actions specific config
   auto_archive_after_days = 30,
   use_telescope = true,
   use_input = true,
   confirm_destructive = true,
   column_flow = { "Backlog", "Ready", "In Progress", "Done", "__ARCHIVE__" },
-  
+
   -- Writer specific config
   task_indent = "",
   blank_lines_between_sections = true,

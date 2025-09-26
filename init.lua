@@ -8,13 +8,27 @@ local Command = require('kanban-md.command')
 local CommandLog = require('kanban-md.command_log')
 local Triggerable = require('kanban-md.triggerable')
 local triggers = require('kanban-md.triggers')
+local config = require('kanban-md.config')
+local commands = require('kanban-md.commands')
 
-return {
+local M = {
   Board = Board,
   Column = Column,
   Card = Card,
   Command = Command,
   CommandLog = CommandLog,
   Triggerable = Triggerable,
-  triggers = triggers
+  triggers = triggers,
+  config = config,
 }
+
+-- Plugin setup function
+function M.setup(user_config)
+  -- Configure the plugin
+  config.setup(user_config)
+  
+  -- Register Neovim commands
+  commands.setup()
+end
+
+return M

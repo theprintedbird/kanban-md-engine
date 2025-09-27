@@ -42,6 +42,10 @@ function CommandLog:get_last_n(n)
   return result
 end
 
+function CommandLog:get_all()
+  return vim.deepcopy(self.entries)
+end
+
 function CommandLog:begin_transaction()
   table.insert(self.transaction_stack, self.current_index)
 end

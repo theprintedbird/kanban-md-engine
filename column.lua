@@ -33,13 +33,22 @@ end
 function Column:add_card(card)
   table.insert(self.cards, card)
   card.column = self.id
-  self:execute_trigger_with_logging("on_enter", "card_added", card)
+  
+  -- Execute all on_enter triggers
+  local triggers = self:get_triggers("on_enter")
+  for name, _ in pairs(triggers) do
+    self:execute_trigger_with_logging("on_enter", name, card)
+  end
 end
 
 function Column:remove_card(card_id)
   for i, card in ipairs(self.cards) do
     if card.id == card_id then
-      self:execute_trigger_with_logging("on_exit", "card_removed", card)
+      -- Execute all on_exit triggers before removing
+      local triggers = self:get_triggers("on_exit")
+      for name, _ in pairs(triggers) do
+        self:execute_trigger_with_logging("on_exit", name, card)
+      end
       table.remove(self.cards, i)
       return card
     end

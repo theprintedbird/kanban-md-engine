@@ -23,7 +23,7 @@ function M.is_completion_column(column, board)
 
   -- Collect all non-special columns
   for _, col in ipairs(columns) do
-    if not col.name:match("^__") then
+    if col.name and not col.name:match("^__") then
       table.insert(regular_columns, col)
     end
   end
@@ -74,13 +74,12 @@ function M.check_wip_limit(options)
 	end
 
 	local current_wip = 0
-	for _, task in ipairs(column.tasks) do
-		-- Task is completed if in completion column or has done timestamp
-		local is_completed = M.is_completion_column(column, board)
-		if not is_completed then
-			current_wip = current_wip + 1
-		end
+	local tasks = column.tasks or column.cards or {}
+	for _, task in ipairs(tasks) do
+		-- Count all tasks toward WIP limit
+		current_wip = current_wip + 1
 	end
+
 
 	if current_wip >= column.config.wip_limit then
 		local msg = string.format("WIP limit exceeded in %s: %d/%d",
@@ -88,8 +87,9 @@ function M.check_wip_limit(options)
 
 		if config.block_on_wip_exceeded then
 			return false, msg
-		elseif config.warn_on_wip_exceeded then
-			vim.notify(msg, vim.log.levels.WARN)
+		else
+			-- Return false with message for warning (workflow engine expects this)
+			return false, msg
 		end
 	end
 
@@ -388,7 +388,7 @@ function M.check_resources(board, task, target_column)
 
     -- Check deployment slots
     if target_column.name == "Deploying" then
-      local deploying_count = #target_column.tasks
+      local deploying_count = #(target_column.tasks or target_column.cards or {})
       local max_parallel_deploys = board.config and board.config.max_parallel_deploys or 1
 
       if deploying_count >= max_parallel_deploys then
@@ -421,7 +421,7 @@ end
 function M.find_task(board, task_id)
   -- Search in regular columns
   for _, column in ipairs(board.columns) do
-    for _, task in ipairs(column.tasks) do
+    for _, task in ipairs(column.tasks or column.cards or {}) do
       if task.properties.id == task_id then
         return task, column
       end
@@ -430,7 +430,7 @@ function M.find_task(board, task_id)
 
   -- Search in archive
   if board.archive then
-    for _, task in ipairs(board.archive.tasks) do
+    for _, task in ipairs(board.archive and (board.archive.tasks or board.archive.cards) or {}) do
       if task.properties.id == task_id then
         return task, board.archive
       end
@@ -444,7 +444,7 @@ function M.count_tasks_in_review(board)
   local count = 0
   for _, column in ipairs(board.columns) do
     if column.name == "Review" then
-      count = #column.tasks
+      count = #(column.tasks or column.cards or {})
       break
     end
   end

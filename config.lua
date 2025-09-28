@@ -1,5 +1,10 @@
 -- lua/kanban-md/config.lua
 -- Centralized configuration for the kanban-md plugin
+  -- - Purpose: Plugin-level global configuration
+  -- - Scope: User-facing settings for the entire Neovim plugin
+  -- - Content: WIP limits, display preferences, automation settings, date formats, etc.
+  -- - Usage: Modified via require("kanban-md").setup(user_config)
+  -- - Example settings: show_stats_virtual_text, auto_archive, default_columns
 
 local M = {}
 

@@ -72,22 +72,27 @@ local function create_assignment_trigger()
     card.properties.assignee = assignees[next_index]
     self.last_assigned_index = next_index
 
-    return old_assignee, last_assigned
+    return {old_assignee, last_assigned}
   end
 
   local rollback_fn = function(self, context)
     local card = context.args[1]
-    local old_assignee, old_index = context.result[1], context.result[2]
+    local result = context.result
+    
+    -- Handle case where result is a table with two values
+    if type(result) == "table" and #result == 2 then
+      local old_assignee, old_index = result[1], result[2]
+      
+      -- Restore previous assignee
+      if old_assignee then
+        card.properties.assignee = old_assignee
+      else
+        card.properties.assignee = nil
+      end
 
-    -- Restore previous assignee
-    if old_assignee then
-      card.properties.assignee = old_assignee
-    else
-      card.properties.assignee = nil
+      -- Restore index
+      self.last_assigned_index = old_index
     end
-
-    -- Restore index
-    self.last_assigned_index = old_index
 
     return true
   end

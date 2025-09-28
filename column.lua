@@ -1,4 +1,5 @@
 local Triggerable = require('kanban-md.triggerable')
+local TypeConverter = require('kanban-md.type_converter')
 
 -- Column class with enhanced capabilities
 local Column = {}
@@ -10,7 +11,7 @@ function Column:new(id, name)
     id = id,  -- Can be nil to trigger auto-generation
     name = name or id,
     cards = {},
-    config = {}
+    config = TypeConverter:new({})
   }
   setmetatable(obj, Column)
   obj:init_commands()
@@ -89,12 +90,14 @@ function Column:add_card(card, context)
   table.insert(self.cards, card)
   card.column = self.id
  
-   -- ProcessingEntry state: ExecutingEntryTriggers
-   local enter_triggers = self:get_triggers("on_entry")
-   for name, _ in pairs(enter_triggers) do
--    self:execute_trigger_with_logging("on_entry", name, card)
-+    self:execute_trigger_with_logging("on_entry", name, context)
-  end
+	-- ProcessingEntry state: ExecutingEntryTriggers
+	local enter_triggers = self:get_triggers("on_entry")
+	for name, _ in pairs(enter_triggers) do
+		self:execute_trigger_with_logging("on_entry", name, context)
+	end
+
+  -- ProcessingEntry state: UpdatingStatistics (could be implemented later)
+  -- TODO: Update column/board statistics here
 end
 
 function Column:remove_card(card_id, context)
@@ -134,6 +137,7 @@ function Column:remove_card(card_id, context)
       for name, _ in pairs(exit_triggers) do
         self:execute_trigger_with_logging("on_exit", name, context)
       end
+
       table.remove(self.cards, i)
       return card
     end

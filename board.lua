@@ -244,6 +244,108 @@ function Board:get_column(id)
   return nil
 end
 
+function Board:get_column_by_name(name)
+  for _, column in ipairs(self.columns) do
+    if column.name == name then
+      return column
+    end
+  end
+  return nil
+end
+
+-- Configuration-driven trigger registration
+function Board:auto_register_triggers()
+  -- Register workflow triggers if configuration exists
+  if self.config.workflow then
+    local WorkflowEngine = require('kanban-md.workflow_engine')
+    WorkflowEngine:new(self) -- This will auto-setup triggers during initialization
+  end
+
+  -- Register board-level configured triggers
+  if self.config.triggers then
+    self:register_configured_triggers(self.config.triggers, self)
+  end
+
+  -- Register column-level triggers
+  for _, column in ipairs(self.columns) do
+    -- Register basic validation triggers on all columns
+    self:register_basic_triggers(column)
+
+    -- Register column-specific configured triggers
+    if column.config and column.config.triggers then
+      self:register_configured_triggers(column.config.triggers, column)
+    end
+  end
+end
+
+
+function Board:register_basic_triggers(column)
+  -- Load basic trigger functions
+  local triggers = require('kanban-md.triggers')
+  local capacity_triggers = require('kanban-md.extras.capacity_triggers')
+
+  -- Register WIP limit trigger if configured (using existing triggers.lua)
+  if column.config and column.config.wip_limit then
+    local wip_fn, wip_rollback = triggers.wip_limit(column.config.wip_limit)
+    column:register_on_entry("wip_limit", wip_fn, wip_rollback)
+  end
+
+  -- Register capacity points trigger if configured (using extras)
+  if column.config and column.config.capacity and column.config.capacity.max_points then
+    local points_fn, points_rollback = capacity_triggers.create_capacity_points_trigger(column.config.capacity.max_points)
+    column:register_on_checking("capacity_points", points_fn, points_rollback)
+  end
+end
+
+function Board:register_configured_triggers(triggers_config, target_object)
+  -- Register each trigger type from configuration
+  for trigger_type, trigger_list in pairs(triggers_config) do
+    if type(trigger_list) == "table" then
+      for _, trigger_config in ipairs(trigger_list) do
+        self:register_trigger_from_config(trigger_type, trigger_config, target_object)
+      end
+    end
+  end
+end
+
+function Board:register_trigger_from_config(trigger_type, trigger_config, target_object)
+  -- Load the specified module and function
+  local module_name = trigger_config.module
+  local function_name = trigger_config.function_name or trigger_config["function"]
+  local trigger_name = trigger_config.name
+
+  if not module_name or not function_name or not trigger_name then
+    error(string.format("Invalid trigger configuration: module=%s, function=%s, name=%s",
+          tostring(module_name), tostring(function_name), tostring(trigger_name)))
+  end
+
+  local success, module = pcall(require, module_name)
+  if not success then
+    error(string.format("Failed to load trigger module '%s': %s", module_name, module))
+  end
+
+  local trigger_fn = module[function_name]
+  if not trigger_fn or type(trigger_fn) ~= "function" then
+    error(string.format("Trigger function '%s' not found in module '%s'", function_name, module_name))
+  end
+
+  -- Create the trigger function with any provided arguments
+  local args = trigger_config.args or {}
+  local execute_fn, rollback_fn = trigger_fn(unpack(args))
+
+  -- Register the trigger on the target object
+  if trigger_type == "on_checking" then
+    target_object:register_on_checking(trigger_name, execute_fn, rollback_fn)
+  elseif trigger_type == "on_entry" then
+    target_object:register_on_entry(trigger_name, execute_fn, rollback_fn)
+  elseif trigger_type == "on_exit" then
+    target_object:register_on_exit(trigger_name, execute_fn, rollback_fn)
+  elseif trigger_type == "on_stay" then
+    target_object:register_on_stay(trigger_name, execute_fn, rollback_fn)
+  else
+    error(string.format("Unknown trigger type: %s", trigger_type))
+  end
+end
 
 -- Export log for persistence
 function Board:export_command_log(n)
@@ -281,14 +383,14 @@ local function example_usage()
 
   -- Register triggers with rollback
   local timestamp_exec, timestamp_rollback = triggers.timestamp()
-  column1:register_trigger_with_rollback("on_enter", "add_timestamp", timestamp_exec, timestamp_rollback)
-  column2:register_trigger_with_rollback("on_enter", "add_timestamp", timestamp_exec, timestamp_rollback)
+  column1:register_trigger_with_rollback("on_entry", "add_timestamp", timestamp_exec, timestamp_rollback)
+  column2:register_trigger_with_rollback("on_entry", "add_timestamp", timestamp_exec, timestamp_rollback)
 
   local wip_exec, wip_rollback = triggers.wip_limit(2)
-  column2:register_trigger_with_rollback("on_enter", "check_wip", wip_exec, wip_rollback)
+  column2:register_trigger_with_rollback("on_entry", "check_wip", wip_exec, wip_rollback)
 
   local assign_exec, assign_rollback = triggers.assignment()
-  column2:register_trigger_with_rollback("on_enter", "auto_assign", assign_exec, assign_rollback)
+  column2:register_trigger_with_rollback("on_entry", "auto_assign", assign_exec, assign_rollback)
   column2.config.assignees = {"alice", "bob", "charlie"}
 
   -- Create and move cards

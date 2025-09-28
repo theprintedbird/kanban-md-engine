@@ -6,6 +6,10 @@
 local M = {}
 
 function M.is_completion_column(column, board)
+	if not column or not column.name then
+		return false
+	end
+
   -- Priority order:
   -- 1. Explicit property
   if column.properties and column.properties.is_completion_state then
@@ -13,7 +17,7 @@ function M.is_completion_column(column, board)
   end
 
   -- 2. Has completion triggers (Phase 2)
-  if column.triggers and vim.tbl_contains(column.triggers.on_enter or {}, "mark_complete") then
+  if column.triggers and vim.tbl_contains(column.triggers.on_entry or {}, "mark_complete") then
     return true
   end
 
@@ -41,9 +45,10 @@ function M.is_completion_column(column, board)
     end
   end
 
+	-- TODO check the config instead
   -- Check for explicit completion patterns
   local completion_patterns = {
-    "done", "complete", "finished", "shipped", "deployed", "closed"
+    "done", "complete", "finished", "shipped", "deployed", "closed", "__ARCHIVE__"
   }
 
   for _, pattern in ipairs(completion_patterns) do
@@ -157,11 +162,6 @@ function M.check_transition_rules(board, task, source_column, target_column_name
     table.insert(errors, "Not all subtasks are ready for this transition")
   end
 
-  -- 7. Check resource availability (non-blocking, just warning)
-  local resource_issues = M.check_resources(board, task, target_column)
-  for _, warning in ipairs(resource_issues) do
-    table.insert(warnings, warning)
-  end
 
   -- Return results
   if #errors > 0 then
@@ -357,51 +357,6 @@ function M.check_subtasks_ready(board, task, target_column_name)
   return true
 end
 
--- 7. Resource checking (warnings only)
-function M.check_resources(board, task, target_column)
-  local warnings = {}
-
-  -- Check if target column has resource constraints
-  if target_column and target_column.config then
-    -- Check test environment availability
-    if target_column.name == "Testing" or target_column.name == "QA" then
-      if board.config and board.config.test_environments then
-        local available = board.config.test_environments.available or 0
-        if available <= 0 then
-            table.insert(warnings, "No test environments currently available")
-        end
-      end
-    end
-
-    -- Check reviewer availability
-    if target_column.name == "Review" then
-      if not task.properties.reviewer then
-        -- Count available reviewers
-        local reviewers_busy = M.count_tasks_in_review(board)
-        local total_reviewers = board.config and board.config.reviewers and #board.config.reviewers or 0
-
-        if reviewers_busy >= total_reviewers then
-            table.insert(warnings, "All reviewers are currently busy")
-        end
-      end
-    end
-
-    -- Check deployment slots
-    if target_column.name == "Deploying" then
-      local deploying_count = #(target_column.tasks or target_column.cards or {})
-      local max_parallel_deploys = board.config and board.config.max_parallel_deploys or 1
-
-      if deploying_count >= max_parallel_deploys then
-        table.insert(warnings, string.format(
-            "Deployment queue is full (%d/%d)",
-            deploying_count, max_parallel_deploys
-        ))
-      end
-    end
-  end
-
-  return warnings
-end
 
 -- Helper functions
 function M.get_column(board, column_name)
@@ -440,16 +395,6 @@ function M.find_task(board, task_id)
   return nil, nil
 end
 
-function M.count_tasks_in_review(board)
-  local count = 0
-  for _, column in ipairs(board.columns) do
-    if column.name == "Review" then
-      count = #(column.tasks or column.cards or {})
-      break
-    end
-  end
-  return count
-end
 
 -- Extended configuration example for column entry requirements
 --[[

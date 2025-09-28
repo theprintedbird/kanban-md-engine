@@ -3,7 +3,6 @@
 
 -- Dependencies
 local config_module = require("kanban-md.config")
-local helpers = require("kanban-md.helpers")
 local triggers_module = require("kanban-md.triggers")
 local checker = require("kanban-md.actions.checker")
 
@@ -344,17 +343,6 @@ function WriterMixin:append_task_to_column(column_name, task_text, properties)
 
 	-- Get configuration
 	local config = config_module.get()
-
-	-- Generate ID if enabled in config
-	if config.auto_id then
-		new_task = helpers.generate_id(new_task)
-	end
-
-	-- Add timestamp if enabled in config
-	if config.auto_timestamp then
-		local timestamp_execute_fn = triggers_module.timestamp()
-		timestamp_execute_fn({ name = column_name }, new_task)
-	end
 
 	-- Add to column
 	table.insert(column.tasks, new_task)

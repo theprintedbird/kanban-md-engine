@@ -122,23 +122,26 @@ function M.new_card()
   
   select_from_list(column_names, "Select column:", function(choice)
     if not choice then return end
-    
+
+    -- Re-parse board to get current state
+    local current_board = get_current_board()
+
     -- Find the selected column
     local selected_column = nil
-    for _, col in ipairs(board.columns) do
+    for _, col in ipairs(current_board.columns) do
       if col.name == choice then
         selected_column = col
         break
       end
     end
-    
+
     if selected_column then
       -- Create new card
       local card = require("kanban-md.card"):new(nil, card_text, {})
       selected_column:add_card(card)
-      
+
       -- Update buffer
-      update_buffer_with_board(board)
+      update_buffer_with_board(current_board)
       vim.notify("Added card '" .. card_text .. "' to " .. choice, vim.log.levels.INFO)
     end
   end)
@@ -166,58 +169,78 @@ function M.move_card()
   
   select_from_list(column_names, "Move card to:", function(choice)
     if not choice then return end
-    
-    -- Remove card from current column
-    for i, c in ipairs(current_column.cards) do
-      if c.id == card.id then
-        table.remove(current_column.cards, i)
-        break
+
+    -- Re-parse board to get current state
+    local current_board = get_current_board()
+
+    -- Find current card and column in refreshed board
+    local current_card, source_column = nil, nil
+    for _, col in ipairs(current_board.columns) do
+      for _, c in ipairs(col.cards) do
+        if c.id == card.id then
+          current_card = c
+          source_column = col
+          break
+        end
       end
+      if current_card then break end
     end
-    
-    -- Add to new column or archive
+
+    if not current_card or not source_column then
+      vim.notify("Card not found after refresh", vim.log.levels.ERROR)
+      return
+    end
+
+    -- Find target column or archive
+    local target_column = nil
     if choice == "__ARCHIVE__" then
-      if not board.archive then
-        board.archive = require("kanban-md.column"):new("__ARCHIVE__", "__ARCHIVE__")
-        board.archive.is_archive = true
+      if not current_board.archive then
+        current_board.archive = require("kanban-md.column"):new("__ARCHIVE__", "__ARCHIVE__")
+        current_board.archive.is_archive = true
       end
+      target_column = current_board.archive
       -- Add archived timestamp
-      card.properties.archived = os.time()
-      board.archive:add_card(card)
+      current_card.properties.archived = os.time()
     else
-      -- Find target column
-      local target_column = nil
-      for _, col in ipairs(board.columns) do
+      for _, col in ipairs(current_board.columns) do
         if col.name == choice then
           target_column = col
           break
         end
       end
-      
-      if target_column then
-        -- Add timestamp for new column (if auto_timestamp is enabled)
-        if config.get_value("auto_timestamp") then
-          local col_key = choice:lower():gsub("%s+", "_")
-          card.properties[col_key] = os.time()
-        end
-        target_column:add_card(card)
+
+      if target_column and config.get_value("auto_timestamp") then
+        local col_key = choice:lower():gsub("%s+", "_")
+        current_card.properties[col_key] = os.time()
       end
     end
-    
-    update_buffer_with_board(board)
-    vim.notify("Moved card '" .. card.text .. "' to " .. choice, vim.log.levels.INFO)
+
+    if not target_column then
+      vim.notify("Target column not found", vim.log.levels.ERROR)
+      return
+    end
+
+    -- Use the new API
+    local success, err = current_board:move_card(current_card, source_column, target_column)
+
+    if success then
+      update_buffer_with_board(current_board)
+      vim.notify("Moved card '" .. current_card.text .. "' to " .. choice, vim.log.levels.INFO)
+    else
+      vim.notify("Failed to move card: " .. (err or "unknown error"), vim.log.levels.ERROR)
+    end
   end)
 end
 
 -- Command: Mark card as complete and move to Done column
 function M.complete_card()
   local card, current_column, board = get_card_at_cursor()
-  
+
   if not card then
     vim.notify("No card found at cursor position", vim.log.levels.WARN)
     return
   end
-  
+
   -- Find "Done" column (or first column with "done" in name)
   local done_column = nil
   for _, col in ipairs(board.columns) do
@@ -226,26 +249,22 @@ function M.complete_card()
       break
     end
   end
-  
+
   if not done_column then
     vim.notify("No 'Done' column found", vim.log.levels.ERROR)
     return
   end
-  
-  -- Remove from current column
-  for i, c in ipairs(current_column.cards) do
-    if c.id == card.id then
-      table.remove(current_column.cards, i)
-      break
-    end
-  end
-  
-  -- Add done timestamp and move to done column
+
+  -- Add done timestamp and move using new API
   card.properties.done = os.time()
-  done_column:add_card(card)
-  
-  update_buffer_with_board(board)
-  vim.notify("Completed card '" .. card.text .. "'", vim.log.levels.INFO)
+  local success, err = board:move_card(card, current_column, done_column)
+
+  if success then
+    update_buffer_with_board(board)
+    vim.notify("Completed card '" .. card.text .. "'", vim.log.levels.INFO)
+  else
+    vim.notify("Failed to complete card: " .. (err or "unknown error"), vim.log.levels.ERROR)
+  end
 end
 
 -- Command: Archive done cards based on age

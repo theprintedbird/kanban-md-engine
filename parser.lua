@@ -1,9 +1,9 @@
 -- lua/kanban-md/parser.lua
 -- Parser mixin for Board class - converts Markdown to Board instances
 
-local helpers = require("kanban-md.helpers")
 local Column = require("kanban-md.column")
 local Card = require("kanban-md.card")
+local TypeConverter = require("kanban-md.type_converter")
 
 -- Parser mixin that can be applied to Board instances
 local ParserMixin = {}
@@ -163,7 +163,7 @@ end
 local function parse_task(line)
 	local task = {
 		text = "",
-		properties = {},
+		properties = TypeConverter:new({}),
 		raw = line,
 	}
 
@@ -180,13 +180,12 @@ local function parse_task(line)
 
 	if task_text and comment then
 		task.text = task_text:gsub("^%s+", ""):gsub("%s+$", "")
-		task.properties = parse_properties(comment)
+		task.properties = TypeConverter:new(parse_properties(comment))
 	else
 		task.text = text:gsub("^%s+", ""):gsub("%s+$", "")
 	end
 
-	-- Generate ID if not present
-	task = helpers.generate_id(task)
+	-- TODO Generate ID if not present by firing trigger
 
 	return task
 end
@@ -207,7 +206,7 @@ end
 function ParserMixin:parse(content)
 	-- Initialize board properties if not already set
 	self.title = self.title or "Untitled Board"
-	self.config = self.config or {}
+	self.config = self.config or TypeConverter:new({})
 	self.columns = {} -- Reset columns for fresh parse
 	self.archive = nil
 	self.stats = {}
@@ -237,13 +236,13 @@ function ParserMixin:parse(content)
 					if config_type == "board" and comment_buffer:match("kanban:config") then
 						local config_content = comment_buffer:match("^%s*kanban:config%s*,?%s*(.*)")
 						if config_content and config_content ~= "" then
-							self.config = parse_properties(config_content)
+							self.config = TypeConverter:new(parse_properties(config_content))
 						end
 					-- e.g. <!-- column:config wip_limit: 3 -->"
 					elseif config_type == "column" and comment_buffer:match("column:config") then
 						local config_content = comment_buffer:match("^%s*column:config%s*,?%s*(.*)")
 						if current_column then
-							current_column.config = parse_properties(config_content)
+							current_column.config = TypeConverter:new(parse_properties(config_content))
 						end
 					elseif current_column and pending_config then
 						-- This is task properties
@@ -267,12 +266,12 @@ function ParserMixin:parse(content)
 					if comment_content:match("kanban:config") then
 						local config_content = comment_content:match("^%s*kanban:config%s*,?%s*(.*)")
 						if config_content and config_content ~= "" then
-							self.config = parse_properties(config_content)
+							self.config = TypeConverter:new(parse_properties(config_content))
 						end
 					elseif comment_content:match("column:config") and current_column then
 						local config_content = comment_content:match("^%s*column:config%s*,?%s*(.*)")
 						if current_column and config_content and config_content ~= "" then
-							current_column.config = parse_properties(config_content)
+							current_column.config = TypeConverter:new(parse_properties(config_content))
 						end
 					elseif current_column then
 						-- Could be task-related, store for next task
@@ -358,6 +357,11 @@ function ParserMixin:parse(content)
 	end
 	if self.validate then
 		self:validate()
+	end
+
+	-- Auto-register triggers based on configuration
+	if self.auto_register_triggers then
+		self:auto_register_triggers()
 	end
 
 	return self

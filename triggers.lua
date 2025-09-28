@@ -100,8 +100,9 @@ local function create_assignment_trigger()
   return execute_fn, rollback_fn
 end
 
+
 return {
   timestamp = create_timestamp_trigger,
   wip_limit = create_wip_limit_trigger,
-  assignment = create_assignment_trigger
+  assignment = create_assignment_trigger,
 }

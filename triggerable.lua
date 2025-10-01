@@ -1,3 +1,102 @@
+--[[
+Enhanced Triggerable mixin with command pattern
+
+This module provides trigger functionality for Board, Column, and Card objects.
+Triggers are functions that execute in response to events (entry, exit, stay, checking, create).
+
+WRITING CUSTOM TRIGGERS
+========================
+
+Each trigger consists of two functions: execute and rollback (optional).
+
+Execute Function Signature:
+---------------------------
+function(self, context)
+  -- Parameters:
+  --   self: The triggerable object (column, board, or card)
+  --   context: Table containing:
+  --     - board: The board object
+  --     - column: The column object
+  --     - card: The card object
+  --     - timestamp: Event timestamp
+  --     - args: Additional arguments passed to trigger
+  --
+  -- Returns:
+  --   Value to be used for rollback (or true if nothing to rollback)
+end
+
+Rollback Function Signature (optional):
+---------------------------------------
+function(self, context)
+  -- Parameters:
+  --   self: The triggerable object
+  --   context: Table containing:
+  --     - result: The value returned by execute function
+  --     - board, column, card: The relevant objects
+  --     - args: Original arguments
+  --
+  -- Returns:
+  --   true on successful rollback, false otherwise
+end
+
+EXAMPLE: Timestamp Trigger
+---------------------------
+local function create_timestamp_trigger()
+  local execute_fn = function(self, card)
+    local timestamp_key = self.name:lower():gsub("[^%w_]", "_")
+    local old_value = card.properties[timestamp_key]
+    card.properties[timestamp_key] = os.time()
+    return old_value  -- For rollback
+  end
+
+  local rollback_fn = function(self, context)
+    local card = context.args[1]
+    local timestamp_key = self.name:lower():gsub("[^%w_]", "_")
+    card.properties[timestamp_key] = context.result
+    return true
+  end
+
+  return execute_fn, rollback_fn
+end
+
+EXAMPLE: WIP Limit Trigger
+---------------------------
+local function create_wip_limit_trigger(wip_limit)
+  local execute_fn = function(self, card)
+    if #self.cards > wip_limit then
+      error(string.format("WIP limit exceeded: %d/%d", #self.cards, wip_limit))
+    end
+    return true
+  end
+
+  local rollback_fn = function(self, context)
+    return true  -- Nothing to rollback for validation
+  end
+
+  return execute_fn, rollback_fn
+end
+
+REGISTERING TRIGGERS
+--------------------
+-- Register on a column
+local execute_fn, rollback_fn = create_timestamp_trigger()
+column:register_on_entry("timestamp", execute_fn, rollback_fn)
+
+-- Register on a board
+local execute_fn, rollback_fn = create_wip_limit_trigger(5)
+board:register_on_checking("wip_limit", execute_fn, rollback_fn)
+
+TRIGGER EVENTS
+--------------
+- on_entry: Fires when a card enters a column
+- on_exit: Fires when a card leaves a column
+- on_stay: Fires while a card remains in a column
+- on_checking: Fires to validate before a transition
+- on_create: Fires when a new card is created
+
+See lua/kanban-md/triggers.lua and lua/kanban-md/extras/id_triggers.lua for more examples.
+--]]
+
 local Command = require('kanban-md.command')
 local CommandLog = require('kanban-md.command_log')
 

@@ -213,7 +213,7 @@ function Board:move_card_with_rollback(card, from_column, to_column)
   }
 
   -- Try to remove from source column with context
-  local removed_card = from_column:remove_card(card.id, context)
+  local removed_card = from_column:remove_card(card, context)
   if not removed_card then
     self.command_log:rollback_transaction()
     return false, "Failed to remove card from source column"

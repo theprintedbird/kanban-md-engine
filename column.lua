@@ -104,19 +104,35 @@ function Column:add_card(card, context)
   -- Add card to column
   table.insert(self.cards, card)
   card.column = self.id
- 
-	processingStuff("entry", self, context)
+
+	processingStuff("entry", self, final_context)
 
   -- ProcessingEntry state: UpdatingStatistics (could be implemented later)
   -- TODO: Update column/board statistics here
 end
 
 function Column:remove_card(card, context)
-	-- TODO check column has card
+	local card_index = nil
+
+	for i, c in ipairs(self.cards) do
+		if c.id == card.id or c == card then
+			card_index = i
+			break
+		end
+	end
+
+	if not card_index then
+		error(string.format("Card with ID '%s' not found in column '%s'", card.id, self.id))
+		return
+	end
 
 	local final_context = build_context_and_checking("exit", self, card, context)
-	processingStuff("exit", self, context)
-	table.remove(self.cards, i)
+	processingStuff("exit", self, final_context)
+
+	if card_index then
+		table.remove(self.cards, card_index)
+	end
+
 	return card
 end
 

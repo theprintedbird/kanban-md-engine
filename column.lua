@@ -56,7 +56,7 @@ function Column:capture_state()
   }
 end
 
-function Column:add_card(card, context)
+local build_context_and_checking = function(event_type, self, card, context)
   -- Build context if not provided (for backward compatibility)
   if not context then
     context = {
@@ -72,77 +72,52 @@ function Column:add_card(card, context)
   end
 
   -- ProcessingEntry state: ValidatingRequirements
+  -- ProcessingExit	 state: ValidatingRequirements
   local checking_triggers = self:get_triggers("on_checking")
   for name, _ in pairs(checking_triggers) do
     local success, result = self:execute_trigger_with_logging("on_checking", name, context)
     -- Check if trigger failed
     if not success then
-      error(string.format("Card entry validation failed [%s]: %s", name, result or "Unknown error"))
+      error(string.format("Card %s validation failed [%s]: %s", event_type, name, result or "Unknown error"))
     end
-    -- Check if result indicates failure
+    -- Check if result indicated failure
     if result and type(result) == "table" and result.success == false then
       local err_msg = result.errors and result.errors[1] or "Unknown error"
-      error(string.format("Card entry validation failed [%s]: %s", name, err_msg))
+      error(string.format("Card %s validation failed [%s]: %s", event_type, name, err_msg))
     end
   end
+	return context
+end
+
+-- ProcessingExit state: ExecutingExitTriggers
+-- ProcessingEntry state: ExecutingEntryTriggers
+local processingStuff = function(event_type, self, context)
+	local e_triggers = self:get_triggers("on_" .. event_type)
+	for name, _ in pairs(e_triggers) do
+		self:execute_trigger_with_logging("on_" .. event_type, name, context)
+	end
+end
+
+function Column:add_card(card, context)
+	local final_context = build_context_and_checking("entry", self, card, context)
 
   -- Add card to column
   table.insert(self.cards, card)
   card.column = self.id
  
-	-- ProcessingEntry state: ExecutingEntryTriggers
-	local enter_triggers = self:get_triggers("on_entry")
-	for name, _ in pairs(enter_triggers) do
-		self:execute_trigger_with_logging("on_entry", name, context)
-	end
+	processingStuff("entry", self, context)
 
   -- ProcessingEntry state: UpdatingStatistics (could be implemented later)
   -- TODO: Update column/board statistics here
 end
 
-function Column:remove_card(card_id, context)
-  for i, card in ipairs(self.cards) do
-    if card.id == card_id then
-      -- Build context if not provided (for backward compatibility)
-      if not context then
-        context = {
-          card = card,
-          source_column = self,
-          target_column = nil,
-          board = nil
-        }
-      else
-        -- Ensure card and source_column are set in context
-        context.card = card
-        context.source_column = self
-      end
+function Column:remove_card(card, context)
+	-- TODO check column has card
 
-      -- ProcessingExit state: ExecutingCheckingTriggers
-      local checking_triggers = self:get_triggers("on_checking")
-      for name, _ in pairs(checking_triggers) do
-        local success, result = self:execute_trigger_with_logging("on_checking", name, context)
-        -- Check if trigger failed
-        if not success then
-          error(string.format("Card exit validation failed [%s]: %s", name, result or "Unknown error"))
-        end
-        -- Check if result indicates failure
-        if result and type(result) == "table" and result.success == false then
-          local err_msg = result.errors and result.errors[1] or "Unknown error"
-          error(string.format("Card exit validation failed [%s]: %s", name, err_msg))
-        end
-      end
-
-      -- ProcessingExit state: ExecutingExitTriggers
-      local exit_triggers = self:get_triggers("on_exit")
-      for name, _ in pairs(exit_triggers) do
-        self:execute_trigger_with_logging("on_exit", name, context)
-      end
-
-      table.remove(self.cards, i)
-      return card
-    end
-  end
-  return nil
+	local final_context = build_context_and_checking("exit", self, card, context)
+	processingStuff("exit", self, context)
+	table.remove(self.cards, i)
+	return card
 end
 
 return Column

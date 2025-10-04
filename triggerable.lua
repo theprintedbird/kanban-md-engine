@@ -167,7 +167,12 @@ function Triggerable:execute_trigger_with_logging(event_type, name, ...)
       string.format("%s.%s.%s", self.id or "unknown", event_type, name),
       function()
         local values = {self.triggers[event_type][name](self, unpack(args))}
-        return values -- Return the whole table instead of unpacking
+        -- Return single value unwrapped, or multiple values as table
+        if #values == 1 then
+          return values[1]
+        else
+          return values
+        end
       end,
       nil  -- No rollback
     )

@@ -45,7 +45,7 @@ end
 -- WIP limit validation trigger with rollback
 local function create_wip_limit_trigger(wip_limit)
   local execute_fn = function(self, card)
-    if #self.cards > wip_limit then
+    if #self.cards >= wip_limit then
       error(string.format("WIP limit exceeded: %d/%d", #self.cards, wip_limit))
     end
     return true

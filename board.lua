@@ -168,6 +168,7 @@ function Board:add_column(id, name)
   end
 
   table.insert(self.columns, column)
+	column.board = self
 
   -- Share the command log with child objects for unified history
   column.command_log = self.command_log
@@ -353,7 +354,7 @@ function Board:register_basic_triggers(column)
   -- Register WIP limit trigger if configured (using existing triggers.lua)
   if column.config and column.config.wip_limit then
     local wip_fn, wip_rollback = triggers.wip_limit(column.config.wip_limit)
-    column:register_on_entry("wip_limit", wip_fn, wip_rollback)
+    column:register_on_checking("wip_limit", wip_fn, wip_rollback)
   end
 
   -- Register capacity points trigger if configured (using extras)

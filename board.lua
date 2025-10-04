@@ -280,18 +280,21 @@ function Board:move_card_with_rollback(card, from_column, to_column)
   }
 
   -- Try to remove from source column with context
-  local removed_card = from_column:remove_card(card, context)
-  if not removed_card then
+  local remove_success, removed_card_or_err = pcall(function()
+    return from_column:remove_card(card, context)
+  end)
+
+  if not remove_success then
     self.command_log:rollback_transaction()
-    return false, "Failed to remove card from source column"
+    return false, removed_card_or_err
   end
 
   -- Try to add to target column with context
-  local success, err = pcall(function()
-    to_column:add_card(removed_card, context)
+  local add_success, err = pcall(function()
+    to_column:add_card(removed_card_or_err, context)
   end)
 
-  if not success then
+  if not add_success then
     -- Rollback the transaction on error
     self.command_log:rollback_transaction()
     return false, err

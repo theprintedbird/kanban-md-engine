@@ -97,11 +97,30 @@ end
 local processingStuff = function(event_type, self, context)
 	local e_triggers = self:get_triggers("on_" .. event_type)
 	local trigger_names = self.trigger_order["on_" .. event_type] or {}
+	local results = {}
+	local errors = {}
+
+	-- Start transaction for atomic rollback
+	self.command_log:begin_transaction()
+
 	for _, name in ipairs(trigger_names) do
 		if e_triggers[name] then
-			self:execute_trigger_with_logging("on_" .. event_type, name, context)
+			local success, result = self:execute_trigger_with_logging("on_" .. event_type, name, context)
+
+			table.insert(results, {name = name, success = success, result = result})
+
+			if not success then
+				table.insert(errors, {name = name, error = result})
+				-- Fail-fast: rollback and stop
+				self.command_log:rollback_transaction()
+				return false, results, errors
+			end
 		end
 	end
+
+	-- All triggers succeeded
+	self.command_log:commit_transaction()
+	return true, results, errors
 end
 
 function Column:add_card(card, context)
@@ -111,7 +130,18 @@ function Column:add_card(card, context)
   table.insert(self.cards, card)
   card.column = self.id
 
-	processingStuff("entry", self, final_context)
+	-- Execute entry triggers with transaction support
+	local success, results, errors = processingStuff("entry", self, final_context)
+
+	if not success then
+		-- Rollback card addition (triggers already rolled back by processingStuff)
+		table.remove(self.cards)
+		card.column = nil
+
+		-- Throw error with details
+		local error_msg = errors[1] and errors[1].error or "Unknown error"
+		error(string.format("Entry trigger '%s' failed: %s", errors[1].name, error_msg))
+	end
 
   -- ProcessingEntry state: UpdatingStatistics (could be implemented later)
   -- TODO: Update column/board statistics here
@@ -133,11 +163,19 @@ function Column:remove_card(card, context)
 	end
 
 	local final_context = build_context_and_checking("exit", self, card, context)
-	processingStuff("exit", self, final_context)
 
-	if card_index then
-		table.remove(self.cards, card_index)
+	-- Execute exit triggers with transaction support
+	local success, results, errors = processingStuff("exit", self, final_context)
+
+	if not success then
+		-- Triggers already rolled back by processingStuff
+		-- Throw error with details
+		local error_msg = errors[1] and errors[1].error or "Unknown error"
+		error(string.format("Exit trigger '%s' failed: %s", errors[1].name, error_msg))
 	end
+
+	-- Only remove card if all triggers succeeded
+	table.remove(self.cards, card_index)
 
 	return card
 end

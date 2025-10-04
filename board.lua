@@ -179,9 +179,9 @@ end
 -- Checks workflow rules to determine if the move is allowed
 -- @param card Card - the card to move
 -- @param from_column Column|nil - the source column object (nil for new cards)
--- @param to_column_name string - the name of the target column
+-- @param to_column string|Column - the target column name or Column instance
 -- @return ValidationResult - result indicating if move is valid
-function Board:validate_move(card, from_column, to_column_name)
+function Board:validate_move(card, from_column, to_column)
   local ValidationResult = require('kanban-md.validation_result')
   local WorkflowEngine = require('kanban-md.workflow_engine')
 
@@ -191,8 +191,17 @@ function Board:validate_move(card, from_column, to_column_name)
   if from_column ~= nil and (type(from_column) ~= "table" or not from_column.id) then
     error("Board:validate_move() expects Column object or nil as second parameter")
   end
-  if type(to_column_name) ~= "string" then
-    error("Board:validate_move() expects string column name as third parameter")
+
+  -- Handle both Column instance and string column name
+  local to_column_name
+  if type(to_column) == "table" and getmetatable(to_column) == Column then
+    -- Column instance - extract the name
+    to_column_name = to_column.name
+  elseif type(to_column) == "string" then
+    -- String column name
+    to_column_name = to_column
+  else
+    error("Board:validate_move() expects Column object or string column name as third parameter")
   end
 
   -- Find the target column

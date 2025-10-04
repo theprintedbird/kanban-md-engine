@@ -7,10 +7,21 @@ Card.__index = Card
 setmetatable(Card, { __index = Triggerable })
 
 function Card:new(id, text, properties)
+  -- If properties is already a TypeConverter, use it directly to avoid double-wrapping
+  local props = properties
+  if type(properties) == "table" and not properties.to_table then
+    -- Plain table, needs to be wrapped
+    props = TypeConverter:new(properties)
+  elseif not properties then
+    -- No properties provided
+    props = TypeConverter:new({})
+  end
+  -- else: properties is already a TypeConverter, use as-is
+
   local obj = {
     id = id,
     text = text or "",
-    properties = TypeConverter:new(properties or {}),
+    properties = props,
     column = nil
   }
   setmetatable(obj, Card)

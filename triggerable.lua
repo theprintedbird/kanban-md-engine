@@ -166,9 +166,14 @@ function Triggerable:execute_trigger_with_logging(event_type, name, ...)
     command = Command:new(
       string.format("%s.%s.%s", self.id or "unknown", event_type, name),
       function()
-        local values = {self.triggers[event_type][name](self, unpack(args))}
+        local trigger_fn = self.triggers[event_type][name]
+        -- Use pack pattern to correctly handle nil values in return
+        local function pack(...)
+          return {n = select('#', ...), ...}
+        end
+        local values = pack(trigger_fn(self, unpack(args)))
         -- Return single value unwrapped, or multiple values as table
-        if #values == 1 then
+        if values.n == 1 then
           return values[1]
         else
           return values

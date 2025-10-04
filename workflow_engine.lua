@@ -9,6 +9,102 @@
 local ValidationResult = require('kanban-md.validation_result')
 local Triggerable = require("kanban-md.triggerable")
 
+-- Static helper function to evaluate conditions (used by workflow validation)
+-- Format: "property == value" or "property != value"
+local function evaluate_condition(condition, card)
+  -- Simple property-based conditions for now
+  local prop, op, value = condition:match("(%w+)%s*([=!]+)%s*(.+)")
+
+  if not prop then
+    -- Try to evaluate as a simple boolean property
+    return card.properties[condition] == true
+  end
+
+  local card_value = card.properties[prop]
+
+  -- Clean up value
+  value = value:gsub("^[\"']", ""):gsub("[\"']$", "")
+
+  -- Convert "true"/"false" strings to booleans
+  if value == "true" then value = true
+  elseif value == "false" then value = false
+  elseif value == "nil" then value = nil
+  elseif tonumber(value) then value = tonumber(value)
+  end
+
+  if op == "==" or op == "=" then
+    return card_value == value
+  elseif op == "!=" then
+    return card_value ~= value
+  end
+
+  return false
+end
+
+-- Static helper function to get valid transitions for a card
+-- Returns array of valid target column names
+local function get_valid_transitions(board, card, source_column)
+  local workflow = board.config and board.config.workflow
+
+  if not workflow then
+    -- No workflow defined - return all columns except source
+    local valid = {}
+    for _, column in ipairs(board.columns) do
+      if column.name ~= source_column.name then
+        table.insert(valid, column.name)
+      end
+    end
+    -- Add archive if not already there
+    if source_column.name ~= "__ARCHIVE__" then
+      table.insert(valid, "__ARCHIVE__")
+    end
+    return valid
+  end
+
+  local transitions = workflow[source_column.name]
+  if not transitions then
+    return {}  -- No transitions defined
+  end
+
+  local valid = {}
+
+  -- Handle simple array of strings
+  if type(transitions) == "table" then
+    -- Check if it's a simple array
+    local is_array = true
+    for k, v in pairs(transitions) do
+      if type(k) ~= "number" or type(v) == "table" then
+        is_array = false
+        break
+      end
+    end
+
+    if is_array then
+      return transitions
+    end
+
+    -- Handle conditional transitions
+    for target, config in pairs(transitions) do
+      if type(config) == "table" then
+        if config.when then
+          -- Evaluate condition
+          if evaluate_condition(config.when, card) then
+            table.insert(valid, target)
+          end
+        else
+          -- No condition, always allow
+          table.insert(valid, target)
+        end
+      else
+        -- Simple inclusion
+        table.insert(valid, target)
+      end
+    end
+  end
+
+  return valid
+end
+
 -- Simplified WorkflowEngine class for trigger registration only
 local WorkflowEngine = {}
 WorkflowEngine.__index = WorkflowEngine
@@ -140,37 +236,6 @@ local function create_wip_limit_checking_trigger(wip_limit)
   return execute_fn, nil
 end
 
--- Helper function to evaluate conditions (static version for triggers)
-function WorkflowEngine:evaluate_condition_static(condition, card)
-  -- Simple property-based conditions for now
-  -- Format: "property == value" or "property != value"
-  local prop, op, value = condition:match("(%w+)%s*([=!]+)%s*(.+)")
-
-  if not prop then
-    -- Try to evaluate as a simple boolean property
-    return card.properties[condition] == true
-  end
-
-  local card_value = card.properties[prop]
-
-  -- Clean up value
-  value = value:gsub("^[\"']", ""):gsub("[\"']$", "")
-
-  -- Convert "true"/"false" strings to booleans
-  if value == "true" then value = true
-  elseif value == "false" then value = false
-  elseif value == "nil" then value = nil
-  elseif tonumber(value) then value = tonumber(value)
-  end
-
-  if op == "==" or op == "=" then
-    return card_value == value
-  elseif op == "!=" then
-    return card_value ~= value
-  end
-
-  return false
-end
 
 -- Auto-register workflow triggers during board setup
 function WorkflowEngine:setup_workflow_triggers(board)
@@ -209,104 +274,13 @@ end
 
 
 -- Get valid transitions for a card in its current column
+-- Instance method for backwards compatibility
 function WorkflowEngine:get_valid_transitions(card, source_column)
-	local workflow = self.board.config and self.board.config.workflow
-
-	if not workflow then
-		-- No workflow defined - return all columns except source
-		local valid = {}
-		for _, column in ipairs(self.board.columns) do
-			if column.name ~= source_column.name then
-				table.insert(valid, column.name)
-			end
-		end
-		-- Add archive if not already there
-		if source_column.name ~= "__ARCHIVE__" then
-			table.insert(valid, "__ARCHIVE__")
-		end
-		return valid
-	end
-
-	local transitions = workflow[source_column.name]
-	if not transitions then
-		return {}  -- No transitions defined
-	end
-
-	local valid = {}
-
-	-- Handle simple array of strings
-	if type(transitions) == "table" then
-		-- Check if it's a simple array
-		local is_array = true
-		for k, v in pairs(transitions) do
-			if type(k) ~= "number" or type(v) == "table" then
-				is_array = false
-				break
-			end
-		end
-
-		if is_array then
-			return transitions
-		end
-
-		-- Handle conditional transitions
-		for target, config in pairs(transitions) do
-			if type(config) == "table" then
-				if config.when then
-					-- Evaluate condition
-					if self:evaluate_condition_static(config.when, card) then
-						table.insert(valid, target)
-					end
-				else
-					-- No condition, always allow
-					table.insert(valid, target)
-				end
-			else
-				-- Simple inclusion
-				table.insert(valid, target)
-			end
-		end
-	end
-
-	return valid
+	return get_valid_transitions(self.board, card, source_column)
 end
 
 
--- Request a move and validate it without executing
--- Returns a ValidationResult indicating if the move is valid
--- @param card Card - the card to move
--- @param source_column Column - the column the card is currently in
--- @param target_column_name string - the name of the target column
--- @return ValidationResult
-function WorkflowEngine:request_move(card, source_column, target_column_name)
-	-- Find the target column
-	local target_column = self.board:get_column_by_name(target_column_name)
-
-	if not target_column then
-		return ValidationResult.error(string.format("Target column '%s' not found", target_column_name))
-	end
-
-	-- Check if transition is allowed by workflow rules
-	local valid_transitions = self:get_valid_transitions(card, source_column)
-
-	local is_valid = false
-	for _, valid_target in ipairs(valid_transitions) do
-		if valid_target == target_column_name then
-			is_valid = true
-			break
-		end
-	end
-
-	if not is_valid then
-		return ValidationResult.error(string.format(
-			"Invalid transition from '%s' to '%s'",
-			source_column.name,
-			target_column_name
-		))
-	end
-
-	-- Transition is valid
-	return ValidationResult.success()
-end
+-- Export static helper function for use by Board
+WorkflowEngine.get_valid_transitions_static = get_valid_transitions
 
 return WorkflowEngine

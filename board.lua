@@ -173,6 +173,61 @@ function Board:add_column(id, name)
   return column
 end
 
+-- Validate a card move without executing it
+-- Checks workflow rules to determine if the move is allowed
+-- @param card Card - the card to move
+-- @param from_column Column|nil - the source column object (nil for new cards)
+-- @param to_column_name string - the name of the target column
+-- @return ValidationResult - result indicating if move is valid
+function Board:validate_move(card, from_column, to_column_name)
+  local ValidationResult = require('kanban-md.validation_result')
+  local WorkflowEngine = require('kanban-md.workflow_engine')
+
+  if type(card) ~= "table" or not card.id then
+    error("Board:validate_move() expects Card object as first parameter")
+  end
+  if from_column ~= nil and (type(from_column) ~= "table" or not from_column.id) then
+    error("Board:validate_move() expects Column object or nil as second parameter")
+  end
+  if type(to_column_name) ~= "string" then
+    error("Board:validate_move() expects string column name as third parameter")
+  end
+
+  -- Find the target column
+  local target_column = self:get_column_by_name(to_column_name)
+
+  if not target_column then
+    return ValidationResult.error(string.format("Target column '%s' not found", to_column_name))
+  end
+
+  -- If no source column, skip workflow validation (new card being added)
+  if not from_column then
+    return ValidationResult.success()
+  end
+
+  -- Check if transition is allowed by workflow rules
+  local valid_transitions = WorkflowEngine.get_valid_transitions_static(self, card, from_column)
+
+  local is_valid = false
+  for _, valid_target in ipairs(valid_transitions) do
+    if valid_target == to_column_name then
+      is_valid = true
+      break
+    end
+  end
+
+  if not is_valid then
+    return ValidationResult.error(string.format(
+      "Invalid transition from '%s' to '%s'",
+      from_column.name,
+      to_column_name
+    ))
+  end
+
+  -- Transition is valid
+  return ValidationResult.success()
+end
+
 -- Move a card between columns with context and validation
 -- Accepts card and column objects
 -- Returns: success (boolean), error_message (string or nil)

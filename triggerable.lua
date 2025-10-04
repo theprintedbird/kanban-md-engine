@@ -110,6 +110,9 @@ function Triggerable:init_commands()
   if not self.triggers then
     self.triggers = {}
   end
+  if not self.trigger_order then
+    self.trigger_order = {}
+  end
   if not self.command_factories then
     self.command_factories = {}
   end
@@ -121,6 +124,14 @@ function Triggerable:register_trigger_with_rollback(event_type, name, execute_fn
 
   if not self.triggers[event_type] then
     self.triggers[event_type] = {}
+  end
+  if not self.trigger_order[event_type] then
+    self.trigger_order[event_type] = {}
+  end
+
+  -- Track insertion order if this is a new trigger
+  if not self.triggers[event_type][name] then
+    table.insert(self.trigger_order[event_type], name)
   end
 
   -- Create a command factory for this trigger
@@ -251,11 +262,19 @@ end
 -- Simple trigger registration methods (for testing and basic usage)
 function Triggerable:register_trigger(event_type, name, execute_fn)
   self:init_commands()
-  
+
   if not self.triggers[event_type] then
     self.triggers[event_type] = {}
   end
-  
+  if not self.trigger_order[event_type] then
+    self.trigger_order[event_type] = {}
+  end
+
+  -- Track insertion order if this is a new trigger
+  if not self.triggers[event_type][name] then
+    table.insert(self.trigger_order[event_type], name)
+  end
+
   self.triggers[event_type][name] = execute_fn
 end
 
@@ -314,64 +333,68 @@ function Triggerable:execute_triggers(event_type, context)
   local results = {}
   local errors = {}
 
-  -- Execute triggers in registration order (table iteration order)
-  for name, trigger_fn in pairs(self.triggers[event_type]) do
-    local success, result = self:execute_trigger_with_logging(event_type, name, context)
-    if success and result and type(result) == "table" and result.errors and result.warnings then
-      table.insert(results, result)
-    else
-      -- Handle legacy format
-      local error_msg, warning_msg, metadata = nil, nil, nil
+  -- Execute triggers in registration order using trigger_order array
+  local trigger_names = self.trigger_order[event_type] or {}
+  for _, name in ipairs(trigger_names) do
+    local trigger_fn = self.triggers[event_type][name]
+    if trigger_fn then
+      local success, result = self:execute_trigger_with_logging(event_type, name, context)
+      if success and result and type(result) == "table" and result.errors and result.warnings then
+        table.insert(results, result)
+      else
+        -- Handle legacy format
+        local error_msg, warning_msg, metadata = nil, nil, nil
 
-      if success and result then
-      -- Handle multiple return values format: success, error_message, warning_message, metadata
-      if type(result) == "table" and result[1] ~= nil then
-        -- Check if this is a standardized multi-value return or legacy single string
-        if #result == 1 and type(result[1]) == "string" and event_type == "on_checking" then
-          -- Legacy format - single string for checking triggers
-          warning_msg = result[1]
-        elseif type(result[1]) == "boolean" then
-          -- Standardized multi-value format: success, error, warning, metadata
-          local trigger_success = result[1]
-          if not trigger_success then
-            error_msg = result[2]  -- Error message
+        if success and result then
+        -- Handle multiple return values format: success, error_message, warning_message, metadata
+        if type(result) == "table" and result[1] ~= nil then
+          -- Check if this is a standardized multi-value return or legacy single string
+          if #result == 1 and type(result[1]) == "string" and event_type == "on_checking" then
+            -- Legacy format - single string for checking triggers
+            warning_msg = result[1]
+          elseif type(result[1]) == "boolean" then
+            -- Standardized multi-value format: success, error, warning, metadata
+            local trigger_success = result[1]
+            if not trigger_success then
+              error_msg = result[2]  -- Error message
+            else
+              error_msg = result[2]  -- Could still be error message in success=true case
+              warning_msg = result[3]  -- Warning message
+              metadata = result[4]  -- Metadata
+            end
           else
-            error_msg = result[2]  -- Could still be error message in success=true case
-            warning_msg = result[3]  -- Warning message
-            metadata = result[4]  -- Metadata
+            -- Unknown format, treat first element as metadata
+            metadata = result[1]
+          end
+        elseif type(result) == "table" and result.error then
+          -- Table with named fields
+          error_msg = result.error
+          warning_msg = result.warning
+          metadata = result.metadata
+        elseif type(result) == "string" then
+          -- Legacy format - treat as warning for checking triggers
+          if event_type == "on_checking" then
+            warning_msg = result
           end
         else
-          -- Unknown format, treat first element as metadata
-          metadata = result[1]
+          metadata = result
         end
-      elseif type(result) == "table" and result.error then
-        -- Table with named fields
-        error_msg = result.error
-        warning_msg = result.warning
-        metadata = result.metadata
-      elseif type(result) == "string" then
-        -- Legacy format - treat as warning for checking triggers
-        if event_type == "on_checking" then
-          warning_msg = result
-        end
-      else
-        metadata = result
+      elseif not success then
+        error_msg = result
       end
-    elseif not success then
-      error_msg = result
-    end
 
-      table.insert(results, {
-        name = name,
-        success = success,
-        result = success and result or nil,
-        error = error_msg,
-        warning = warning_msg,
-        metadata = metadata
-      })
+        table.insert(results, {
+          name = name,
+          success = success,
+          result = success and result or nil,
+          error = error_msg,
+          warning = warning_msg,
+          metadata = metadata
+        })
 
-      if not success or error_msg then
-        table.insert(errors, {name = name, error = error_msg or result})
+        if not success or error_msg then
+          table.insert(errors, {name = name, error = error_msg or result})
+        end
       end
     end
   end
@@ -532,14 +555,25 @@ function Triggerable:clear_triggers(event_type, name)
     if self.command_factories[event_type] then
       self.command_factories[event_type][name] = nil
     end
+    -- Remove from trigger order
+    if self.trigger_order[event_type] then
+      for i, trigger_name in ipairs(self.trigger_order[event_type]) do
+        if trigger_name == name then
+          table.remove(self.trigger_order[event_type], i)
+          break
+        end
+      end
+    end
   elseif event_type then
     -- Clear all triggers for event type
     self.triggers[event_type] = {}
     self.command_factories[event_type] = {}
+    self.trigger_order[event_type] = {}
   else
     -- Clear all triggers
     self.triggers = {}
     self.command_factories = {}
+    self.trigger_order = {}
   end
 end
 

@@ -62,8 +62,8 @@ local build_context_and_checking = function(event_type, self, card, context)
     context = {
       card = card,
       target_column = self,
-      source_column = nil,
-      board = nil
+      source_column = card.column,
+      board = self.board
     }
   else
     -- Ensure card and target_column are set in context
@@ -74,16 +74,19 @@ local build_context_and_checking = function(event_type, self, card, context)
   -- ProcessingEntry state: ValidatingRequirements
   -- ProcessingExit	 state: ValidatingRequirements
   local checking_triggers = self:get_triggers("on_checking")
-  for name, _ in pairs(checking_triggers) do
-    local success, result = self:execute_trigger_with_logging("on_checking", name, context)
-    -- Check if trigger failed
-    if not success then
-      error(string.format("Card %s validation failed [%s]: %s", event_type, name, result or "Unknown error"))
-    end
-    -- Check if result indicated failure
-    if result and type(result) == "table" and result.success == false then
-      local err_msg = result.errors and result.errors[1] or "Unknown error"
-      error(string.format("Card %s validation failed [%s]: %s", event_type, name, err_msg))
+  local trigger_names = self.trigger_order["on_checking"] or {}
+  for _, name in ipairs(trigger_names) do
+    if checking_triggers[name] then
+      local success, result = self:execute_trigger_with_logging("on_checking", name, context)
+      -- Check if trigger failed
+      if not success then
+        error(string.format("Card %s validation failed [%s]: %s", event_type, name, result or "Unknown error"))
+      end
+      -- Check if result indicated failure
+      if result and type(result) == "table" and result.success == false then
+        local err_msg = result.errors and result.errors[1] or "Unknown error"
+        error(string.format("Card %s validation failed [%s]: %s", event_type, name, err_msg))
+      end
     end
   end
 	return context
@@ -93,8 +96,11 @@ end
 -- ProcessingEntry state: ExecutingEntryTriggers
 local processingStuff = function(event_type, self, context)
 	local e_triggers = self:get_triggers("on_" .. event_type)
-	for name, _ in pairs(e_triggers) do
-		self:execute_trigger_with_logging("on_" .. event_type, name, context)
+	local trigger_names = self.trigger_order["on_" .. event_type] or {}
+	for _, name in ipairs(trigger_names) do
+		if e_triggers[name] then
+			self:execute_trigger_with_logging("on_" .. event_type, name, context)
+		end
 	end
 end
 

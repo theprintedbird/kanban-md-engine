@@ -112,7 +112,11 @@ local processingStuff = function(event_type, self, context)
 			if not success then
 				table.insert(errors, {name = name, error = result})
 				-- Fail-fast: rollback and stop
-				self.command_log:rollback_transaction()
+				local rollback_success, rollback_err = self.command_log:rollback_transaction()
+				if not rollback_success then
+					-- Add rollback error to the error list
+					table.insert(errors, {name = "ROLLBACK", error = rollback_err})
+				end
 				return false, results, errors
 			end
 		end
@@ -139,8 +143,12 @@ function Column:add_card(card, context)
 		card.column = nil
 
 		-- Throw error with details
-		local error_msg = errors[1] and errors[1].error or "Unknown error"
-		error(string.format("Entry trigger '%s' failed: %s", errors[1].name, error_msg))
+		local error_messages = {}
+		for _, err in ipairs(errors) do
+			table.insert(error_messages, string.format("%s: %s", err.name, err.error))
+		end
+		local error_msg = table.concat(error_messages, "; ")
+		error(string.format("Entry trigger failed: %s", error_msg))
 	end
 
   -- ProcessingEntry state: UpdatingStatistics (could be implemented later)

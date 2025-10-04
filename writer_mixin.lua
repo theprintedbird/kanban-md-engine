@@ -48,8 +48,19 @@ local function format_property_value(value)
 	end
 end
 
+-- Convert TypeConverter objects to plain tables, pass through regular tables
+local function to_plain_table(obj)
+	if type(obj) == "table" and type(obj.to_table) == "function" then
+		return obj:to_table()
+	end
+	return obj
+end
+
 -- Convert properties to comment string
 local function properties_to_comment(properties, prefix)
+	-- Ensure properties is a plain table, not a TypeConverter
+	properties = to_plain_table(properties)
+
 	if not properties or vim.tbl_isempty(properties) then
 		return nil
 	end
@@ -99,32 +110,12 @@ local function write_task(task, column_name)
 	local line = string.format("%s- %s", config.task_indent, task.text)
 
 	-- Add properties as inline comment if present
-	local props_to_write = {}
-
-	-- Filter out certain properties that might be internal
-	local skip_properties = { "id" }  -- We might want to keep ID actually
-
-	for key, value in pairs(task.properties or {}) do
-		local should_skip = false
-		for _, skip in ipairs(skip_properties) do
-			if key == skip then
-				should_skip = true
-				break
-			end
-		end
-
-		if not should_skip then
-			props_to_write[key] = value
-		else
-			-- Actually, let's keep ID too
-			props_to_write[key] = value
-		end
-	end
+	local props_to_write = to_plain_table(task.properties or {})
 
 	local comment = properties_to_comment(props_to_write)
 	if comment then
 		if type(comment) == "table" then
-			-- Multi-line comment (rare for tasks)
+			-- Multi-line comment (rare for cards)
 			return { line .. " " .. comment[1], unpack(comment, 2) }
 		else
 			-- Single-line comment
@@ -143,8 +134,9 @@ local function write_column(column)
 	table.insert(lines, "## " .. column.name)
 
 	-- Column configuration comment if present
-	if column.config and not vim.tbl_isempty(column.config) then
-		local config_comment = properties_to_comment(column.config, "column:config")
+	local plain_config = to_plain_table(column.config)
+	if plain_config and not vim.tbl_isempty(plain_config) then
+		local config_comment = properties_to_comment(plain_config, "column:config")
 		if type(config_comment) == "table" then
 			for _, line in ipairs(config_comment) do
 				table.insert(lines, line)
@@ -154,8 +146,8 @@ local function write_column(column)
 		end
 	end
 
-	-- Tasks
-	for _, task in ipairs(column.tasks or {}) do
+	-- cards
+	for _, task in ipairs(column.cards or {}) do
 		local task_output = write_task(task, column.name)
 		if type(task_output) == "table" then
 			for _, line in ipairs(task_output) do
@@ -182,8 +174,9 @@ function WriterMixin:write()
 	end
 
 	-- Board configuration
-	if self.config and not vim.tbl_isempty(self.config) then
-		local config_comment = properties_to_comment(self.config, "kanban:config")
+	local plain_board_config = to_plain_table(self.config)
+	if plain_board_config and not vim.tbl_isempty(plain_board_config) then
+		local config_comment = properties_to_comment(plain_board_config, "kanban:config")
 		if type(config_comment) == "table" then
 			for _, line in ipairs(config_comment) do
 				table.insert(lines, line)
@@ -236,10 +229,10 @@ function WriterMixin:write()
 		table.insert(lines, string.format("<!-- generated: %s -->", os.date("%Y-%m-%d %H:%M:%S")))
 
 		-- Write statistics as a comment block or markdown list
-		if self.stats.total_tasks > 0 then
-			table.insert(lines, string.format("- Total tasks: %d", self.stats.total_tasks))
-			table.insert(lines, string.format("- Completed: %d", self.stats.completed_tasks))
-			table.insert(lines, string.format("- In progress: %d", self.stats.in_progress_tasks))
+		if self.stats.total_cards > 0 then
+			table.insert(lines, string.format("- Total cards: %d", self.stats.total_cards))
+			table.insert(lines, string.format("- Completed: %d", self.stats.completed_cards))
+			table.insert(lines, string.format("- In progress: %d", self.stats.in_progress_cards))
 
 			if self.stats.average_cycle_time then
 				local unit = self.config.cycle_time_unit or "seconds"
@@ -308,7 +301,7 @@ function WriterMixin:update_task_in_buffer(task_id, bufnr)
 	local updated_line = write_task(task, column.name)
 
 	if type(updated_line) == "table" then
-		-- Multi-line (shouldn't happen often for tasks)
+		-- Multi-line (shouldn't happen often for cards)
 		vim.api.nvim_buf_set_lines(bufnr, task.line_number - 1, task.line_number, false, updated_line)
 	else
 		-- Single line (normal case)
@@ -318,6 +311,7 @@ function WriterMixin:update_task_in_buffer(task_id, bufnr)
 	return true
 end
 
+-- TODO: Move to Board/ActionsMixin - this is business logic, not serialization
 -- Append a new task to a column
 function WriterMixin:append_task_to_column(column_name, task_text, properties)
 	local column = nil
@@ -345,11 +339,12 @@ function WriterMixin:append_task_to_column(column_name, task_text, properties)
 	local config = config_module.get()
 
 	-- Add to column
-	table.insert(column.tasks, new_task)
+	table.insert(column.cards, new_task)
 
 	return new_task
 end
 
+-- TODO: Move to Board/ActionsMixin - this is business logic with trigger execution, not serialization
 -- Move a task between columns
 function WriterMixin:move_task(task_id, target_column_name)
 	local parser = require("kanban-md.parser")
@@ -370,9 +365,9 @@ function WriterMixin:move_task(task_id, target_column_name)
 	end
 
 	-- Remove from source
-	for i, t in ipairs(source_column.tasks) do
+	for i, t in ipairs(source_column.cards) do
 		if t.properties.id == task_id then
-			table.remove(source_column.tasks, i)
+			table.remove(source_column.cards, i)
 			break
 		end
 	end
@@ -386,13 +381,14 @@ function WriterMixin:move_task(task_id, target_column_name)
 
 	-- Add to target
 	-- TODO make target_column an object so that triggers can be set on it
-	table.insert(target_column.tasks, task)
+	table.insert(target_column.cards, task)
 
 	return true
 end
 
--- Archive completed tasks
-function WriterMixin:archive_done_tasks(older_than_days)
+-- TODO: Move to Board/ActionsMixin - this is business logic with rules and triggers, not serialization
+-- Archive completed cards
+function WriterMixin:archive_done_cards(older_than_days)
 	-- TODO create trigger and config setting for this
 	older_than_days = older_than_days or 0
 	local cutoff_time = os.time() - (older_than_days * 86400)
@@ -401,7 +397,7 @@ function WriterMixin:archive_done_tasks(older_than_days)
 	if not self.archive then
 		self.archive = {
 			name = "__ARCHIVE__",
-			tasks = {},
+			cards = {},
 			config = {},
 			is_archive = true,
 		}
@@ -409,11 +405,11 @@ function WriterMixin:archive_done_tasks(older_than_days)
 
 	local archived_count = 0
 
-	-- Check all columns for completed tasks
+	-- Check all columns for completed cards
 	for _, column in ipairs(self.columns) do
-		local tasks_to_keep = {}
+		local cards_to_keep = {}
 
-		for _, task in ipairs(column.tasks) do
+		for _, task in ipairs(column.cards) do
 			local should_archive = false
 
 			-- Task is completed if in completion column
@@ -434,7 +430,7 @@ function WriterMixin:archive_done_tasks(older_than_days)
 						should_archive = true
 					end
 				else
-					-- Archive all completed tasks
+					-- Archive all completed cards
 					should_archive = true
 				end
 			end
@@ -447,14 +443,14 @@ function WriterMixin:archive_done_tasks(older_than_days)
 				local timestamp_execute_fn = triggers_module.timestamp()
 				timestamp_execute_fn({ name = "__ARCHIVE__" }, task)
 				-- TODO when columns get triggers, move trigger to there
-				table.insert(self.archive.tasks, task)
+				table.insert(self.archive.cards, task)
 				archived_count = archived_count + 1
 			else
-				table.insert(tasks_to_keep, task)
+				table.insert(cards_to_keep, task)
 			end
 		end
 
-		column.tasks = tasks_to_keep
+		column.cards = cards_to_keep
 	end
 
 	return archived_count

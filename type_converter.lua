@@ -90,10 +90,16 @@ function TypeConverter:_convert_value(key, value)
     if type(value) == "table" then
       return value -- Already an array
     elseif type(value) == "string" then
+      -- Handle empty string
+      if value == "" then
+        return {}
+      end
       -- Try to parse as comma-separated list
       local array = {}
       for item in value:gmatch("([^,]+)") do
-        table.insert(array, item:gsub("^%s+", ""):gsub("%s+$", "")) -- Trim whitespace
+        -- Trim whitespace - wrap in parens to get only the first return value
+        local trimmed = (item:gsub("^%s+", ""):gsub("%s+$", ""))
+        table.insert(array, trimmed)
       end
       return array
     end

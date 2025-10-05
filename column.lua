@@ -128,10 +128,13 @@ local processingStuff = function(event_type, self, context)
 end
 
 function Column:add_card(card, context)
+	print("Column:add_card() called with card:", tostring(card))
 	local final_context = build_context_and_checking("entry", self, card, context)
 
   -- Add card to column
   table.insert(self.cards, card)
+  print("Column:add_card() after table.insert, self.cards[1]:", tostring(self.cards[1]))
+  print("Column:add_card() card == self.cards[1]?", card == self.cards[1])
   card.column = self.id
 
 	-- Execute entry triggers with transaction support

@@ -62,13 +62,15 @@ local build_context_and_checking = function(event_type, self, card, context)
     context = {
       card = card,
       target_column = self,
+      target_column_name = self.name,
       source_column = card.column,
       board = self.board
     }
   else
-    -- Ensure card and target_column are set in context
+    -- Ensure card is set and target_column_name is derived from target_column in context
     context.card = card
-    context.target_column = self
+    -- Do NOT override target_column - it's already set correctly in the context
+    context.target_column_name = context.target_column and context.target_column.name or nil
   end
 
   -- ProcessingEntry state: ValidatingRequirements

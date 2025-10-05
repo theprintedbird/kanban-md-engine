@@ -192,6 +192,11 @@ end
 -- Validates that card transitions follow configured workflow rules
 function M.create_workflow_rules_trigger(workflow_config)
   local execute_fn = function(column, context)
+    -- If there's no source column, this is a direct add (not a move), so allow it
+    if not context.source_column then
+      return Triggerable:success()
+    end
+
     local allowed_targets = workflow_config[context.source_column.name]
     if not allowed_targets then
       return Triggerable:success() -- No restrictions
@@ -230,7 +235,7 @@ function M.create_workflow_rules_trigger(workflow_config)
                 return Triggerable:success()
               else
                 return Triggerable:error(string.format(
-                  "Condition '%s' not met for transition from '%s' to '%s'",
+                  "Workflow condition '%s' not met for transition from '%s' to '%s'",
                   config.when, context.source_column.name, context.target_column_name
                 ))
               end

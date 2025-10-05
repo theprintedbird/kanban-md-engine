@@ -12,6 +12,10 @@ local Triggerable = require("kanban-md.triggerable")
 -- Static helper function to evaluate conditions (used by workflow validation)
 -- Format: "property == value" or "property != value"
 local function evaluate_condition(condition, card)
+  if type(condition) ~= "string" then
+    return false  -- Invalid condition
+  end
+
   -- Simple property-based conditions for now
   local prop, op, value = condition:match("(%w+)%s*([=!]+)%s*(.+)")
 
@@ -280,7 +284,8 @@ function WorkflowEngine:get_valid_transitions(card, source_column)
 end
 
 
--- Export static helper function for use by Board
+-- Export static helper functions for use by Board and workflow triggers
 WorkflowEngine.get_valid_transitions_static = get_valid_transitions
+WorkflowEngine.evaluate_condition_static = evaluate_condition
 
 return WorkflowEngine

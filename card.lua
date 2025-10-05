@@ -58,4 +58,28 @@ function Card:capture_state()
   }
 end
 
+-- Create a deep copy of this card without firing on_create triggers
+function Card:deep_copy()
+  local props_copy = TypeConverter:new(vim.deepcopy(self.properties._raw))
+
+  local obj = {
+    id = self.id,
+    text = self.text,
+    properties = props_copy,
+    column = self.column
+  }
+  setmetatable(obj, Card)
+  obj:init_commands()
+
+  return obj
+end
+
+-- Restore state from a captured snapshot
+function Card:restore_state(state)
+  self.id = state.id
+  self.text = state.text
+  self.properties = TypeConverter:new(vim.deepcopy(state.properties._raw))
+  self.column = state.column
+end
+
 return Card

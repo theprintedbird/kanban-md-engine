@@ -100,9 +100,6 @@ local processingStuff = function(event_type, self, context)
 	local results = {}
 	local errors = {}
 
-	-- Start transaction for atomic rollback
-	self.command_log:begin_transaction()
-
 	for _, name in ipairs(trigger_names) do
 		if e_triggers[name] then
 			local success, result = self:execute_trigger_with_logging("on_" .. event_type, name, context)
@@ -111,39 +108,32 @@ local processingStuff = function(event_type, self, context)
 
 			if not success then
 				table.insert(errors, {name = name, error = result})
-				-- Fail-fast: rollback and stop
-				local rollback_success, rollback_err = self.command_log:rollback_transaction()
-				if not rollback_success then
-					-- Add rollback error to the error list
-					table.insert(errors, {name = "ROLLBACK", error = rollback_err})
-				end
 				return false, results, errors
 			end
 		end
 	end
 
 	-- All triggers succeeded
-	self.command_log:commit_transaction()
 	return true, results, errors
 end
 
 function Column:add_card(card, context)
-	print("Column:add_card() called with card:", tostring(card))
-	local final_context = build_context_and_checking("entry", self, card, context)
+	-- Copy-and-commit: work with a copy, commit only if successful
+	local card_copy = card:deep_copy()
 
-  -- Add card to column
-  table.insert(self.cards, card)
-  print("Column:add_card() after table.insert, self.cards[1]:", tostring(self.cards[1]))
-  print("Column:add_card() card == self.cards[1]?", card == self.cards[1])
-  card.column = self.id
+	local final_context = build_context_and_checking("entry", self, card_copy, context)
 
-	-- Execute entry triggers with transaction support
+	-- Add copy to column
+	table.insert(self.cards, card_copy)
+	card_copy.column = self.id
+
+	-- Execute entry triggers on the copy
 	local success, results, errors = processingStuff("entry", self, final_context)
 
 	if not success then
-		-- Rollback card addition (triggers already rolled back by processingStuff)
+		-- Discard the copy - remove from column
 		table.remove(self.cards)
-		card.column = nil
+		card_copy.column = nil
 
 		-- Throw error with details
 		local error_messages = {}
@@ -154,8 +144,17 @@ function Column:add_card(card, context)
 		error(string.format("Entry trigger failed: %s", error_msg))
 	end
 
-  -- ProcessingEntry state: UpdatingStatistics (could be implemented later)
-  -- TODO: Update column/board statistics here
+	-- Commit: update original card from the copy
+	card.id = card_copy.id
+	card.text = card_copy.text
+	card.properties = card_copy.properties
+	card.column = card_copy.column
+
+	-- Replace copy with original in cards array
+	self.cards[#self.cards] = card
+
+	-- ProcessingEntry state: UpdatingStatistics (could be implemented later)
+	-- TODO: Update column/board statistics here
 end
 
 function Column:remove_card(card, context)
@@ -173,19 +172,28 @@ function Column:remove_card(card, context)
 		return
 	end
 
-	local final_context = build_context_and_checking("exit", self, card, context)
+	-- Copy-and-commit: work with a copy, commit only if successful
+	local card_copy = card:deep_copy()
 
-	-- Execute exit triggers with transaction support
+	local final_context = build_context_and_checking("exit", self, card_copy, context)
+
+	-- Execute exit triggers on the copy
 	local success, results, errors = processingStuff("exit", self, final_context)
 
 	if not success then
-		-- Triggers already rolled back by processingStuff
+		-- Discard the copy, keep original unchanged in column
 		-- Throw error with details
 		local error_msg = errors[1] and errors[1].error or "Unknown error"
 		error(string.format("Exit trigger '%s' failed: %s", errors[1].name, error_msg))
 	end
 
-	-- Only remove card if all triggers succeeded
+	-- Commit: update original card from the copy
+	card.id = card_copy.id
+	card.text = card_copy.text
+	card.properties = card_copy.properties
+	card.column = card_copy.column
+
+	-- Remove card from column (triggers succeeded)
 	table.remove(self.cards, card_index)
 
 	return card

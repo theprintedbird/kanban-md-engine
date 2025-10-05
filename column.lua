@@ -119,7 +119,23 @@ end
 
 function Column:add_card(card, context)
 	-- Copy-and-commit: work with a copy, commit only if successful
-	local card_copy = card:deep_copy()
+	local card_copy
+	if card.deep_copy then
+		-- Use Card class method if available
+		card_copy = card:deep_copy()
+	else
+		-- Fallback for plain objects (e.g., in tests)
+		card_copy = {
+			id = card.id,
+			text = card.text,
+			properties = vim.deepcopy(card.properties or {}),
+			column = card.column
+		}
+		-- Copy methods if they exist
+		if card.capture_state then
+			card_copy.capture_state = card.capture_state
+		end
+	end
 
 	local final_context = build_context_and_checking("entry", self, card_copy, context)
 
@@ -173,7 +189,23 @@ function Column:remove_card(card, context)
 	end
 
 	-- Copy-and-commit: work with a copy, commit only if successful
-	local card_copy = card:deep_copy()
+	local card_copy
+	if card.deep_copy then
+		-- Use Card class method if available
+		card_copy = card:deep_copy()
+	else
+		-- Fallback for plain objects (e.g., in tests)
+		card_copy = {
+			id = card.id,
+			text = card.text,
+			properties = vim.deepcopy(card.properties or {}),
+			column = card.column
+		}
+		-- Copy methods if they exist
+		if card.capture_state then
+			card_copy.capture_state = card.capture_state
+		end
+	end
 
 	local final_context = build_context_and_checking("exit", self, card_copy, context)
 

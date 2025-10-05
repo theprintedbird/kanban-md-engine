@@ -70,8 +70,13 @@ function CommandLog:rollback_transaction()
   for i = #self.entries, transaction_start + 1, -1 do
     local entry = self.entries[i]
     if entry and entry.command.rollback then
-      local success, err = pcall(entry.command.rollback, entry.context.self, entry.context)
-      if not success then
+      local ok, success, err = pcall(entry.command.rollback, entry.context.self, entry.context)
+      if not ok then
+        -- pcall failed (Lua error thrown)
+        table.insert(errors, string.format("Failed to rollback %s: %s",
+          entry.command.name, success or "unknown error"))
+      elseif success == false then
+        -- Rollback function returned false
         table.insert(errors, string.format("Failed to rollback %s: %s",
           entry.command.name, err or "unknown error"))
       end

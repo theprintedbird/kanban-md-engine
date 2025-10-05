@@ -112,6 +112,11 @@ local function write_task(task, column_name)
 	-- Add properties as inline comment if present
 	local props_to_write = to_plain_table(task.properties or {})
 
+	-- Sync task.id to properties before writing (ensures ID persistence)
+	if task.id then
+		props_to_write.id = task.id
+	end
+
 	local comment = properties_to_comment(props_to_write)
 	if comment then
 		if type(comment) == "table" then

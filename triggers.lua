@@ -2,14 +2,15 @@
 
 -- Timestamp trigger with rollback
 local function create_timestamp_trigger()
-  local execute_fn = function(self, card)
-    local normalize_column_name = function(column_name)
-      if column_name == "__ARCHIVE__" then
-        return "archived"
-      end
-      return column_name:lower():gsub("[^%w_]", "_")
+  local normalize_column_name = function(column_name)
+    if column_name == "__ARCHIVE__" then
+      return "archived"
     end
+    return column_name:lower():gsub("[^%w_]", "_")
+  end
 
+  local execute_fn = function(self, context)
+    local card = context.card
     local timestamp_key = normalize_column_name(self.name or self.id)
     local old_value = card.properties[timestamp_key]
     card.properties[timestamp_key] = os.time()
@@ -19,14 +20,7 @@ local function create_timestamp_trigger()
   end
 
   local rollback_fn = function(self, context)
-    local card = context.args[1]
-    local normalize_column_name = function(column_name)
-      if column_name == "__ARCHIVE__" then
-        return "archived"
-      end
-      return column_name:lower():gsub("[^%w_]", "_")
-    end
-
+    local card = context.card
     local timestamp_key = normalize_column_name(self.name or self.id)
 
     -- Restore previous value (might be nil)
@@ -44,7 +38,7 @@ end
 
 -- WIP limit validation trigger with rollback
 local function create_wip_limit_trigger(wip_limit)
-  local execute_fn = function(self, card)
+  local execute_fn = function(self, context)
     if #self.cards >= wip_limit then
       error(string.format("WIP limit exceeded: %d/%d", #self.cards, wip_limit))
     end
@@ -61,7 +55,8 @@ end
 
 -- Assignment trigger with rollback
 local function create_assignment_trigger()
-  local execute_fn = function(self, card)
+  local execute_fn = function(self, context)
+    local card = context.card
     local old_assignee = card.properties.assignee
 
     -- Simple round-robin assignment
@@ -76,13 +71,13 @@ local function create_assignment_trigger()
   end
 
   local rollback_fn = function(self, context)
-    local card = context.args[1]
+    local card = context.card
     local result = context.result
-    
+
     -- Handle case where result is a table with two values
     if type(result) == "table" and #result == 2 then
       local old_assignee, old_index = result[1], result[2]
-      
+
       -- Restore previous assignee
       if old_assignee then
         card.properties.assignee = old_assignee

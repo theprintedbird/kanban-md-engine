@@ -225,8 +225,8 @@ local function create_wip_limit_checking_trigger(wip_limit)
   local execute_fn = function(column, context)
     local current_count = #context.target_column.cards
     if current_count >= wip_limit then
-      return Triggerable:warning(string.format(
-        "Column '%s' WIP limit reached (%d/%d)",
+      return Triggerable:error(string.format(
+        "WIP limit exceeded: Column '%s' (%d/%d)",
         context.target_column.name, current_count, wip_limit
       ))
     end

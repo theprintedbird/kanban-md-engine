@@ -353,6 +353,18 @@ function Board:register_basic_triggers(column)
   -- Load basic trigger functions
   local triggers = require('kanban-md.triggers')
   local capacity_triggers = require('kanban-md.extras.capacity_triggers')
+  local plugin_config = require('kanban-md.config')
+
+  -- Register timestamp trigger if auto_timestamp is enabled (default: true)
+  local auto_timestamp = self.config.auto_timestamp
+  if auto_timestamp == nil then
+    auto_timestamp = plugin_config.get_value('auto_timestamp')
+  end
+
+  if auto_timestamp ~= false then
+    local timestamp_fn, timestamp_rollback = triggers.timestamp()
+    column:register_on_entry("add_timestamp", timestamp_fn, timestamp_rollback)
+  end
 
   -- Register WIP limit trigger if configured (using existing triggers.lua)
   if column.config and column.config.wip_limit then

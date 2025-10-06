@@ -28,6 +28,7 @@ local default_config = {
   auto_archive = true,
   auto_timestamp = true,
   auto_id = true,
+  persist_card_ids = false, -- Write card IDs to markdown (false = ephemeral IDs generated on parse)
 
   -- Actions specific config
   auto_archive_after_days = 30,

@@ -226,7 +226,7 @@ function M.create_workflow_rules_trigger(workflow_config)
 
             -- Check conditions if present
             if config.when then
-              local condition_met = WorkflowEngine:evaluate_condition_static(config.when, context.card)
+              local condition_met = WorkflowEngine.evaluate_condition_static(config.when, context.card)
               if condition_met then
                 -- Check for auto-move flag
                 if config.auto then

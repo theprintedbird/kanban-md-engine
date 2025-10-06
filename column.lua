@@ -67,7 +67,7 @@ local build_context_and_checking = function(event_type, self, card, context)
   local trigger_names = self.trigger_order["on_checking"] or {}
   for _, name in ipairs(trigger_names) do
     if checking_triggers[name] then
-      local success, result = self:execute_trigger_with_logging("on_checking", name, context)
+      local success, result = pcall(checking_triggers[name], self, context)
       -- Check if trigger failed
       if not success then
         error(string.format("Card %s validation failed [%s]: %s", event_type, name, result or "Unknown error"))
@@ -92,7 +92,7 @@ local processingStuff = function(event_type, self, context)
 
 	for _, name in ipairs(trigger_names) do
 		if e_triggers[name] then
-			local success, result = self:execute_trigger_with_logging("on_" .. event_type, name, context)
+			local success, result = pcall(e_triggers[name], self, context)
 
 			table.insert(results, {name = name, success = success, result = result})
 

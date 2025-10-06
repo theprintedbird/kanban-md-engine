@@ -6,6 +6,10 @@ local Card = {}
 Card.__index = Card
 setmetatable(Card, { __index = Triggerable })
 
+-- Initialize class-level triggers
+Card.triggers = {}
+Card.trigger_order = {}
+
 function Card:new(id, text, properties)
   -- If properties is already a TypeConverter, use it directly to avoid double-wrapping
   local props = properties

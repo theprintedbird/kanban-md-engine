@@ -112,8 +112,8 @@ local function write_task(task, column_name)
 	-- Add properties as inline comment if present
 	local props_to_write = to_plain_table(task.properties or {})
 
-	-- Sync task.id to properties before writing (ensures ID persistence)
-	if task.id then
+	-- Conditionally persist ID based on config
+	if task.id and config_module.get_value('persist_card_ids') then
 		props_to_write.id = task.id
 	end
 

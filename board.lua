@@ -167,9 +167,10 @@ function Board:validate_move(card, from_column, to_column)
   return ValidationResult.success()
 end
 
--- Move a card between columns with context and validation
+-- Move a card between columns
 -- Accepts card and column objects
--- Returns: success (boolean), error_message (string or nil)
+-- If either remove or add fails, error propagates up
+-- Caller handles error by not writing to buffer
 function Board:move_card(card, from_column, to_column)
   if type(card) ~= "table" or not card.id then
     error("Board:move_card() expects Card object as first parameter")
@@ -181,23 +182,6 @@ function Board:move_card(card, from_column, to_column)
     error("Board:move_card() expects Column object as third parameter")
   end
 
-  return self:move_card_with_rollback(card, from_column, to_column)
-end
-
-function Board:move_card_with_rollback(card, from_column, to_column)
-  if type(card) ~= "table" or not card.id then
-    error("Board:move_card_with_rollback() expects Card object as first parameter")
-  end
-  if type(from_column) ~= "table" or not from_column.id then
-    error("Board:move_card_with_rollback() expects Column object as second parameter")
-  end
-  if type(to_column) ~= "table" or not to_column.id then
-    error("Board:move_card_with_rollback() expects Column object as third parameter")
-  end
-
-  -- Begin transaction for complex operation
-  self.command_log:begin_transaction()
-
   -- Build context for triggers
   local context = {
     card = card,
@@ -206,29 +190,12 @@ function Board:move_card_with_rollback(card, from_column, to_column)
     board = self
   }
 
-  -- Try to remove from source column with context
-  local remove_success, removed_card_or_err = pcall(function()
-    return from_column:remove_card(card, context)
-  end)
+  -- Just call remove + add
+  -- If either fails, error propagates up
+  -- Board object may be inconsistent, but we never write it to buffer
+  from_column:remove_card(card, context)
+  to_column:add_card(card, context)
 
-  if not remove_success then
-    self.command_log:rollback_transaction()
-    return false, removed_card_or_err
-  end
-
-  -- Try to add to target column with context
-  local add_success, err = pcall(function()
-    to_column:add_card(removed_card_or_err, context)
-  end)
-
-  if not add_success then
-    -- Rollback the transaction on error
-    self.command_log:rollback_transaction()
-    return false, err
-  end
-
-  -- Commit the transaction
-  self.command_log:commit_transaction()
   return true
 end
 

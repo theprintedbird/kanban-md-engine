@@ -24,7 +24,7 @@ function M.create_capacity_points_trigger(max_points)
     return true
   end
 
-  return execute_fn, nil
+  return execute_fn
 end
 
 -- Reviewer capacity trigger
@@ -55,7 +55,7 @@ function M.create_reviewer_capacity_trigger(board)
     return true
   end
 
-  return execute_fn, nil
+  return execute_fn
 end
 
 -- Team velocity capacity trigger
@@ -88,7 +88,7 @@ function M.create_velocity_capacity_trigger(max_velocity_points)
     return true
   end
 
-  return execute_fn, nil
+  return execute_fn
 end
 
 -- Skill-based capacity trigger
@@ -154,7 +154,7 @@ function M.create_skill_capacity_trigger(board)
     return true
   end
 
-  return execute_fn, nil
+  return execute_fn
 end
 
 return M

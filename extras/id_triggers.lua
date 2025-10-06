@@ -38,9 +38,8 @@ local function get_id_prefix(obj, context)
 end
 
 -- Create ULID-based ID generation trigger
--- Returns execute and rollback functions
 local function create_ulid_id_trigger()
-  local execute_fn = function(self, context)
+  return function(self, context)
     local config = require('kanban-md.config')
 
     -- Check if auto_id is enabled in config
@@ -53,33 +52,18 @@ local function create_ulid_id_trigger()
 
     -- Only generate if ID doesn't exist or is empty
     if not obj.id or obj.id == "" then
-      local old_id = obj.id
       local prefix = get_id_prefix(obj, context)
       obj.id = prefix .. ulid()
-      return old_id
     end
 
     return true
   end
-
-  local rollback_fn = function(self, context)
-    local obj = context.board or context.column or context.card or self
-
-    -- Rollback: restore the old ID
-    if context.result and context.result ~= true then
-      obj.id = context.result
-    end
-
-    return true
-  end
-
-  return execute_fn, rollback_fn
 end
 
--- ID generation trigger with rollback
+-- ID generation trigger (time-based hash)
 -- Alternative to the ULID ID
 local function create_time_based_id_trigger()
-  local execute_fn = function(self, context)
+  return function(self, context)
     local card = context.card or self
     local config = require('kanban-md.config')
 
@@ -95,23 +79,10 @@ local function create_time_based_id_trigger()
       for i = 1, #id_source do
         hash = (hash * 31 + string.byte(id_source, i)) % 0x100000000
       end
-      local old_id = card.id
       card.id = string.format("%08x", hash)
-      return old_id
     end
     return true
   end
-
-  local rollback_fn = function(self, context)
-    local card = context.card or self
-    -- Rollback: restore the old ID
-    if context.result and context.result ~= true then
-      card.id = context.result
-    end
-    return true
-  end
-
-  return execute_fn, rollback_fn
 end
 
 

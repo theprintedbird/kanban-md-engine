@@ -48,7 +48,7 @@ function M.create_sla_compliance_trigger(sla_config)
     return true
   end
 
-  return execute_fn, nil
+  return execute_fn
 end
 
 -- Business hours trigger
@@ -95,7 +95,7 @@ function M.create_business_hours_trigger(business_hours_config)
     return true
   end
 
-  return execute_fn, nil
+  return execute_fn
 end
 
 -- Priority-based workflow trigger
@@ -128,7 +128,7 @@ function M.create_priority_workflow_trigger(priority_workflows)
     )
   end
 
-  return execute_fn, nil
+  return execute_fn
 end
 
 -- Approval requirement trigger
@@ -185,7 +185,7 @@ function M.create_approval_requirement_trigger(approval_config)
     return true
   end
 
-  return execute_fn, nil
+  return execute_fn
 end
 
 -- Basic workflow rules trigger
@@ -256,7 +256,7 @@ function M.create_workflow_rules_trigger(workflow_config)
     ))
   end
 
-  return execute_fn, nil -- No rollback needed for validation
+  return execute_fn
 end
 
 return M

@@ -11,10 +11,11 @@ function Column:new(id, name)
     id = id,  -- Can be nil to trigger auto-generation
     name = name or id,
     cards = {},
-    config = TypeConverter:new({})
+    config = TypeConverter:new({}),
+    triggers = {},
+    trigger_order = {}
   }
   setmetatable(obj, Column)
-  obj:init_commands()
 
   -- Fire on_create triggers (both class-level and instance-level)
   local context = {
@@ -41,19 +42,6 @@ function Column:new(id, name)
   end
 
   return obj
-end
-
-function Column:capture_state()
-  local card_states = {}
-  for _, card in ipairs(self.cards) do
-    table.insert(card_states, card:capture_state())
-  end
-  return {
-    id = self.id,
-    name = self.name,
-    cards = card_states,
-    config = vim.deepcopy(self.config)
-  }
 end
 
 local build_context_and_checking = function(event_type, self, card, context)
@@ -133,10 +121,6 @@ function Column:add_card(card, context)
 			properties = vim.deepcopy(card.properties or {}),
 			column = card.column
 		}
-		-- Copy methods if they exist
-		if card.capture_state then
-			card_copy.capture_state = card.capture_state
-		end
 	end
 
 	local final_context = build_context_and_checking("entry", self, card_copy, context)
@@ -203,10 +187,6 @@ function Column:remove_card(card, context)
 			properties = vim.deepcopy(card.properties or {}),
 			column = card.column
 		}
-		-- Copy methods if they exist
-		if card.capture_state then
-			card_copy.capture_state = card.capture_state
-		end
 	end
 
 	local final_context = build_context_and_checking("exit", self, card_copy, context)

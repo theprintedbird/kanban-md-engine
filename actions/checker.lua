@@ -33,6 +33,7 @@ function M.is_completion_column(column, board)
   end
 
   -- Check if column name suggests it's not a completion column
+	-- TODO remove this hardcoded nonsense!
   local non_completion_patterns = {
     "progress", "doing", "working", "wip", "active", "current",
     "backlog", "todo", "ready", "waiting", "blocked", "review"

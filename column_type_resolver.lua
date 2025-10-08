@@ -17,6 +17,11 @@ local ColumnTypeResolver = {}
 ---@param global_config table Global plugin configuration
 ---@return string|nil type_name The resolved type name, or nil if no match
 function ColumnTypeResolver.resolve_type(column_name, markdown_config, global_config)
+  -- Guard: if global_config is nil, we can't resolve types properly
+  if not global_config then
+    return nil
+  end
+
   -- Priority 1: Explicit type in markdown
   if markdown_config and markdown_config.type then
     return markdown_config.type
@@ -35,11 +40,13 @@ function ColumnTypeResolver.resolve_type(column_name, markdown_config, global_co
 
   -- Priority 3: Pattern matching
   -- Iterate through all types and check their patterns
+  -- Convert column name to lowercase for case-insensitive matching
+  local column_name_lower = column_name:lower()
   for type_name, type_def in pairs(types) do
     if type_def.patterns then
       for _, pattern in ipairs(type_def.patterns) do
-        -- Use Lua pattern matching
-        if string.match(column_name, pattern) then
+        -- Use Lua pattern matching (patterns should be lowercase)
+        if string.match(column_name_lower, pattern) then
           return type_name
         end
       end
@@ -55,7 +62,7 @@ end
 ---@param global_config table Global plugin configuration
 ---@return table|nil type_def The type definition table, or nil if not found
 function ColumnTypeResolver.get_type_definition(type_name, global_config)
-  if not type_name then
+  if not type_name or not global_config then
     return nil
   end
 

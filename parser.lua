@@ -242,7 +242,29 @@ function ParserMixin:parse(content)
 					elseif config_type == "column" and comment_buffer:match("column:config") then
 						local config_content = comment_buffer:match("^%s*column:config%s*,?%s*(.*)")
 						if current_column then
-							current_column.config = TypeConverter:new(parse_properties(config_content))
+							-- Parse markdown properties
+							local markdown_props = parse_properties(config_content)
+
+							-- Get global config and resolver
+							local global_config = require("kanban-md.config").get()
+							local resolver = require("kanban-md.column_type_resolver")
+
+							-- Resolve column type
+							local column_type = resolver.resolve_type(current_column.name, markdown_props, global_config)
+
+							-- Merge properties (type defaults < definition < markdown)
+							local final_config = resolver.merge_properties(
+								current_column.name,
+								markdown_props,
+								column_type,
+								global_config
+							)
+
+							-- Set column type and config
+							current_column.type = column_type
+							current_column.config = TypeConverter:new(final_config)
+
+							-- Note: Validation happens later during auto_register_triggers()
 						end
 					elseif current_column and pending_config then
 						-- This is task properties
@@ -351,7 +373,48 @@ function ParserMixin:parse(content)
 		end
 	end
 
-	-- Post-processing - delegate to stats mixin if available
+	-- Post-processing - resolve types for columns without explicit config
+	local global_config = require("kanban-md.config").get()
+	local resolver = require("kanban-md.column_type_resolver")
+
+	for _, column in ipairs(self.columns) do
+		-- Only resolve type if not already set (i.e., no config comment was found)
+		if not column.type then
+			-- Try to resolve type via patterns or definitions
+			local column_type = resolver.resolve_type(column.name, {}, global_config)
+
+			if column_type then
+				-- Merge properties from type and definition
+				local final_config = resolver.merge_properties(
+					column.name,
+					{}, -- No markdown properties
+					column_type,
+					global_config
+				)
+
+				-- Set column type and merge config
+				column.type = column_type
+				-- Merge with existing config (which might be empty)
+				for key, value in pairs(final_config) do
+					column.config[key] = value
+				end
+			end
+		end
+	end
+
+	-- Handle archive and stats sections similarly
+	if self.archive and not self.archive.type then
+		local column_type = resolver.resolve_type(self.archive.name, {}, global_config)
+		if column_type then
+			local final_config = resolver.merge_properties(self.archive.name, {}, column_type, global_config)
+			self.archive.type = column_type
+			for key, value in pairs(final_config) do
+				self.archive.config[key] = value
+			end
+		end
+	end
+
+	-- Delegate to stats mixin if available
 	if self.calculate_stats then
 		self:calculate_stats()
 	end
@@ -404,6 +467,14 @@ function ParserMixin:get_column_by_name(column_name)
 	end
 
 	return nil
+end
+
+-- Convenience function to parse markdown content into a new Board
+-- This avoids circular dependency by lazy-loading Board
+ParserMixin.parse = function(content)
+	local Board = require("kanban-md.board")
+	local board = Board:new()
+	return board:parse(content)
 end
 
 -- For testing, conditionally export private functions

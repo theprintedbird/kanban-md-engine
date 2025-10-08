@@ -10,6 +10,7 @@ function Column:new(id, name)
   local obj = {
     id = id,  -- Can be nil to trigger auto-generation
     name = name or id,
+    type = nil,  -- Resolved column type (string or nil)
     cards = {},
     config = TypeConverter:new({}),
     triggers = {},

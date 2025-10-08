@@ -235,6 +235,16 @@ function Board:auto_register_triggers()
     -- Register basic validation triggers on all columns
     self:register_basic_triggers(column)
 
+    -- Register type-based triggers
+    if column.type then
+      self:register_type_triggers(column)
+    end
+
+    -- Validate column requirements
+    local global_config = require('kanban-md.config').get()
+    local resolver = require('kanban-md.column_type_resolver')
+    resolver.validate_requirements(column, global_config)
+
     -- Register column-specific configured triggers
     if column.config and column.config.triggers then
       self:register_configured_triggers(column.config.triggers, column)
@@ -242,6 +252,43 @@ function Board:auto_register_triggers()
   end
 end
 
+function Board:register_type_triggers(column)
+  -- Get global config and type definition
+  local global_config = require('kanban-md.config').get()
+  local resolver = require('kanban-md.column_type_resolver')
+  local type_def = resolver.get_type_definition(column.type, global_config)
+
+  if not type_def then
+    return -- Type not found in config, skip (already validated)
+  end
+
+  -- Get trigger configuration from type
+  local type_triggers = resolver.get_type_triggers(type_def)
+
+  -- Register triggers for each event type
+  for event_type, trigger_list in pairs(type_triggers) do
+    if type(trigger_list) == "table" then
+      for _, trigger_config in ipairs(trigger_list) do
+        -- Use existing method to register trigger
+        local success, err = pcall(function()
+          self:register_trigger_from_config(event_type, trigger_config, column)
+        end)
+
+        if not success then
+          -- Emit clear error message about missing trigger
+          error(string.format(
+            "Column type '%s' requires trigger '%s' but it could not be registered: %s. " ..
+            "Check that the trigger module '%s' is loaded.",
+            column.type,
+            trigger_config.name or "unknown",
+            err,
+            trigger_config.module or "unknown"
+          ))
+        end
+      end
+    end
+  end
+end
 
 function Board:register_basic_triggers(column)
   -- Load basic trigger functions

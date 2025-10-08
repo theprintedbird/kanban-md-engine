@@ -47,6 +47,47 @@ local default_config = {
   timestamp_format = "epoch",
   use_multiline_comments = false,
   multiline_threshold = 100,
+
+  -- Column type system
+  -- Enables flexible column type definitions with pattern matching and property inheritance
+  column_config = {
+    -- Type definitions: users define types with properties, triggers, and patterns
+    -- Example structure:
+    -- types = {
+    --   completion = {
+    --     properties = { is_completion_state = true },
+    --     triggers = {
+    --       on_entry = {
+    --         { module = "kanban-md.triggers", function_name = "mark_complete", name = "mark_complete" }
+    --       }
+    --     },
+    --     patterns = { "done", "complete", "finished" }  -- Lua patterns for auto-matching
+    --   },
+    --   wip = {
+    --     properties = { is_active_state = true },
+    --     requires_wip_limit = true,  -- Validation requirement
+    --     patterns = { "progress", "doing", "working" }
+    --   }
+    -- }
+    types = {},
+
+    -- Named column definitions: exact column name → type and properties
+    -- Example:
+    -- definitions = {
+    --   ["Done"] = { type = "completion", wip_limit = 5 },
+    --   ["In Progress"] = { type = "wip", wip_limit = 3 }
+    -- }
+    definitions = {}
+  },
+
+  -- Validation behavior for missing required properties
+  -- Options: "none" (silent), "warning" (emit warning), "error" (fail with error)
+  missing_property_requirement = "warning",
+
+  -- Writer config: whether to write resolved types back to markdown
+  -- When false (default): keep types implicit (resolved via patterns/definitions)
+  -- When true: write resolved type to markdown config comments
+  write_full_config_to_markdown = false,
 }
 
 -- Current configuration (starts as copy of defaults)

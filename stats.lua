@@ -1,7 +1,7 @@
 -- lua/kanban-md/stats.lua
 -- Statistics calculation mixin for Board class
 
-local checker = require("kanban-md.actions.checker")
+local column_helpers = require("kanban-md.helpers.column")
 
 -- Stats mixin that can be applied to Board instances
 local StatsMixin = {}
@@ -54,7 +54,7 @@ function StatsMixin:calculate_stats()
 			stats.total_tasks = stats.total_tasks + 1
 
 			-- Task is completed if in completion column
-			local is_completed = checker.is_completion_column(column, self)
+			local is_completed = column_helpers.is_completion_column(column, self)
 
 			if not is_completed then
 				wip_count = wip_count + 1

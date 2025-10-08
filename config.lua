@@ -30,6 +30,10 @@ local default_config = {
   auto_id = true,
   persist_card_ids = false, -- Write card IDs to markdown (false = ephemeral IDs generated on parse)
 
+  -- Optional features (disabled by default)
+  enable_subtasks = false, -- Enable subtask validation triggers
+  enable_dependencies = false, -- Enable dependency validation triggers
+
   -- Actions specific config
   auto_archive_after_days = 30,
   use_telescope = true,

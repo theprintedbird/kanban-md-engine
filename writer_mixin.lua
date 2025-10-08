@@ -4,7 +4,7 @@
 -- Dependencies
 local config_module = require("kanban-md.config")
 local triggers_module = require("kanban-md.triggers")
-local checker = require("kanban-md.actions.checker")
+local column_helpers = require("kanban-md.helpers.column")
 
 -- Writer mixin that can be applied to Board instances
 local WriterMixin = {}
@@ -418,14 +418,14 @@ function WriterMixin:archive_done_cards(older_than_days)
 			local should_archive = false
 
 			-- Task is completed if in completion column
-			local is_completed = checker.is_completion_column(column, self)
+			local is_completed = column_helpers.is_completion_column(column, self)
 
 			if is_completed then
 				if older_than_days > 0 then
 					-- Check if old enough
 					local completion_column_name
 					for _, col in ipairs(self.columns) do
-						if checker.is_completion_column(col, self) then
+						if column_helpers.is_completion_column(col, self) then
 							completion_column_name = col.name:lower()
 							break
 						end

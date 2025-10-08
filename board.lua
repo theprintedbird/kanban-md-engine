@@ -225,6 +225,37 @@ function Board:auto_register_triggers()
     WorkflowEngine:new(self) -- This will auto-setup triggers during initialization
   end
 
+  -- Register optional subtasks/dependencies triggers if enabled
+  local plugin_config = require('kanban-md.config')
+  local enable_subtasks = self.config.enable_subtasks
+  if enable_subtasks == nil then
+    enable_subtasks = plugin_config.get_value('enable_subtasks')
+  end
+  local enable_dependencies = self.config.enable_dependencies
+  if enable_dependencies == nil then
+    enable_dependencies = plugin_config.get_value('enable_dependencies')
+  end
+
+  if enable_subtasks or enable_dependencies then
+    local subtasks_module = require('kanban-md.extras.subtasks_triggers')
+
+    -- Register property types with TypeConverter
+    subtasks_module.register_property_types()
+
+    -- Register triggers on all columns
+    for _, column in ipairs(self.columns) do
+      if enable_dependencies then
+        local dep_fn, dep_rollback = subtasks_module.create_dependency_trigger()
+        column:register_on_checking("dependencies", dep_fn, dep_rollback)
+      end
+
+      if enable_subtasks then
+        local subtask_fn, subtask_rollback = subtasks_module.create_subtask_trigger()
+        column:register_on_checking("subtasks", subtask_fn, subtask_rollback)
+      end
+    end
+  end
+
   -- Register board-level configured triggers
   if self.config.triggers then
     self:register_configured_triggers(self.config.triggers, self)

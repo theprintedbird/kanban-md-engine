@@ -27,8 +27,6 @@ local NUMERIC_PROPERTIES = {
 -- Define which properties should be converted to arrays
 local ARRAY_PROPERTIES = {
   tags = true,
-  depends_on = true,
-  subtasks = true,
   authorized_approvers = true
 }
 
@@ -175,6 +173,19 @@ function TypeConverter:merge(other_config)
       self[key] = value
     end
   end
+end
+
+-- Static methods to register property types (for optional modules)
+function TypeConverter.register_array_property(property_name)
+  ARRAY_PROPERTIES[property_name] = true
+end
+
+function TypeConverter.register_numeric_property(property_name)
+  NUMERIC_PROPERTIES[property_name] = true
+end
+
+function TypeConverter.register_boolean_property(property_name)
+  BOOLEAN_PROPERTIES[property_name] = true
 end
 
 return TypeConverter

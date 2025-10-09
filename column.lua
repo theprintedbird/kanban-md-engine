@@ -6,6 +6,10 @@ local Column = {}
 Column.__index = Column
 setmetatable(Column, { __index = Triggerable })
 
+-- Initialize class-level triggers
+Column.triggers = {}
+Column.trigger_order = {}
+
 function Column:new(id, name)
   local obj = {
     id = id,  -- Can be nil to trigger auto-generation

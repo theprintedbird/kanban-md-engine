@@ -12,6 +12,10 @@ local Board = {}
 Board.__index = Board
 setmetatable(Board, { __index = Triggerable })
 
+-- Initialize class-level triggers
+Board.triggers = {}
+Board.trigger_order = {}
+
 -- Apply mixins to Board
 for k, v in pairs(StatsMixin) do
   if k ~= "_private" then  -- Don't copy private test functions

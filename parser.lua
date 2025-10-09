@@ -159,6 +159,36 @@ local function parse_properties(comment_text)
 	return props
 end
 
+-- Apply column configuration with type resolution and property merging
+-- Handles both "column:config" and simplified "config" syntax
+local function apply_column_config(column, config_content)
+	if not column or not config_content or config_content == "" then
+		return
+	end
+
+	-- Parse markdown properties
+	local markdown_props = parse_properties(config_content)
+
+	-- Get global config and resolver
+	local global_config = require("kanban-md.config").get()
+	local resolver = require("kanban-md.column_type_resolver")
+
+	-- Resolve column type (markdown > definition > pattern)
+	local column_type = resolver.resolve_type(column.name, markdown_props, global_config)
+
+	-- Merge properties (type defaults < definition < markdown)
+	local final_config = resolver.merge_properties(
+		column.name,
+		markdown_props,
+		column_type,
+		global_config
+	)
+
+	-- Set column type and config
+	column.type = column_type
+	column.config = TypeConverter:new(final_config)
+end
+
 -- Parse a task line and extract properties
 local function parse_task(line)
 	local task = {
@@ -238,34 +268,12 @@ function ParserMixin:parse(content)
 						if config_content and config_content ~= "" then
 							self.config = TypeConverter:new(parse_properties(config_content))
 						end
-					-- e.g. <!-- column:config wip_limit: 3 -->"
-					elseif config_type == "column" and comment_buffer:match("column:config") then
+					-- e.g. <!-- column:config wip_limit: 3 --> or <!-- config type: wip -->
+					elseif config_type == "column" then
+						-- Handle both "column:config" and simplified "config" syntax
 						local config_content = comment_buffer:match("^%s*column:config%s*,?%s*(.*)")
-						if current_column then
-							-- Parse markdown properties
-							local markdown_props = parse_properties(config_content)
-
-							-- Get global config and resolver
-							local global_config = require("kanban-md.config").get()
-							local resolver = require("kanban-md.column_type_resolver")
-
-							-- Resolve column type
-							local column_type = resolver.resolve_type(current_column.name, markdown_props, global_config)
-
-							-- Merge properties (type defaults < definition < markdown)
-							local final_config = resolver.merge_properties(
-								current_column.name,
-								markdown_props,
-								column_type,
-								global_config
-							)
-
-							-- Set column type and config
-							current_column.type = column_type
-							current_column.config = TypeConverter:new(final_config)
-
-							-- Note: Validation happens later during auto_register_triggers()
-						end
+							or comment_buffer:match("^%s*config%s*,?%s*(.*)")
+						apply_column_config(current_column, config_content)
 					elseif current_column and pending_config then
 						-- This is task properties
 						pending_config.properties = parse_properties(comment_buffer)
@@ -290,11 +298,11 @@ function ParserMixin:parse(content)
 						if config_content and config_content ~= "" then
 							self.config = TypeConverter:new(parse_properties(config_content))
 						end
-					elseif comment_content:match("column:config") and current_column then
+					elseif current_column and (comment_content:match("column:config") or comment_content:match("^%s*config%s")) then
+						-- Handle both "column:config" and simplified "config" syntax
 						local config_content = comment_content:match("^%s*column:config%s*,?%s*(.*)")
-						if current_column and config_content and config_content ~= "" then
-							current_column.config = TypeConverter:new(parse_properties(config_content))
-						end
+							or comment_content:match("^%s*config%s*,?%s*(.*)")
+						apply_column_config(current_column, config_content)
 					elseif current_column then
 						-- Could be task-related, store for next task
 						pending_config = { properties = parse_properties(comment_content) }
@@ -307,7 +315,7 @@ function ParserMixin:parse(content)
 					-- Determine config type
 					if comment_start:match("kanban:config") then
 						config_type = "board"
-					elseif comment_start:match("column:config") then
+					elseif comment_start:match("column:config") or (current_column and comment_start:match("^%s*config%s")) then
 						config_type = "column"
 					else
 						config_type = "task"
@@ -323,6 +331,7 @@ function ParserMixin:parse(content)
 				current_column.line_number = line_number
 				current_column.command_log = self.command_log -- Share command log
 				self.archive = current_column
+				table.insert(self.columns, current_column)
 			-- Parse stats section
 			elseif line:match(patterns.stats_section) then
 				current_column = Column:new("__STATS__", "__STATS__")

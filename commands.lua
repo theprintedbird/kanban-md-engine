@@ -174,16 +174,28 @@ function M.move_card()
     local current_board = get_current_board()
 
     -- Find current card and column in refreshed board
+    -- Use line_number for matching since IDs may not exist on parsed cards
     local current_card, source_column = nil, nil
     for _, col in ipairs(current_board.columns) do
       for _, c in ipairs(col.cards) do
-        if c.id == card.id then
+        if c.line_number == card.line_number then
           current_card = c
           source_column = col
           break
         end
       end
       if current_card then break end
+    end
+
+    -- Also check archive if not found in columns
+    if not current_card and current_board.archive then
+      for _, c in ipairs(current_board.archive.cards) do
+        if c.line_number == card.line_number then
+          current_card = c
+          source_column = current_board.archive
+          break
+        end
+      end
     end
 
     if not current_card or not source_column then

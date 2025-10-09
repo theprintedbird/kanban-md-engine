@@ -469,14 +469,6 @@ function ParserMixin:get_column_by_name(column_name)
 	return nil
 end
 
--- Convenience function to parse markdown content into a new Board
--- This avoids circular dependency by lazy-loading Board
-ParserMixin.parse = function(content)
-	local Board = require("kanban-md.board")
-	local board = Board:new()
-	return board:parse(content)
-end
-
 -- For testing, conditionally export private functions
 if _G._TEST then
   ParserMixin._private = {

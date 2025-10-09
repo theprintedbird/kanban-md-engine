@@ -54,9 +54,34 @@ function Card:new(id, text, properties)
   return obj
 end
 
+-- Simple table copy for plain property values (avoids vim.deepcopy metatable issues)
+local function copy_table(t, seen)
+  if type(t) ~= "table" then
+    return t
+  end
+
+  -- Circular reference detection
+  seen = seen or {}
+  if seen[t] then
+    return seen[t]  -- Return already-copied reference
+  end
+
+  local copy = {}
+  seen[t] = copy  -- Mark as seen before recursing
+
+  for k, v in pairs(t) do
+    if type(v) == "table" then
+      copy[k] = copy_table(v, seen) -- Recursive for arrays
+    else
+      copy[k] = v -- Numbers, strings, booleans, nil
+    end
+  end
+  return copy
+end
+
 -- Create a deep copy of this card without firing on_create triggers
 function Card:deep_copy()
-  local props_copy = TypeConverter:new(vim.deepcopy(self.properties._raw))
+  local props_copy = TypeConverter:new(copy_table(self.properties._raw))
 
   local obj = {
     id = self.id,

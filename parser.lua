@@ -331,7 +331,7 @@ function ParserMixin:parse(content)
 				current_column.line_number = line_number
 				current_column.command_log = self.command_log -- Share command log
 				self.archive = current_column
-				table.insert(self.columns, current_column)
+				-- Note: Archive is stored separately in self.archive, not in self.columns
 			-- Parse stats section
 			elseif line:match(patterns.stats_section) then
 				current_column = Column:new("__STATS__", "__STATS__")

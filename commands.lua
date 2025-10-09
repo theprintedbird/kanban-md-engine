@@ -311,17 +311,26 @@ function M.archive_done_cards()
     while i <= #column.cards do
       local card = column.cards[i]
       local completion_time = card.properties[col_key]
+      local should_archive = false
 
-      if completion_time and completion_time < cutoff_time then
+      if not completion_time then
+        -- No timestamp: archive if card is in completion column (lenient)
+        should_archive = true
+      elseif completion_time < cutoff_time then
+        -- Has timestamp and is old enough
+        should_archive = true
+      end
+
+      if should_archive then
         -- Archive this card
         table.remove(column.cards, i)
-        
+
         -- Create archive if it doesn't exist
         if not board.archive then
           board.archive = require("kanban-md.column"):new("__ARCHIVE__", "__ARCHIVE__")
           board.archive.is_archive = true
         end
-        
+
         -- Add archived timestamp
         card.properties.archived = os.time()
         board.archive:add_card(card)

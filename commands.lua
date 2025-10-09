@@ -3,6 +3,7 @@
 
 local Board = require("kanban-md.board")
 local config = require("kanban-md.config")
+local column_helper = require("kanban-md.helpers.column")
 
 local M = {}
 
@@ -253,22 +254,25 @@ function M.complete_card()
     return
   end
 
-  -- Find "Done" column (or first column with "done" in name)
+  -- Find completion column
   local done_column = nil
   for _, col in ipairs(board.columns) do
-    if col.name:lower():find("done") then
+    if column_helper.is_completion_column(col, board) then
       done_column = col
       break
     end
   end
 
   if not done_column then
-    vim.notify("No 'Done' column found", vim.log.levels.ERROR)
+    vim.notify("No completion column found", vim.log.levels.ERROR)
     return
   end
 
-  -- Add done timestamp and move using new API
-  card.properties.done = os.time()
+  -- Add completion timestamp and move using new API
+  if config.get_value("auto_timestamp") then
+    local col_key = done_column.name:lower():gsub("%s+", "_")
+    card.properties[col_key] = os.time()
+  end
   local success, err = board:move_card(card, current_column, done_column)
 
   if success then
@@ -287,27 +291,28 @@ function M.archive_done_cards()
   local cutoff_time = os.time() - (archive_days * 24 * 60 * 60)
   local archived_count = 0
   
-  -- Find done columns
+  -- Find completion columns
   local done_columns = {}
   for _, col in ipairs(board.columns) do
-    if col.name:lower():find("done") then
+    if column_helper.is_completion_column(col, board) then
       table.insert(done_columns, col)
     end
   end
   
   if #done_columns == 0 then
-    vim.notify("No 'Done' columns found", vim.log.levels.WARN)
+    vim.notify("No completion columns found", vim.log.levels.WARN)
     return
   end
   
-  -- Process each done column
+  -- Process each completion column
   for _, column in ipairs(done_columns) do
+    local col_key = column.name:lower():gsub("%s+", "_")
     local i = 1
     while i <= #column.cards do
       local card = column.cards[i]
-      local done_time = card.properties.done
-      
-      if done_time and done_time < cutoff_time then
+      local completion_time = card.properties[col_key]
+
+      if completion_time and completion_time < cutoff_time then
         -- Archive this card
         table.remove(column.cards, i)
         

@@ -34,12 +34,15 @@ local function update_buffer_with_board(board)
 end
 
 -- Helper function to get user input
-local function get_input(prompt, default)
-  local ok, result = pcall(vim.fn.input, prompt, default or "")
-  if not ok or result == "" then
-    return nil
-  end
-  return result
+local function get_input(prompt, default, callback)
+  vim.ui.input({
+    prompt = prompt,
+    default = default or "",
+  }, function(result)
+    if result and result ~= "" then
+      callback(result)
+    end
+  end)
 end
 
 -- Helper function to show selection menu
@@ -86,65 +89,63 @@ end
 
 -- Command: Create new kanban board
 function M.new_board()
-  local title = get_input("Board title: ", "New Kanban Board")
-  if not title then return end
-  
-  local board = Board:new()
-  board.title = title
-  
-  -- Add default columns from config
-  local default_columns = config.get_value("default_columns")
-  for _, col_name in ipairs(default_columns) do
-    board:add_column("col_" .. col_name:lower():gsub("%s+", "_"), col_name)
-  end
-  
-  -- Clear current buffer and set new board content
-  update_buffer_with_board(board)
-  vim.notify("Created new kanban board: " .. title, vim.log.levels.INFO)
+  get_input("Board title: ", "New Kanban Board", function(title)
+    local board = Board:new()
+    board.title = title
+
+    -- Add default columns from config
+    local default_columns = config.get_value("default_columns")
+    for _, col_name in ipairs(default_columns) do
+      board:add_column("col_" .. col_name:lower():gsub("%s+", "_"), col_name)
+    end
+
+    -- Clear current buffer and set new board content
+    update_buffer_with_board(board)
+    vim.notify("Created new kanban board: " .. title, vim.log.levels.INFO)
+  end)
 end
 
 -- Command: Add new card
 function M.new_card()
   local board = get_current_board()
-  
+
   if #board.columns == 0 then
     vim.notify("No columns found. Create a board first.", vim.log.levels.ERROR)
     return
   end
-  
-  local card_text = get_input("Card text: ")
-  if not card_text then return end
-  
-  -- Get column names for selection
-  local column_names = {}
-  for _, col in ipairs(board.columns) do
-    table.insert(column_names, col.name)
-  end
-  
-  select_from_list(column_names, "Select column:", function(choice)
-    if not choice then return end
 
-    -- Re-parse board to get current state
-    local current_board = get_current_board()
+  get_input("Card text: ", "", function(card_text)
+    -- Get column names for selection
+    local column_names = {}
+    for _, col in ipairs(board.columns) do
+      table.insert(column_names, col.name)
+    end
 
-    -- Find the selected column
-    local selected_column = nil
-    for _, col in ipairs(current_board.columns) do
-      if col.name == choice then
-        selected_column = col
-        break
+    select_from_list(column_names, "Select column:", function(choice)
+      if not choice then return end
+
+      -- Re-parse board to get current state
+      local current_board = get_current_board()
+
+      -- Find the selected column
+      local selected_column = nil
+      for _, col in ipairs(current_board.columns) do
+        if col.name == choice then
+          selected_column = col
+          break
+        end
       end
-    end
 
-    if selected_column then
-      -- Create new card
-      local card = require("kanban-md.card"):new(nil, card_text, {})
-      selected_column:add_card(card)
+      if selected_column then
+        -- Create new card
+        local card = require("kanban-md.card"):new(nil, card_text, {})
+        selected_column:add_card(card)
 
-      -- Update buffer
-      update_buffer_with_board(current_board)
-      vim.notify("Added card '" .. card_text .. "' to " .. choice, vim.log.levels.INFO)
-    end
+        -- Update buffer
+        update_buffer_with_board(current_board)
+        vim.notify("Added card '" .. card_text .. "' to " .. choice, vim.log.levels.INFO)
+      end
+    end)
   end)
 end
 

@@ -134,6 +134,7 @@ end
 -- Write a column section
 local function write_column(column)
 	local lines = {}
+	local config = config_module.get()
 
 	-- Column header
 	table.insert(lines, "## " .. column.name)
@@ -149,6 +150,11 @@ local function write_column(column)
 		else
 			table.insert(lines, config_comment)
 		end
+	end
+
+	-- Add blank line after header/config if configured and there are cards
+	if config.blank_line_after_column_header and column.cards and #column.cards > 0 then
+		table.insert(lines, "")
 	end
 
 	-- cards

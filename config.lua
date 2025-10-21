@@ -46,6 +46,7 @@ local default_config = {
   blank_lines_between_sections = true,
   blank_line_after_title = true,
   blank_line_after_config = false,
+  blank_line_after_column_header = true,
   property_separator = ", ",
   wrap_properties_at = 80,
   timestamp_format = "epoch",

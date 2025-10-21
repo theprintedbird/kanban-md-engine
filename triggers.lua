@@ -44,9 +44,25 @@ local function create_assignment_trigger()
   end
 end
 
+-- Default complexity trigger
+-- Adds default complexity to cards that don't already have it
+local function create_default_complexity_trigger(default_value)
+  return function(self, context)
+    local card = context.card
+
+    -- Only add complexity if not already set
+    if not card.properties.complexity then
+      card.properties.complexity = default_value
+    end
+
+    return true
+  end
+end
+
 
 return {
   timestamp = create_timestamp_trigger,
   wip_limit = create_wip_limit_trigger,
   assignment = create_assignment_trigger,
+  default_complexity = create_default_complexity_trigger,
 }

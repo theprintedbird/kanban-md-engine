@@ -30,6 +30,10 @@ local default_config = {
   auto_id = true,
   persist_card_ids = false, -- Write card IDs to markdown (false = ephemeral IDs generated on parse)
 
+  -- Complexity feature
+  use_complexity = false,    -- Auto-add complexity to new cards
+  default_complexity = 1,    -- Default complexity value for new cards
+
   -- Optional features (disabled by default)
   enable_subtasks = false, -- Enable subtask validation triggers
   enable_dependencies = false, -- Enable dependency validation triggers

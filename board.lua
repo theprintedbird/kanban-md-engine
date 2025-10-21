@@ -342,6 +342,22 @@ function Board:register_basic_triggers(column)
     column:register_on_entry("add_timestamp", timestamp_fn, timestamp_rollback)
   end
 
+  -- Register default complexity trigger if use_complexity is enabled
+  local use_complexity = self.config.use_complexity
+  if use_complexity == nil then
+    use_complexity = plugin_config.get_value('use_complexity')
+  end
+
+  if use_complexity then
+    local default_complexity = self.config.default_complexity
+    if default_complexity == nil then
+      default_complexity = plugin_config.get_value('default_complexity')
+    end
+
+    local complexity_fn, complexity_rollback = triggers.default_complexity(default_complexity)
+    column:register_on_entry("add_default_complexity", complexity_fn, complexity_rollback)
+  end
+
   -- Register WIP limit trigger if configured (using existing triggers.lua)
   if column.config and column.config.wip_limit then
     local wip_fn, wip_rollback = triggers.wip_limit(column.config.wip_limit)

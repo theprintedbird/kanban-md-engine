@@ -284,6 +284,71 @@ function M.complete_card()
   end
 end
 
+-- Command: Set complexity on card at cursor
+function M.set_complexity()
+  local card, current_column, board = get_card_at_cursor()
+
+  if not card then
+    vim.notify("No card found at cursor position", vim.log.levels.WARN)
+    return
+  end
+
+  -- Get current complexity if it exists
+  local current = card.properties.complexity or ""
+
+  get_input("Set complexity: ", tostring(current), function(input)
+    -- Validate input is a positive number
+    local complexity = tonumber(input)
+
+    if not complexity then
+      vim.notify("Invalid complexity value. Must be a number.", vim.log.levels.ERROR)
+      return
+    end
+
+    if complexity < 0 then
+      vim.notify("Complexity must be a positive number", vim.log.levels.ERROR)
+      return
+    end
+
+    -- Re-parse board to get current state
+    local current_board = get_current_board()
+
+    -- Find the card again in the refreshed board
+    local current_card = nil
+    for _, col in ipairs(current_board.columns) do
+      for _, c in ipairs(col.cards) do
+        if c.line_number == card.line_number then
+          current_card = c
+          break
+        end
+      end
+      if current_card then break end
+    end
+
+    -- Also check archive if not found in columns
+    if not current_card and current_board.archive then
+      for _, c in ipairs(current_board.archive.cards) do
+        if c.line_number == card.line_number then
+          current_card = c
+          break
+        end
+      end
+    end
+
+    if not current_card then
+      vim.notify("Card not found after refresh", vim.log.levels.ERROR)
+      return
+    end
+
+    -- Set the complexity
+    current_card.properties.complexity = complexity
+
+    -- Update buffer
+    update_buffer_with_board(current_board)
+    vim.notify("Set complexity to " .. complexity .. " for card '" .. current_card.text .. "'", vim.log.levels.INFO)
+  end)
+end
+
 -- Command: Archive done cards based on age
 function M.archive_done_cards()
   local board = get_current_board()
@@ -407,6 +472,7 @@ function M.setup()
     KanbanNewCard = M.new_card,
     KanbanMoveCard = M.move_card,
     KanbanCompleteCard = M.complete_card,
+    KanbanSetComplexity = M.set_complexity,
     KanbanArchive = M.archive_done_cards,
     KanbanStats = M.show_stats,
   }

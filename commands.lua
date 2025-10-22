@@ -87,6 +87,60 @@ local function get_card_at_cursor()
   return nil, nil, board
 end
 
+-- Helper function to move cursor to a card marked with _cursor_target
+-- @param board_with_flag The board instance that has cards with _cursor_target flags
+local function move_cursor_to_target_card(board_with_flag)
+  -- We need to re-parse to get line numbers, but keep track of which card to find
+  local target_card_text = nil
+  local target_column_name = nil
+
+  -- First, find the card with the flag in the passed board
+  if board_with_flag then
+    for _, column in ipairs(board_with_flag.columns) do
+      for _, card in ipairs(column.cards) do
+        if card.properties and card.properties._cursor_target then
+          target_card_text = card.text
+          target_column_name = column.name
+          break
+        end
+      end
+      if target_card_text then break end
+    end
+  end
+
+  -- If no target found in passed board, return
+  if not target_card_text then
+    return false
+  end
+
+  -- Re-parse the current buffer to get updated line numbers
+  local board = get_current_board()
+
+  -- Search for the card by text and column name in the re-parsed board
+  local target_line = nil
+
+  for _, column in ipairs(board.columns) do
+    if column.name == target_column_name then
+      -- Search for card with matching text in this column
+      for _, card in ipairs(column.cards) do
+        if card.text == target_card_text then
+          target_line = card.line_number
+          break
+        end
+      end
+      break
+    end
+  end
+
+  -- If found, move cursor
+  if target_line then
+    vim.api.nvim_win_set_cursor(0, {target_line, 0})
+    return true
+  end
+
+  return false
+end
+
 -- Command: Create new kanban board
 function M.new_board()
   get_input("Board title: ", "New Kanban Board", function(title)
@@ -143,6 +197,12 @@ function M.new_card()
 
         -- Update buffer
         update_buffer_with_board(current_board)
+
+        -- Move cursor to new card if enabled
+        if config.get_value('enable_cursor_positioning') then
+          move_cursor_to_target_card(current_board)
+        end
+
         vim.notify("Added card '" .. card_text .. "' to " .. choice, vim.log.levels.INFO)
       end
     end)

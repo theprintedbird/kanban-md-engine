@@ -37,6 +37,7 @@ local default_config = {
   -- Optional features (disabled by default)
   enable_subtasks = false, -- Enable subtask validation triggers
   enable_dependencies = false, -- Enable dependency validation triggers
+  enable_cursor_positioning = false, -- Move cursor to newly created cards
 
   -- Actions specific config
   auto_archive_after_days = 30,

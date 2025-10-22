@@ -34,6 +34,9 @@ function M.setup(user_config)
     Card:register_on_create("generate_ulid_id", ulid_exec, ulid_rollback)
   end
 
+  -- Note: Cursor positioning trigger is registered per-column in Board:register_basic_triggers()
+  -- This happens automatically during parsing via auto_register_triggers()
+
   -- Register Neovim commands
   commands.setup()
 end

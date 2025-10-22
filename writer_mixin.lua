@@ -77,10 +77,13 @@ local function properties_to_comment(properties, prefix)
 	table.sort(keys)
 
 	for _, key in ipairs(keys) do
-		local value = properties[key]
-		local formatted = format_property_value(value)
-		if formatted then
-			table.insert(parts, string.format("%s: %s", key, formatted))
+		-- Skip underscore-prefixed properties (ephemeral/internal)
+		if not key:match("^_") then
+			local value = properties[key]
+			local formatted = format_property_value(value)
+			if formatted then
+				table.insert(parts, string.format("%s: %s", key, formatted))
+			end
 		end
 	end
 

@@ -1,4 +1,23 @@
 --- Column Type Resolver
+--
+-- The ColumnTypeResolver maps Kanban column names to reusable "types" that define behavior,
+-- properties, and validation rules. This allows you to configure column behaviors once (e.g.,
+-- "completion columns auto-archive after 30 days") and apply them to multiple columns through
+-- either explicit assignment, named definitions, or pattern matching. Properties merge through
+-- a three-layer priority system where markdown config (highest) overrides named definitions,
+-- which override type defaults (lowest).
+--
+-- Example:
+--   -- Define a completion type with auto-archive behavior
+--   config.column_config.types.completion = {
+--     properties = { is_completion_state = true, auto_archive_days = 30 },
+--     patterns = { "done", "complete", "finished" }
+--   }
+--
+--   -- Column "## Done" matches pattern "done" -> gets completion type properties
+--   -- Column "## Finished Tasks" matches pattern "finished" -> also completion type
+--   -- Override per-column: <!-- column:config type: completion, auto_archive_days: 7 -->
+--
 -- Resolves column types and merges properties from multiple sources:
 -- 1. Type definitions (lowest priority)
 -- 2. Named column definitions (medium priority)
@@ -41,16 +60,30 @@ function ColumnTypeResolver.resolve_type(column_name, markdown_config, global_co
   -- Priority 3: Pattern matching
   -- Iterate through all types and check their patterns
   -- Convert column name to lowercase for case-insensitive matching
+  -- When multiple patterns match, prefer the most specific (longest) pattern
   local column_name_lower = column_name:lower()
+  local best_match = nil
+  local best_pattern_length = 0
+
   for type_name, type_def in pairs(types) do
     if type_def.patterns then
       for _, pattern in ipairs(type_def.patterns) do
         -- Use Lua pattern matching (patterns should be lowercase)
         if string.match(column_name_lower, pattern) then
-          return type_name
+          -- Prefer longer (more specific) patterns
+          local pattern_length = #pattern
+          if pattern_length > best_pattern_length or
+             (pattern_length == best_pattern_length and (not best_match or type_name < best_match)) then
+            best_match = type_name
+            best_pattern_length = pattern_length
+          end
         end
       end
     end
+  end
+
+  if best_match then
+    return best_match
   end
 
   -- Priority 4: No match found

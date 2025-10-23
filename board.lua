@@ -39,6 +39,7 @@ function Board:new()
   local obj = {
     id = nil,  -- Will be set by on_create trigger if auto_id is enabled
     columns = {},
+		-- Note: Archive is stored separately in self.archive, not in self.columns
     config = {},
     triggers = {},
     trigger_order = {}

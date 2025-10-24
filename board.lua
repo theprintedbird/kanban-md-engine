@@ -42,7 +42,9 @@ function Board:new()
 		-- Note: Archive is stored separately in self.archive, not in self.columns
     config = {},
     triggers = {},
-    trigger_order = {}
+    trigger_order = {},
+    -- Content blocks for preserving markdown when parsing/writing
+    content_blocks = {}
   }
   setmetatable(obj, Board)
 

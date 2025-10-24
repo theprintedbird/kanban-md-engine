@@ -237,8 +237,20 @@ end
 -- Helper: Flush accumulated markdown lines into a content block
 local function flush_markdown_buffer(board, buffer)
 	if #buffer > 0 then
-		local ContentBlock = require("kanban-md.content_block")
-		table.insert(board.content_blocks, ContentBlock.markdown(vim.deepcopy(buffer)))
+		-- Check if buffer contains only empty strings (whitespace-only)
+		local has_content = false
+		for _, line in ipairs(buffer) do
+			if line ~= "" then
+				has_content = true
+				break
+			end
+		end
+
+		-- Only create a content block if there's actual content
+		if has_content then
+			local ContentBlock = require("kanban-md.content_block")
+			table.insert(board.content_blocks, ContentBlock.markdown(vim.deepcopy(buffer)))
+		end
 	end
 end
 

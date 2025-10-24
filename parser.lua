@@ -13,8 +13,8 @@ local patterns = {
 	-- Board title (# Title)
 	board_title = "^#%s+(.+)$",
 
-	-- Column header (## Column Name)
-	column_header = "^##%s+(.+)$",
+	-- Column header (###### Column Name) - H6 for columns
+	column_header = "^######%s+(.+)$",
 
 	-- Task item (simple list)
 	task_item = "^%s*%-%s*(.+)$",
@@ -27,9 +27,12 @@ local patterns = {
 	-- Property patterns within comments
 	property = "([%w_]+):%s*([^,]*%[[^%]]*%]|[^,]+)",
 
-	-- Special sections
-	archive_section = "^##%s+__ARCHIVE__",
-	stats_section = "^##%s+__STAT(ISTIC)?S__",
+	-- Non-kanban sections (H2-H5 headers) - these are preserved as markdown
+	section_header = "^##[^#]",
+
+	-- Special sections (also use H6)
+	archive_section = "^######%s+__ARCHIVE__",
+	stats_section = "^######%s+__STAT(ISTIC)?S__",
 }
 
 -- Convert ISO timestamp to epoch (Unix timestamp)
@@ -232,6 +235,20 @@ local function split_content_to_lines(content)
 	return lines
 end
 
+-- Helper: Flush accumulated markdown lines into a content block
+local function flush_markdown_buffer(board, buffer)
+	if #buffer > 0 then
+		local ContentBlock = require("kanban-md.content_block")
+		table.insert(board.content_blocks, ContentBlock.markdown(vim.deepcopy(buffer)))
+	end
+end
+
+-- Helper: Add a structured block reference
+local function add_structured_block(board, block)
+	local ContentBlock = require("kanban-md.content_block")
+	table.insert(board.content_blocks, block)
+end
+
 -- Parse markdown content and populate this Board instance
 function ParserMixin:parse(content)
 	-- Initialize board properties if not already set
@@ -240,6 +257,7 @@ function ParserMixin:parse(content)
 	self.columns = {} -- Reset columns for fresh parse
 	self.archive = nil
 	self.stats = {}
+	self.content_blocks = {} -- Initialize content blocks array
 
 	local lines = split_content_to_lines(content)
 	self.raw_lines = lines
@@ -251,12 +269,21 @@ function ParserMixin:parse(content)
 	local pending_config = nil
 	local config_type = nil  -- "board" or "column"
 
+	-- Content block tracking
+	local markdown_buffer = {}
+	local seen_title = false
+	local ContentBlock = require("kanban-md.content_block")
+
 	if lines ~= nil then
 		for _, line in ipairs(lines) do
 			line_number = line_number + 1
 
+			-- Track whether this line should be added to markdown buffer
+			local add_to_markdown = true
+
 			-- Handle multi-line comment blocks
 			if in_comment_block then
+				add_to_markdown = false
 				local ending = line:match(patterns.comment_block_end)
 				if ending then
 					comment_buffer = comment_buffer .. " " .. ending
@@ -287,6 +314,7 @@ function ParserMixin:parse(content)
 				end
 			-- Check for comment block start
 			elseif line:match(patterns.comment_block_start) then
+				add_to_markdown = false
 				local comment_start = line:match(patterns.comment_block_start)
 
 				-- Check if it's a single-line comment
@@ -323,30 +351,63 @@ function ParserMixin:parse(content)
 				end
 			-- Parse board title
 			elseif line:match(patterns.board_title) then
+				add_to_markdown = false
+				-- Flush markdown buffer before title
+				flush_markdown_buffer(self, markdown_buffer)
+				markdown_buffer = {}
+
 				self.title = line:match(patterns.board_title)
+
+				-- Add title block
+				add_structured_block(self, ContentBlock.title())
+				seen_title = true
 			-- Parse archive section
 			elseif line:match(patterns.archive_section) then
+				add_to_markdown = false
+				-- Flush markdown buffer before column
+				flush_markdown_buffer(self, markdown_buffer)
+				markdown_buffer = {}
+
 				current_column = Column:new("__ARCHIVE__", "__ARCHIVE__")
 				current_column.is_archive = true
 				current_column.line_number = line_number
 				current_column.command_log = self.command_log -- Share command log
 				self.archive = current_column
+
+				-- Add column block
+				add_structured_block(self, ContentBlock.column(current_column))
 				-- Note: Archive is stored separately in self.archive, not in self.columns
 			-- Parse stats section
 			elseif line:match(patterns.stats_section) then
+				add_to_markdown = false
+				-- Flush markdown buffer before column
+				flush_markdown_buffer(self, markdown_buffer)
+				markdown_buffer = {}
+
 				current_column = Column:new("__STATS__", "__STATS__")
 				current_column.is_stats = true
 				current_column.line_number = line_number
 				current_column.command_log = self.command_log -- Share command log
+
+				-- Add column block
+				add_structured_block(self, ContentBlock.column(current_column))
 			-- Parse column headers
 			elseif line:match(patterns.column_header) then
+				add_to_markdown = false
 				local column_name = line:match(patterns.column_header)
 
 				if not column_name:match("^__") then  -- Regular column
+					-- Flush markdown buffer before column
+					flush_markdown_buffer(self, markdown_buffer)
+					markdown_buffer = {}
+
 					current_column = Column:new("column_" .. #self.columns + 1, column_name)
 					current_column.line_number = line_number
 					current_column.command_log = self.command_log -- Share command log
 					table.insert(self.columns, current_column)
+
+					-- Add column block
+					add_structured_block(self, ContentBlock.column(current_column))
 				end
 			-- Parse tasks
 			elseif current_column and not current_column.is_stats then
@@ -358,6 +419,7 @@ function ParserMixin:parse(content)
 				end
 
 				if task_data then
+					add_to_markdown = false
 					task_data.line_number = line_number
 					task_data.column = current_column.name
 
@@ -379,7 +441,15 @@ function ParserMixin:parse(content)
 					current_column:add_card(card)
 				end
 			end
+
+			-- Add line to markdown buffer if it's not a structured element
+			if add_to_markdown then
+				table.insert(markdown_buffer, line)
+			end
 		end
+
+		-- Flush remaining markdown buffer at the end
+		flush_markdown_buffer(self, markdown_buffer)
 	end
 
 	-- Post-processing - resolve types for columns without explicit config

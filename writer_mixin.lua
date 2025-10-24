@@ -140,7 +140,7 @@ local function write_column(column)
 	local config = config_module.get()
 
 	-- Column header
-	table.insert(lines, "## " .. column.name)
+	table.insert(lines, "###### " .. column.name)
 
 	-- Column configuration comment if present
 	local plain_config = to_plain_table(column.config)
@@ -239,7 +239,7 @@ function WriterMixin:write()
 			table.insert(lines, "")
 		end
 
-		table.insert(lines, "## __STATS__")
+		table.insert(lines, "###### __STATS__")
 		table.insert(lines, string.format("<!-- generated: %s -->", os.date("%Y-%m-%d %H:%M:%S")))
 
 		-- Write statistics as a comment block or markdown list

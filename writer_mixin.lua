@@ -259,17 +259,15 @@ function WriterMixin:write_from_blocks()
 				skip_next_single_blank = true
 			end
 
-			-- Cards (skip for stats columns)
-			if not column.is_stats then
-				for _, task in ipairs(column.cards or {}) do
-					local task_output = write_task(task, column.name)
-					if type(task_output) == "table" then
-						for _, line in ipairs(task_output) do
-							table.insert(lines, line)
-						end
-					else
-						table.insert(lines, task_output)
+			-- Cards
+			for _, task in ipairs(column.cards or {}) do
+				local task_output = write_task(task, column.name)
+				if type(task_output) == "table" then
+					for _, line in ipairs(task_output) do
+						table.insert(lines, line)
 					end
+				else
+					table.insert(lines, task_output)
 				end
 			end
 		end
@@ -333,29 +331,6 @@ function WriterMixin:write_legacy()
 		local archive_lines = write_column(self.archive)
 		for _, line in ipairs(archive_lines) do
 			table.insert(lines, line)
-		end
-	end
-
-	-- Stats section (if needed - usually generated dynamically)
-	if self.stats and self.include_stats_section then
-		if config.blank_lines_between_sections then
-			table.insert(lines, "")
-		end
-
-		table.insert(lines, "###### __STATS__")
-		table.insert(lines, string.format("<!-- generated: %s -->", os.date("%Y-%m-%d %H:%M:%S")))
-
-		-- Write statistics as a comment block or markdown list
-		if self.stats.total_cards > 0 then
-			table.insert(lines, string.format("- Total cards: %d", self.stats.total_cards))
-			table.insert(lines, string.format("- Completed: %d", self.stats.completed_cards))
-			table.insert(lines, string.format("- In progress: %d", self.stats.in_progress_cards))
-
-			if self.stats.average_cycle_time then
-				local unit = self.config.cycle_time_unit or "seconds"
-				table.insert(lines, string.format("- Average cycle time: %.2f %s",
-					self.stats.average_cycle_time, unit))
-			end
 		end
 	end
 

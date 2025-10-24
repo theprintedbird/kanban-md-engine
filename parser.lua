@@ -32,7 +32,6 @@ local patterns = {
 
 	-- Special sections (also use H6)
 	archive_section = "^######%s+__ARCHIVE__",
-	stats_section = "^######%s+__STAT(ISTIC)?S__",
 }
 
 -- Convert ISO timestamp to epoch (Unix timestamp)
@@ -377,20 +376,6 @@ function ParserMixin:parse(content)
 				-- Add column block
 				add_structured_block(self, ContentBlock.column(current_column))
 				-- Note: Archive is stored separately in self.archive, not in self.columns
-			-- Parse stats section
-			elseif line:match(patterns.stats_section) then
-				add_to_markdown = false
-				-- Flush markdown buffer before column
-				flush_markdown_buffer(self, markdown_buffer)
-				markdown_buffer = {}
-
-				current_column = Column:new("__STATS__", "__STATS__")
-				current_column.is_stats = true
-				current_column.line_number = line_number
-				current_column.command_log = self.command_log -- Share command log
-
-				-- Add column block
-				add_structured_block(self, ContentBlock.column(current_column))
 			-- Parse column headers
 			elseif line:match(patterns.column_header) then
 				add_to_markdown = false
@@ -410,7 +395,7 @@ function ParserMixin:parse(content)
 					add_structured_block(self, ContentBlock.column(current_column))
 				end
 			-- Parse tasks
-			elseif current_column and not current_column.is_stats then
+			elseif current_column then
 				local task_data = nil
 
 				-- Check for task item

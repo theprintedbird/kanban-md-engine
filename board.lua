@@ -225,7 +225,7 @@ function Board:get_column_by_name(name)
 end
 
 -- Add a new column to the board
--- Inserts column block before archive/stats if present, otherwise at end
+-- Inserts column block before archive if present, otherwise at end
 -- @param name string - Name of the column to create
 -- @param config table|nil - Optional configuration for the column
 -- @return Column - The created column object
@@ -245,10 +245,10 @@ function Board:add_new_column(name, config)
     local ContentBlock = require('kanban-md.content_block')
     local insert_pos = #self.content_blocks + 1
 
-    -- Find position before archive or stats
+    -- Find position before archive
     for i, block in ipairs(self.content_blocks) do
       if block.type == ContentBlock.TYPES.COLUMN then
-        if block.ref and (block.ref.is_archive or block.ref.is_stats) then
+        if block.ref and block.ref.is_archive then
           insert_pos = i
           break
         end

@@ -175,8 +175,111 @@ local function write_column(column)
 	return lines
 end
 
--- Main writer function
+-- Main writer function - dispatches to appropriate implementation
 function WriterMixin:write()
+	-- Use content blocks if available (new behavior)
+	if self.content_blocks and #self.content_blocks > 0 then
+		return self:write_from_blocks()
+	else
+		-- Fallback: Generate structure without blocks (for programmatically created boards)
+		return self:write_legacy()
+	end
+end
+
+-- Write from content blocks (preserves markdown)
+function WriterMixin:write_from_blocks()
+	local config = config_module.get()
+	local lines = {}
+	local ContentBlock = require("kanban-md.content_block")
+	local skip_next_single_blank = false
+
+	for i, block in ipairs(self.content_blocks) do
+		if block.type == ContentBlock.TYPES.MARKDOWN then
+			-- If we just added a config-driven blank line after a column header,
+			-- skip the first blank line of this markdown block if it starts with one
+			-- (prevents duplicate blank lines on round-trip)
+			if skip_next_single_blank and #block.lines > 0 and block.lines[1] == "" then
+				-- Skip the first blank line, but output the rest
+				for j = 2, #block.lines do
+					table.insert(lines, block.lines[j])
+				end
+				skip_next_single_blank = false
+			else
+				-- Preserve markdown verbatim
+				for _, line in ipairs(block.lines) do
+					table.insert(lines, line)
+				end
+				skip_next_single_blank = false
+			end
+
+		elseif block.type == ContentBlock.TYPES.TITLE then
+			skip_next_single_blank = false
+			-- Generate from current board title
+			table.insert(lines, "# " .. (self.title or "Untitled Board"))
+
+			-- Add board config if present (immediately after title)
+			local plain_board_config = to_plain_table(self.config)
+			if plain_board_config and not vim.tbl_isempty(plain_board_config) then
+				local config_comment = properties_to_comment(plain_board_config, "kanban:config")
+				if type(config_comment) == "table" then
+					for _, line in ipairs(config_comment) do
+						table.insert(lines, line)
+					end
+				else
+					table.insert(lines, config_comment)
+				end
+			end
+
+		elseif block.type == ContentBlock.TYPES.COLUMN then
+			skip_next_single_blank = false
+			-- Generate from current column data
+			local column = block.ref
+
+			-- Column header (H6)
+			table.insert(lines, "###### " .. column.name)
+
+			-- Column configuration comment if present
+			local plain_config = to_plain_table(column.config)
+			if plain_config and not vim.tbl_isempty(plain_config) then
+				local config_comment = properties_to_comment(plain_config, "column:config")
+				if type(config_comment) == "table" then
+					for _, line in ipairs(config_comment) do
+						table.insert(lines, line)
+					end
+				else
+					table.insert(lines, config_comment)
+				end
+			end
+
+			-- Add blank line after header/config if configured and there are cards
+			if config.blank_line_after_column_header and column.cards and #column.cards > 0 then
+				table.insert(lines, "")
+				-- Mark that we added a config-driven blank line, so we should skip
+				-- the next single-blank markdown block (it's a duplicate from a previous write)
+				skip_next_single_blank = true
+			end
+
+			-- Cards (skip for stats columns)
+			if not column.is_stats then
+				for _, task in ipairs(column.cards or {}) do
+					local task_output = write_task(task, column.name)
+					if type(task_output) == "table" then
+						for _, line in ipairs(task_output) do
+							table.insert(lines, line)
+						end
+					else
+						table.insert(lines, task_output)
+					end
+				end
+			end
+		end
+	end
+
+	return lines
+end
+
+-- Legacy write (for backwards compatibility, programmatically created boards without content blocks)
+function WriterMixin:write_legacy()
 	local config = config_module.get()
 	local lines = {}
 

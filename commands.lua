@@ -475,17 +475,67 @@ function M.archive_done_cards()
   end
 end
 
+-- Command: Add new column to board
+function M.new_column()
+  local board = get_current_board()
+
+  get_input("Column name: ", "", function(column_name)
+    if not column_name or column_name == "" then
+      vim.notify("Column name cannot be empty", vim.log.levels.ERROR)
+      return
+    end
+
+    -- Check if column already exists
+    if board:get_column_by_name(column_name) then
+      vim.notify("Column '" .. column_name .. "' already exists", vim.log.levels.ERROR)
+      return
+    end
+
+    -- Optionally prompt for WIP limit (use vim.ui.input directly to handle empty input)
+    vim.ui.input({
+      prompt = "WIP limit (optional, press Enter to skip): ",
+      default = "",
+    }, function(wip_input)
+      -- Re-parse board to get current state
+      local current_board = get_current_board()
+
+      -- Prepare config
+      local col_config = nil
+      if wip_input and wip_input ~= "" then
+        local wip_limit = tonumber(wip_input)
+        if wip_limit and wip_limit > 0 then
+          col_config = { wip_limit = wip_limit }
+        else
+          vim.notify("Invalid WIP limit. Column created without WIP limit.", vim.log.levels.WARN)
+        end
+      end
+
+      -- Add the new column
+      current_board:add_new_column(column_name, col_config)
+
+      -- Update buffer
+      update_buffer_with_board(current_board)
+
+      local msg = "Added column '" .. column_name .. "'"
+      if col_config and col_config.wip_limit then
+        msg = msg .. " with WIP limit " .. col_config.wip_limit
+      end
+      vim.notify(msg, vim.log.levels.INFO)
+    end)
+  end)
+end
+
 -- Command: Show board statistics
 function M.show_stats()
   local board = get_current_board()
   board:calculate_stats()
-  
+
   local stats = board.stats
   if not stats then
     vim.notify("No statistics available", vim.log.levels.WARN)
     return
   end
-  
+
   -- Format statistics message
   local lines = {
     "=== Kanban Board Statistics ===",
@@ -497,13 +547,13 @@ function M.show_stats()
     "Total complexity: " .. stats.total_complexity,
     ""
   }
-  
+
   -- WIP by column
   table.insert(lines, "WIP by column:")
   for col_name, wip_count in pairs(stats.wip_by_column) do
     table.insert(lines, "  " .. col_name .. ": " .. wip_count)
   end
-  
+
   -- Cycle time info
   if stats.average_cycle_time then
     table.insert(lines, "")
@@ -511,13 +561,13 @@ function M.show_stats()
     table.insert(lines, "Average cycle time: " .. string.format("%.1f", stats.average_cycle_time) .. " " .. unit)
     table.insert(lines, "Completed tasks with cycle time: " .. #stats.cycle_times)
   end
-  
+
   -- Show in a new buffer or floating window
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.api.nvim_buf_set_option(buf, "modifiable", false)
   vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
-  
+
   -- Open in split
   vim.cmd("split")
   local win = vim.api.nvim_get_current_win()
@@ -530,13 +580,14 @@ function M.setup()
   local commands = {
     KanbanNewBoard = M.new_board,
     KanbanNewCard = M.new_card,
+    KanbanNewColumn = M.new_column,
     KanbanMoveCard = M.move_card,
     KanbanCompleteCard = M.complete_card,
     KanbanSetComplexity = M.set_complexity,
     KanbanArchive = M.archive_done_cards,
     KanbanStats = M.show_stats,
   }
-  
+
   for name, func in pairs(commands) do
     vim.api.nvim_create_user_command(name, func, {
       desc = "Kanban: " .. name:gsub("Kanban", ""):gsub("(%l)(%u)", "%1 %2")

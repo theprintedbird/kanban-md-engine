@@ -224,6 +224,43 @@ function Board:get_column_by_name(name)
   return nil
 end
 
+-- Add a new column to the board
+-- Inserts column block before archive/stats if present, otherwise at end
+-- @param name string - Name of the column to create
+-- @param config table|nil - Optional configuration for the column
+-- @return Column - The created column object
+function Board:add_new_column(name, config)
+  local TypeConverter = require('kanban-md.type_converter')
+  local column = Column:new(nil, name)
+
+  if config then
+    column.config = TypeConverter:new(config)
+  end
+
+  table.insert(self.columns, column)
+  column.board = self
+
+  -- If we have content blocks, insert column block at appropriate position
+  if self.content_blocks and #self.content_blocks > 0 then
+    local ContentBlock = require('kanban-md.content_block')
+    local insert_pos = #self.content_blocks + 1
+
+    -- Find position before archive or stats
+    for i, block in ipairs(self.content_blocks) do
+      if block.type == ContentBlock.TYPES.COLUMN then
+        if block.ref and (block.ref.is_archive or block.ref.is_stats) then
+          insert_pos = i
+          break
+        end
+      end
+    end
+
+    table.insert(self.content_blocks, insert_pos, ContentBlock.column(column))
+  end
+
+  return column
+end
+
 -- Configuration-driven trigger registration
 function Board:auto_register_triggers()
   -- Register workflow triggers if configuration exists

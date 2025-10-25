@@ -436,47 +436,6 @@ function WriterMixin:append_task_to_column(column_name, task_text, properties)
 	return new_task
 end
 
--- TODO: Move to Board/ActionsMixin - this is business logic with trigger execution, not serialization
--- Move a task between columns
-function WriterMixin:move_task(task_id, target_column_name)
-	local parser = require("kanban-md.parser")
-
-	-- Find the task
-	local task, source_column = parser.find_task(self, task_id)
-	if not task then
-		return false, "Task not found"
-	end
-	if not source_column then
-		return false, "This task has no column, it is corrupted"
-	end
-
-	-- Find target column
-	local target_column = parser.get_column(self, target_column_name)
-	if not target_column then
-		return false, "Target column not found"
-	end
-
-	-- Remove from source
-	for i, t in ipairs(source_column.cards) do
-		if t.properties.id == task_id then
-			table.remove(source_column.cards, i)
-			break
-		end
-	end
-
-	-- Update task's column reference
-	task.column = target_column_name
-
-	-- TODO run all triggers
-	local timestamp_execute_fn = triggers_module.timestamp()
-	timestamp_execute_fn({ name = target_column_name }, task)
-
-	-- Add to target
-	-- TODO make target_column an object so that triggers can be set on it
-	table.insert(target_column.cards, task)
-
-	return true
-end
 
 -- TODO: Move to Board/ActionsMixin - this is business logic with rules and triggers, not serialization
 -- Archive completed cards

@@ -7,6 +7,52 @@ local column_helper = require("kanban-md.helpers.column")
 
 local M = {}
 
+-- Helper function to extract user-friendly error message from Lua error strings
+-- Strips technical context and file paths, preserving the core error message
+local function extract_error_message(err)
+  if type(err) ~= "string" then
+    return "An unknown error occurred"
+  end
+
+  -- Pattern 1: Extract message after validation failed pattern
+  -- "Card entry validation failed [trigger_name]: User Message"
+  local msg = err:match("Card %w+ validation failed %[%w+%]: (.+)")
+  if msg then
+    -- Clean up file path references if present
+    msg = msg:gsub("%.%.%.%w+Bird/[^:]+:%d+: ", "")
+    return msg
+  end
+
+  -- Pattern 2: Extract message after trigger failed pattern
+  -- "Entry trigger failed: trigger_name: User Message"
+  msg = err:match("Entry trigger failed: [%w_]+: (.+)")
+  if msg then
+    msg = msg:gsub("%.%.%.%w+Bird/[^:]+:%d+: ", "")
+    return msg
+  end
+
+  -- Pattern 3: Extract message after exit trigger failed pattern
+  msg = err:match("Exit trigger '[%w_]+' failed: (.+)")
+  if msg then
+    msg = msg:gsub("%.%.%.%w+Bird/[^:]+:%d+: ", "")
+    return msg
+  end
+
+  -- Pattern 4: Clean up file paths from any remaining error
+  -- Remove patterns like "...edBird/nvim-plugins/kanban-md/lua/kanban-md/file.lua:123: "
+  msg = err:gsub("%.%.%.%w+Bird/[^:]+:%d+: ", "")
+
+  -- If the message still has a stack trace reference at the start, extract just the message
+  local clean_msg = msg:match("^[^:]+:%d+: (.+)") or msg
+
+  return clean_msg
+end
+
+-- Helper function to notify user with Kanban plugin context
+local function notify(message, level)
+  vim.notify(message, level, { title = "Kanban" })
+end
+
 -- Helper function to get current buffer lines
 local function get_buffer_lines(bufnr)
   bufnr = bufnr or 0
@@ -193,7 +239,16 @@ function M.new_card()
       if selected_column then
         -- Create new card
         local card = require("kanban-md.card"):new(nil, card_text, {})
-        selected_column:add_card(card)
+
+        -- Wrap in pcall to catch validation errors (e.g., WIP limits)
+        local success, err = pcall(function()
+          selected_column:add_card(card)
+        end)
+
+        if not success then
+          notify(extract_error_message(err), vim.log.levels.ERROR)
+          return
+        end
 
         -- Update buffer
         update_buffer_with_board(current_board)
@@ -203,7 +258,7 @@ function M.new_card()
           move_cursor_to_target_card(current_board)
         end
 
-        vim.notify("Added card '" .. card_text .. "' to " .. choice, vim.log.levels.INFO)
+        notify("Added card '" .. card_text .. "' to " .. choice, vim.log.levels.INFO)
       end
     end)
   end)
@@ -294,15 +349,18 @@ function M.move_card()
       return
     end
 
-    -- Use the new API
-    local success, err = current_board:move_card(current_card, source_column, target_column)
+    -- Wrap move operation in pcall to catch validation errors
+    local success, err = pcall(function()
+      current_board:move_card(current_card, source_column, target_column)
+    end)
 
-    if success then
-      update_buffer_with_board(current_board)
-      vim.notify("Moved card '" .. current_card.text .. "' to " .. choice, vim.log.levels.INFO)
-    else
-      vim.notify("Failed to move card: " .. (err or "unknown error"), vim.log.levels.ERROR)
+    if not success then
+      notify(extract_error_message(err), vim.log.levels.ERROR)
+      return
     end
+
+    update_buffer_with_board(current_board)
+    notify("Moved card '" .. current_card.text .. "' to " .. choice, vim.log.levels.INFO)
   end)
 end
 
@@ -334,14 +392,19 @@ function M.complete_card()
     local col_key = done_column.name:lower():gsub("%s+", "_")
     card.properties[col_key] = os.time()
   end
-  local success, err = board:move_card(card, current_column, done_column)
 
-  if success then
-    update_buffer_with_board(board)
-    vim.notify("Completed card '" .. card.text .. "'", vim.log.levels.INFO)
-  else
-    vim.notify("Failed to complete card: " .. (err or "unknown error"), vim.log.levels.ERROR)
+  -- Wrap move operation in pcall to catch validation errors
+  local success, err = pcall(function()
+    board:move_card(card, current_column, done_column)
+  end)
+
+  if not success then
+    notify(extract_error_message(err), vim.log.levels.ERROR)
+    return
   end
+
+  update_buffer_with_board(board)
+  notify("Completed card '" .. card.text .. "'", vim.log.levels.INFO)
 end
 
 -- Command: Set complexity on card at cursor
@@ -460,8 +523,15 @@ function M.new_column()
         end
       end
 
-      -- Add the new column
-      current_board:add_new_column(column_name, col_config)
+      -- Wrap column creation in pcall to catch any errors
+      local success, err = pcall(function()
+        current_board:add_new_column(column_name, col_config)
+      end)
+
+      if not success then
+        notify(extract_error_message(err), vim.log.levels.ERROR)
+        return
+      end
 
       -- Update buffer
       update_buffer_with_board(current_board)
@@ -470,7 +540,7 @@ function M.new_column()
       if col_config and col_config.wip_limit then
         msg = msg .. " with WIP limit " .. col_config.wip_limit
       end
-      vim.notify(msg, vim.log.levels.INFO)
+      notify(msg, vim.log.levels.INFO)
     end)
   end)
 end

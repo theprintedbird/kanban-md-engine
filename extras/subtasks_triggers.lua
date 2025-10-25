@@ -43,9 +43,14 @@ function M.create_subtask_trigger()
     end
 
     if #incomplete > 0 then
+      local count = #incomplete
+      local task_list = table.concat(incomplete, ", ")
       return Triggerable:error(string.format(
-        "Subtasks not complete: %s",
-        table.concat(incomplete, ", ")
+        "Cannot complete: %d subtask%s still incomplete (%s). Complete %s first.",
+        count,
+        count > 1 and "s" or "",
+        task_list,
+        count > 1 and "them" or "it"
       ))
     end
 
@@ -77,7 +82,12 @@ function M.create_dependency_trigger()
 
       local dep_complete = dep_column and (dep_column.name == "Done" or dep_column.name == "__ARCHIVE__")
       if not dep_complete then
-        local error_result = Triggerable:error(string.format("Dependency '%s' is not complete", dep_id))
+        local current_status = dep_column and dep_column.name or "Unknown"
+        local error_result = Triggerable:error(string.format(
+          "Cannot complete: dependency '%s' is not done (currently in '%s'). Complete it first.",
+          dep_id,
+          current_status
+        ))
         if _G._TEST then
         end
         return error_result

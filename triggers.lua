@@ -25,9 +25,10 @@ local function create_wip_limit_trigger(wip_limit)
   local execute_fn = function(column, context)
     local current_count = #context.target_column.cards
     if current_count >= wip_limit then
+      local action_hint = "Remove or complete a card before adding more."
       return Triggerable:error(string.format(
-        "WIP limit exceeded: Column '%s' (%d/%d)",
-        context.target_column.name, current_count, wip_limit
+        "WIP limit reached for '%s' (%d/%d). %s",
+        context.target_column.name, current_count, wip_limit, action_hint
       ))
     end
     return Triggerable:success()

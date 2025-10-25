@@ -66,6 +66,9 @@ local build_context_and_checking = function(event_type, self, card, context)
     context.target_column_name = context.target_column and context.target_column.name or nil
   end
 
+  -- Add event_type to context so triggers can distinguish between entry and exit
+  context.event_type = event_type
+
   -- ProcessingEntry state: ValidatingRequirements
   -- ProcessingExit	 state: ValidatingRequirements
   local checking_triggers = self:get_triggers("on_checking")

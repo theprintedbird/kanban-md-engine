@@ -1,5 +1,7 @@
 -- Example trigger implementations
 
+local Triggerable = require('kanban-md.triggerable')
+
 -- Timestamp trigger
 local function create_timestamp_trigger()
   local normalize_column_name = function(column_name)
@@ -18,13 +20,20 @@ local function create_timestamp_trigger()
 end
 
 -- WIP limit validation trigger
+-- Checks target column capacity (works correctly for both entry and exit validation)
 local function create_wip_limit_trigger(wip_limit)
-  return function(self, context)
-    if #self.cards >= wip_limit then
-      error(string.format("WIP limit exceeded: %d/%d", #self.cards, wip_limit))
+  local execute_fn = function(column, context)
+    local current_count = #context.target_column.cards
+    if current_count >= wip_limit then
+      return Triggerable:error(string.format(
+        "WIP limit exceeded: Column '%s' (%d/%d)",
+        context.target_column.name, current_count, wip_limit
+      ))
     end
-    return true
+    return Triggerable:success()
   end
+
+  return execute_fn, nil
 end
 
 -- Assignment trigger

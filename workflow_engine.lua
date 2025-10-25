@@ -146,23 +146,6 @@ function WorkflowEngine:setup_triggers()
 	self.state = STATES.READY
 end
 
--- Convert capacity checks to checking triggers
-local function create_wip_limit_checking_trigger(wip_limit)
-  local execute_fn = function(column, context)
-    local current_count = #context.target_column.cards
-    if current_count >= wip_limit then
-      return Triggerable:error(string.format(
-        "WIP limit exceeded: Column '%s' (%d/%d)",
-        context.target_column.name, current_count, wip_limit
-      ))
-    end
-    return Triggerable:success()
-  end
-
-  return execute_fn, nil
-end
-
-
 -- Auto-register workflow triggers during board setup
 function WorkflowEngine:setup_workflow_triggers(board)
   if not board.config.workflow then return end
@@ -183,9 +166,10 @@ end
 -- Auto-register core validation triggers
 function WorkflowEngine:setup_core_triggers(board)
   -- Register WIP limit triggers on columns with wip_limit config
+  local triggers = require('kanban-md.triggers')
   for _, column in ipairs(board.columns) do
     if column.config.wip_limit then
-      local wip_fn, wip_rollback = create_wip_limit_checking_trigger(column.config.wip_limit)
+      local wip_fn, wip_rollback = triggers.wip_limit(column.config.wip_limit)
       column:register_on_checking("wip_limit", wip_fn, wip_rollback)
     end
   end

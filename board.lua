@@ -473,4 +473,73 @@ function Board:register_trigger_from_config(trigger_type, trigger_config, target
   end
 end
 
+-- Archive completed cards using triggers module for timestamp handling
+-- @param older_than_days number|nil - Only archive cards older than this many days (0 = all)
+-- @return number - Count of archived cards
+function Board:archive_done_cards(older_than_days)
+  older_than_days = older_than_days or 0
+  local cutoff_time = os.time() - (older_than_days * 86400)
+  local column_helpers = require('kanban-md.helpers.column')
+  local triggers_module = require('kanban-md.triggers')
+
+  -- Ensure archive exists
+  if not self.archive then
+    self.archive = Column:new("__ARCHIVE__", "__ARCHIVE__")
+    self.archive.is_archive = true
+  end
+
+  local archived_count = 0
+
+  -- Check all columns for completed cards
+  for _, column in ipairs(self.columns) do
+    local cards_to_keep = {}
+
+    for _, task in ipairs(column.cards) do
+      local should_archive = false
+
+      -- Task is completed if in completion column
+      local is_completed = column_helpers.is_completion_column(column, self)
+
+      if is_completed then
+        if older_than_days > 0 then
+          -- Check if old enough
+          local completion_column_name
+          for _, col in ipairs(self.columns) do
+            if column_helpers.is_completion_column(col, self) then
+              completion_column_name = col.name:lower()
+              break
+            end
+          end
+          local done_time = task.properties[completion_column_name] or 0
+          if done_time < cutoff_time then
+            should_archive = true
+          end
+        else
+          -- Archive all completed cards
+          should_archive = true
+        end
+      end
+
+      if should_archive then
+        -- Update task's column reference (for timestamp trigger)
+        task.column = "__ARCHIVE__"
+
+        -- Use triggers module for timestamp handling
+        local timestamp_execute_fn = triggers_module.timestamp()
+        local archive_column_context = { name = "__ARCHIVE__" }
+        timestamp_execute_fn(archive_column_context, { card = task })
+
+        table.insert(self.archive.cards, task)
+        archived_count = archived_count + 1
+      else
+        table.insert(cards_to_keep, task)
+      end
+    end
+
+    column.cards = cards_to_keep
+  end
+
+  return archived_count
+end
+
 return Board

@@ -413,60 +413,10 @@ end
 function M.archive_done_cards()
   local board = get_current_board()
   local archive_days = config.get_value("archive_after_days") or 30
-  
-  local cutoff_time = os.time() - (archive_days * 24 * 60 * 60)
-  local archived_count = 0
-  
-  -- Find completion columns
-  local done_columns = {}
-  for _, col in ipairs(board.columns) do
-    if column_helper.is_completion_column(col, board) then
-      table.insert(done_columns, col)
-    end
-  end
-  
-  if #done_columns == 0 then
-    vim.notify("No completion columns found", vim.log.levels.WARN)
-    return
-  end
-  
-  -- Process each completion column
-  for _, column in ipairs(done_columns) do
-    local col_key = column.name:lower():gsub("%s+", "_")
-    local i = 1
-    while i <= #column.cards do
-      local card = column.cards[i]
-      local completion_time = card.properties[col_key]
-      local should_archive = false
 
-      if not completion_time then
-        -- No timestamp: archive if card is in completion column (lenient)
-        should_archive = true
-      elseif completion_time < cutoff_time then
-        -- Has timestamp and is old enough
-        should_archive = true
-      end
+  -- Use board method to perform archival
+  local archived_count = board:archive_done_cards(archive_days)
 
-      if should_archive then
-        -- Archive this card
-        table.remove(column.cards, i)
-
-        -- Create archive if it doesn't exist
-        if not board.archive then
-          board.archive = require("kanban-md.column"):new("__ARCHIVE__", "__ARCHIVE__")
-          board.archive.is_archive = true
-        end
-
-        -- Add archived timestamp
-        card.properties.archived = os.time()
-        board.archive:add_card(card)
-        archived_count = archived_count + 1
-      else
-        i = i + 1
-      end
-    end
-  end
-  
   if archived_count > 0 then
     update_buffer_with_board(board)
     vim.notify("Archived " .. archived_count .. " cards older than " .. archive_days .. " days", vim.log.levels.INFO)

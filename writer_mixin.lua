@@ -403,39 +403,6 @@ function WriterMixin:update_task_in_buffer(task_id, bufnr)
 	return true
 end
 
--- TODO: Move to Board/ActionsMixin - this is business logic, not serialization
--- Append a new task to a column
-function WriterMixin:append_task_to_column(column_name, task_text, properties)
-	local column = nil
-
-	-- Find the column
-	for _, col in ipairs(self.columns) do
-		if col.name == column_name then
-			column = col
-			break
-		end
-	end
-
-	if not column then
-		return nil, "Column not found: " .. column_name
-	end
-
-	-- Create the new task
-	local new_task = {
-		text = task_text,
-		properties = properties or {},
-		column = column_name,
-	}
-
-	-- Get configuration
-	local config = config_module.get()
-
-	-- Add to column
-	table.insert(column.cards, new_task)
-
-	return new_task
-end
-
 -- For testing, conditionally export private functions
 if _G._TEST then
   WriterMixin._private = {

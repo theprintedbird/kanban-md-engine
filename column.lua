@@ -164,7 +164,6 @@ function Column:add_card(card, context)
 	self.cards[#self.cards] = card
 
 	-- ProcessingEntry state: UpdatingStatistics (could be implemented later)
-	-- TODO: Update column/board statistics here
 end
 
 function Column:remove_card(card, context)

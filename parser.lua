@@ -217,8 +217,6 @@ local function parse_task(line)
 		task.text = text:gsub("^%s+", ""):gsub("%s+$", "")
 	end
 
-	-- TODO Generate ID if not present by firing trigger
-
 	return task
 end
 

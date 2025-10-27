@@ -34,7 +34,7 @@ local function create_wip_limit_trigger(wip_limit)
     return Triggerable:success()
   end
 
-  return execute_fn, nil
+  return execute_fn
 end
 
 -- Assignment trigger

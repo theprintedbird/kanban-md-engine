@@ -57,7 +57,7 @@ function M.create_subtask_trigger()
     return Triggerable:success()
   end
 
-  return execute_fn, nil
+  return execute_fn
 end
 
 -- Convert dependencies to checking trigger
@@ -97,7 +97,7 @@ function M.create_dependency_trigger()
     return Triggerable:success()
   end
 
-  return execute_fn, nil
+  return execute_fn
 end
 
 return M

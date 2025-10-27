@@ -289,13 +289,13 @@ function Board:auto_register_triggers()
     -- Register triggers on all columns
     for _, column in ipairs(self.columns) do
       if enable_dependencies then
-        local dep_fn, dep_rollback = subtasks_module.create_dependency_trigger()
-        column:register_on_checking("dependencies", dep_fn, dep_rollback)
+        local dep_fn = subtasks_module.create_dependency_trigger()
+        column:register_on_checking("dependencies", dep_fn)
       end
 
       if enable_subtasks then
-        local subtask_fn, subtask_rollback = subtasks_module.create_subtask_trigger()
-        column:register_on_checking("subtasks", subtask_fn, subtask_rollback)
+        local subtask_fn = subtasks_module.create_subtask_trigger()
+        column:register_on_checking("subtasks", subtask_fn)
       end
     end
   end
@@ -378,8 +378,8 @@ function Board:register_basic_triggers(column)
   end
 
   if auto_timestamp ~= false then
-    local timestamp_fn, timestamp_rollback = triggers.timestamp()
-    column:register_on_entry("add_timestamp", timestamp_fn, timestamp_rollback)
+    local timestamp_fn = triggers.timestamp()
+    column:register_on_entry("add_timestamp", timestamp_fn)
   end
 
   -- Register default complexity trigger if use_complexity is enabled
@@ -394,8 +394,8 @@ function Board:register_basic_triggers(column)
       default_complexity = plugin_config.get_value('default_complexity')
     end
 
-    local complexity_fn, complexity_rollback = triggers.default_complexity(default_complexity)
-    column:register_on_entry("add_default_complexity", complexity_fn, complexity_rollback)
+    local complexity_fn = triggers.default_complexity(default_complexity)
+    column:register_on_entry("add_default_complexity", complexity_fn)
   end
 
   -- Register cursor positioning trigger if enabled
@@ -412,14 +412,14 @@ function Board:register_basic_triggers(column)
 
   -- Register WIP limit trigger if configured (using existing triggers.lua)
   if column.config and column.config.wip_limit then
-    local wip_fn, wip_rollback = triggers.wip_limit(column.config.wip_limit)
-    column:register_on_checking("wip_limit", wip_fn, wip_rollback)
+    local wip_fn = triggers.wip_limit(column.config.wip_limit)
+    column:register_on_checking("wip_limit", wip_fn)
   end
 
   -- Register capacity points trigger if configured (using extras)
   if column.config and column.config.capacity and column.config.capacity.max_points then
-    local points_fn, points_rollback = capacity_triggers.create_capacity_points_trigger(column.config.capacity.max_points)
-    column:register_on_checking("capacity_points", points_fn, points_rollback)
+    local points_fn = capacity_triggers.create_capacity_points_trigger(column.config.capacity.max_points)
+    column:register_on_checking("capacity_points", points_fn)
   end
 end
 
@@ -457,17 +457,17 @@ function Board:register_trigger_from_config(trigger_type, trigger_config, target
 
   -- Create the trigger function with any provided arguments
   local args = trigger_config.args or {}
-  local execute_fn, rollback_fn = trigger_fn(unpack(args))
+  local execute_fn = trigger_fn(unpack(args))
 
   -- Register the trigger on the target object
   if trigger_type == "on_checking" then
-    target_object:register_on_checking(trigger_name, execute_fn, rollback_fn)
+    target_object:register_on_checking(trigger_name, execute_fn)
   elseif trigger_type == "on_entry" then
-    target_object:register_on_entry(trigger_name, execute_fn, rollback_fn)
+    target_object:register_on_entry(trigger_name, execute_fn)
   elseif trigger_type == "on_exit" then
-    target_object:register_on_exit(trigger_name, execute_fn, rollback_fn)
+    target_object:register_on_exit(trigger_name, execute_fn)
   elseif trigger_type == "on_stay" then
-    target_object:register_on_stay(trigger_name, execute_fn, rollback_fn)
+    target_object:register_on_stay(trigger_name, execute_fn)
   else
     error(string.format("Unknown trigger type: %s", trigger_type))
   end

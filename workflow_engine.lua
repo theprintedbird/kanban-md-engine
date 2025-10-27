@@ -157,8 +157,8 @@ function WorkflowEngine:setup_workflow_triggers(board)
   for source_column_name, targets in pairs(board.config.workflow) do
     local column = board:get_column_by_name(source_column_name)
     if column then
-      local execute_fn, rollback_fn = create_workflow_rules_trigger(board.config.workflow)
-      column:register_on_checking("workflow_rules", execute_fn, rollback_fn)
+      local execute_fn = create_workflow_rules_trigger(board.config.workflow)
+      column:register_on_checking("workflow_rules", execute_fn)
     end
   end
 end
@@ -169,8 +169,8 @@ function WorkflowEngine:setup_core_triggers(board)
   local triggers = require('kanban-md.triggers')
   for _, column in ipairs(board.columns) do
     if column.config.wip_limit then
-      local wip_fn, wip_rollback = triggers.wip_limit(column.config.wip_limit)
-      column:register_on_checking("wip_limit", wip_fn, wip_rollback)
+      local wip_fn = triggers.wip_limit(column.config.wip_limit)
+      column:register_on_checking("wip_limit", wip_fn)
     end
   end
 end

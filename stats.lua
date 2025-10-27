@@ -8,12 +8,27 @@ local StatsMixin = {}
 
 -- Calculate cycle time using first and last timestamps chronologically
 -- @param task_properties table: Task properties containing timestamp fields
+-- @param board table: Board object to get dynamic column timestamp keys
 -- @return number|nil: Cycle time in seconds, or nil if insufficient timestamps
-local function calculate_cycle_time(task_properties)
-	-- Known timestamp properties in chronological order
-	local timestamp_keys = {"created", "ready", "started", "done", "archived"}
+local function calculate_cycle_time(task_properties, board)
+	-- Build timestamp keys dynamically from board columns
+	local timestamp_keys = {"created"} -- Always include "created" as baseline
+
+	-- Add timestamp key for each column (normalized name)
+	if board and board.columns then
+		for _, column in ipairs(board.columns) do
+			if column.name then
+				local timestamp_key = column.name:lower():gsub("[^%w_]", "_")
+				table.insert(timestamp_keys, timestamp_key)
+			end
+		end
+	end
+
+	-- Add special timestamp keys that may not correspond to columns
+	table.insert(timestamp_keys, "archived")
+
 	local timestamps = {}
-	
+
 	-- Collect all existing timestamps
 	for _, key in ipairs(timestamp_keys) do
 		if task_properties[key] then
@@ -65,7 +80,7 @@ function StatsMixin:calculate_stats()
 				stats.completed_tasks = stats.completed_tasks + 1
 
 				-- Calculate cycle time if timestamps exist
-				local cycle_time = calculate_cycle_time(task.properties)
+				local cycle_time = calculate_cycle_time(task.properties, self)
 				if cycle_time then
 					table.insert(stats.cycle_times, cycle_time)
 				end
@@ -90,7 +105,7 @@ function StatsMixin:calculate_stats()
 			stats.total_tasks = stats.total_tasks + 1
 			stats.completed_tasks = stats.completed_tasks + 1
 
-			local cycle_time = calculate_cycle_time(task.properties)
+			local cycle_time = calculate_cycle_time(task.properties, self)
 			if cycle_time then
 				table.insert(stats.cycle_times, cycle_time)
 			end

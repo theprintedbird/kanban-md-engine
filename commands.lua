@@ -7,6 +7,32 @@ local column_helper = require("kanban-md.helpers.column")
 
 local M = {}
 
+-- State for two-step dependency creation
+local dependency_state = {
+  first_card = nil,        -- The card that will depend on another
+  first_column = nil,      -- Column containing the first card
+  first_line = nil,        -- Line number for visual feedback
+  extmark_id = nil,        -- ID of the highlight extmark
+}
+
+-- Namespace for dependency marking highlights
+local ns_dependency = vim.api.nvim_create_namespace('kanban_dependency_mark')
+
+-- Helper function to clear dependency state
+local function clear_dependency_state()
+  -- Clear highlight if exists
+  if dependency_state.extmark_id and dependency_state.first_line then
+    local bufnr = vim.api.nvim_get_current_buf()
+    pcall(vim.api.nvim_buf_del_extmark, bufnr, ns_dependency, dependency_state.extmark_id)
+  end
+
+  -- Reset state
+  dependency_state.first_card = nil
+  dependency_state.first_column = nil
+  dependency_state.first_line = nil
+  dependency_state.extmark_id = nil
+end
+
 -- Helper function to extract user-friendly error message from Lua error strings
 -- Strips technical context and file paths, preserving the core error message
 local function extract_error_message(err)
@@ -595,6 +621,155 @@ function M.show_stats()
   vim.api.nvim_buf_set_name(buf, "Kanban Statistics")
 end
 
+-- Command: Add dependency between two cards (two-step process)
+function M.add_dependency()
+  local card, column, board = get_card_at_cursor()
+
+  if not card then
+    vim.notify("No card found at cursor position", vim.log.levels.WARN)
+    clear_dependency_state()
+    return
+  end
+
+  -- First invocation: Mark the dependant card (the one that will depend on another)
+  if not dependency_state.first_card then
+    -- Validate card has ID
+    if not card.properties.id or card.properties.id == "" then
+      vim.notify("Card must have an ID property. Move it to a column to generate one.", vim.log.levels.ERROR)
+      return
+    end
+
+    -- Store first card
+    dependency_state.first_card = card
+    dependency_state.first_column = column
+    dependency_state.first_line = card.line_number
+
+    -- Add visual feedback (highlight the line)
+    local bufnr = vim.api.nvim_get_current_buf()
+    dependency_state.extmark_id = vim.api.nvim_buf_set_extmark(bufnr, ns_dependency, card.line_number - 1, 0, {
+      end_col = 0,
+      hl_group = "Visual",
+      hl_eol = true,
+      priority = 100,
+    })
+
+    notify("First card marked. Select the dependency card and run command again.", vim.log.levels.INFO)
+    return
+  end
+
+  -- Second invocation: Mark the dependency card
+  -- Validate second card has ID
+  if not card.properties.id or card.properties.id == "" then
+    vim.notify("Dependency card must have an ID property. Move it to a column to generate one.", vim.log.levels.ERROR)
+    clear_dependency_state()
+    return
+  end
+
+  -- Validate not adding self-dependency
+  if card.properties.id == dependency_state.first_card.properties.id then
+    vim.notify("Cannot add a card as its own dependency", vim.log.levels.ERROR)
+    clear_dependency_state()
+    return
+  end
+
+  -- Re-parse board to get current state
+  local current_board = get_current_board()
+
+  -- Find the first card in the refreshed board
+  local first_card_refreshed = nil
+  local first_column_refreshed = nil
+  for _, col in ipairs(current_board.columns) do
+    for _, c in ipairs(col.cards) do
+      if c.properties.id == dependency_state.first_card.properties.id then
+        first_card_refreshed = c
+        first_column_refreshed = col
+        break
+      end
+    end
+    if first_card_refreshed then break end
+  end
+
+  -- Check archive if not found in columns
+  if not first_card_refreshed and current_board.archive then
+    for _, c in ipairs(current_board.archive.cards) do
+      if c.properties.id == dependency_state.first_card.properties.id then
+        first_card_refreshed = c
+        first_column_refreshed = current_board.archive
+        break
+      end
+    end
+  end
+
+  if not first_card_refreshed then
+    vim.notify("First card not found after refresh", vim.log.levels.ERROR)
+    clear_dependency_state()
+    return
+  end
+
+  -- Initialize depends_on array if needed
+  if not first_card_refreshed.properties.depends_on then
+    first_card_refreshed.properties.depends_on = {}
+  end
+
+  -- Ensure depends_on is an array
+  if type(first_card_refreshed.properties.depends_on) ~= "table" then
+    first_card_refreshed.properties.depends_on = { first_card_refreshed.properties.depends_on }
+  end
+
+  -- Check for duplicate dependency
+  for _, dep_id in ipairs(first_card_refreshed.properties.depends_on) do
+    if dep_id == card.properties.id then
+      vim.notify("Dependency already exists", vim.log.levels.WARN)
+      clear_dependency_state()
+      return
+    end
+  end
+
+  -- Optional: Check for circular dependencies
+  local function has_circular_dependency(start_id, target_id, board_ref)
+    local visited = {}
+    local function check_deps(current_id)
+      if current_id == target_id then
+        return true
+      end
+      if visited[current_id] then
+        return false
+      end
+      visited[current_id] = true
+
+      local task = board_ref:find_task(current_id)
+      if not task or not task.properties.depends_on then
+        return false
+      end
+
+      for _, dep_id in ipairs(task.properties.depends_on) do
+        if check_deps(dep_id) then
+          return true
+        end
+      end
+      return false
+    end
+    return check_deps(start_id)
+  end
+
+  if has_circular_dependency(card.properties.id, dependency_state.first_card.properties.id, current_board) then
+    vim.notify("Cannot add dependency: would create a circular dependency", vim.log.levels.ERROR)
+    clear_dependency_state()
+    return
+  end
+
+  -- Add the dependency
+  table.insert(first_card_refreshed.properties.depends_on, card.properties.id)
+
+  -- Update buffer
+  update_buffer_with_board(current_board)
+
+  -- Clear state and visual feedback
+  clear_dependency_state()
+
+  notify("Added dependency: '" .. first_card_refreshed.text .. "' depends on '" .. card.text .. "'", vim.log.levels.INFO)
+end
+
 -- Setup function to register all commands
 function M.setup()
   local commands = {
@@ -606,6 +781,7 @@ function M.setup()
     KanbanSetComplexity = M.set_complexity,
     KanbanArchive = M.archive_done_cards,
     KanbanStats = M.show_stats,
+    KanbanAddDependency = M.add_dependency,
   }
 
   for name, func in pairs(commands) do

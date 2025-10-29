@@ -635,7 +635,7 @@ function M.add_dependency()
   if not dependency_state.first_card then
     -- Validate card has ID
     if not card.properties.id or card.properties.id == "" then
-      vim.notify("Card must have an ID property. Move it to a column to generate one.", vim.log.levels.ERROR)
+      vim.notify("Card must have an ID property. Run :KanbanPersistIds to enable persistent IDs.", vim.log.levels.ERROR)
       return
     end
 
@@ -660,7 +660,7 @@ function M.add_dependency()
   -- Second invocation: Mark the dependency card
   -- Validate second card has ID
   if not card.properties.id or card.properties.id == "" then
-    vim.notify("Dependency card must have an ID property. Move it to a column to generate one.", vim.log.levels.ERROR)
+    vim.notify("Dependency card must have an ID property. Run :KanbanPersistIds to enable persistent IDs, or move the card to generate a temporary ID.", vim.log.levels.ERROR)
     clear_dependency_state()
     return
   end
@@ -770,6 +770,80 @@ function M.add_dependency()
   notify("Added dependency: '" .. first_card_refreshed.text .. "' depends on '" .. card.text .. "'", vim.log.levels.INFO)
 end
 
+-- Command: Enable persistent IDs for cards
+function M.persist_card_ids()
+  local board = get_current_board()
+
+  -- Check if persist_card_ids is already enabled in board config
+  local already_enabled = board.config and board.config.persist_card_ids == true
+
+  -- Check global config as well
+  local global_enabled = config.get_value("persist_card_ids")
+
+  if already_enabled and global_enabled then
+    vim.notify("Persistent card IDs are already enabled for this board", vim.log.levels.INFO)
+    return
+  end
+
+  -- Enable persist_card_ids in board config
+  if not board.config then
+    board.config = {}
+  end
+  board.config.persist_card_ids = true
+
+  -- Also update global config for this session
+  config.setup({ persist_card_ids = true })
+
+  -- Count cards that will get IDs persisted
+  local card_count = 0
+  local cards_needing_ids = 0
+
+  -- Ensure all cards have IDs
+  for _, column in ipairs(board.columns) do
+    for _, card in ipairs(column.cards) do
+      card_count = card_count + 1
+      if not card.id or card.id == "" then
+        -- Generate ID using ULID if available, otherwise use simple hash
+        local id_triggers = require('kanban-md.extras.id_triggers')
+        local trigger_fn = id_triggers.ulid_id()
+        local context = { card = card, timestamp = os.time() }
+        trigger_fn(card, context)
+        cards_needing_ids = cards_needing_ids + 1
+      end
+    end
+  end
+
+  -- Check archive as well
+  if board.archive then
+    for _, card in ipairs(board.archive.cards) do
+      card_count = card_count + 1
+      if not card.id or card.id == "" then
+        local id_triggers = require('kanban-md.extras.id_triggers')
+        local trigger_fn = id_triggers.ulid_id()
+        local context = { card = card, timestamp = os.time() }
+        trigger_fn(card, context)
+        cards_needing_ids = cards_needing_ids + 1
+      end
+    end
+  end
+
+  -- Update buffer with IDs now persisted
+  update_buffer_with_board(board)
+
+  local msg = string.format(
+    "Enabled persistent card IDs. %d card%s will now have ID%s persisted to markdown.",
+    card_count,
+    card_count == 1 and "" or "s",
+    card_count == 1 and "" or "s"
+  )
+
+  if cards_needing_ids > 0 then
+    msg = msg .. string.format(" (%d new ID%s generated)", cards_needing_ids, cards_needing_ids == 1 and "" or "s")
+  end
+
+  notify(msg, vim.log.levels.INFO)
+end
+
 -- Setup function to register all commands
 function M.setup()
   local commands = {
@@ -782,6 +856,7 @@ function M.setup()
     KanbanArchive = M.archive_done_cards,
     KanbanStats = M.show_stats,
     KanbanAddDependency = M.add_dependency,
+    KanbanPersistIds = M.persist_card_ids,
   }
 
   for name, func in pairs(commands) do

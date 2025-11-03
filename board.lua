@@ -224,6 +224,89 @@ function Board:get_column_by_name(name)
   return nil
 end
 
+-- Validate all dependencies in the board
+-- Checks for missing dependencies, circular dependencies, and consistency issues
+-- @return ValidationResult - Result with errors and warnings
+function Board:validate_dependencies()
+  local ValidationResult = require('kanban-md.validation_result')
+  local column_helper = require('kanban-md.helpers.column')
+  local result = ValidationResult.success()
+
+  -- Helper function to detect circular dependencies
+  local function has_circular_dependency(start_id, target_id, visited)
+    visited = visited or {}
+    if visited[start_id] then
+      return false  -- Already visited, no cycle here
+    end
+    if start_id == target_id then
+      return true  -- Found cycle
+    end
+    visited[start_id] = true
+
+    local card = self:find_task(start_id)
+    if not card or not card.properties.depends_on then
+      return false
+    end
+
+    for _, dep_id in ipairs(card.properties.depends_on) do
+      if has_circular_dependency(dep_id, target_id, visited) then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Iterate through all cards and check dependencies
+  local all_columns = vim.deepcopy(self.columns)
+  if self.archive then
+    table.insert(all_columns, self.archive)
+  end
+
+  for _, column in ipairs(all_columns) do
+    for _, card in ipairs(column.cards) do
+      if card.properties.depends_on and #card.properties.depends_on > 0 then
+        -- Check each dependency
+        for _, dep_id in ipairs(card.properties.depends_on) do
+          -- Check if dependency exists
+          local dep_card, dep_column = self:find_task(dep_id)
+          if not dep_card then
+            result:add_error(string.format(
+              "Card '%s' (ID: %s) has missing dependency: %s",
+              card.text or "Unknown",
+              card.properties.id or "no-id",
+              dep_id
+            ))
+          else
+            -- Check for circular dependency
+            if has_circular_dependency(dep_id, card.properties.id, {}) then
+              result:add_error(string.format(
+                "Circular dependency detected: '%s' <-> '%s'",
+                card.text or card.properties.id,
+                dep_card.text or dep_id
+              ))
+            end
+
+            -- Check consistency: warn if complete card depends on incomplete card
+            local card_is_complete = column_helper.is_completion_column(column, self)
+            local dep_is_complete = dep_column and column_helper.is_completion_column(dep_column, self)
+
+            if card_is_complete and not dep_is_complete then
+              result:add_warning(string.format(
+                "Complete card '%s' depends on incomplete card '%s' (in '%s')",
+                card.text or card.properties.id,
+                dep_card.text or dep_id,
+                dep_column and dep_column.name or "Unknown"
+              ))
+            end
+          end
+        end
+      end
+    end
+  end
+
+  return result
+end
+
 -- Add a new column to the board
 -- Inserts column block before archive if present, otherwise at end
 -- @param name string - Name of the column to create
@@ -275,12 +358,15 @@ function Board:auto_register_triggers()
   if enable_subtasks == nil then
     enable_subtasks = plugin_config.get_value('enable_subtasks')
   end
-  local enable_dependencies = self.config.enable_dependencies
-  if enable_dependencies == nil then
-    enable_dependencies = plugin_config.get_value('enable_dependencies')
-  end
 
-  if enable_subtasks or enable_dependencies then
+  -- Get and normalize dependency mode
+  local dependency_mode = self.config.enable_dependencies
+  if dependency_mode == nil then
+    dependency_mode = plugin_config.get_value('enable_dependencies')
+  end
+  dependency_mode = plugin_config.normalize_dependency_mode(dependency_mode)
+
+  if enable_subtasks or dependency_mode then
     local subtasks_module = require('kanban-md.extras.subtasks_triggers')
 
     -- Register property types with TypeConverter
@@ -288,13 +374,14 @@ function Board:auto_register_triggers()
 
     -- Register triggers on all columns
     for _, column in ipairs(self.columns) do
-      if enable_dependencies then
-        local dep_fn = subtasks_module.create_dependency_trigger()
+      if dependency_mode then
+        local dep_fn = subtasks_module.create_dependency_trigger(dependency_mode)
         column:register_on_checking("dependencies", dep_fn)
       end
 
       if enable_subtasks then
-        local subtask_fn = subtasks_module.create_subtask_trigger()
+        -- Subtasks use the same enforcement mode as dependencies
+        local subtask_fn = subtasks_module.create_subtask_trigger(dependency_mode)
         column:register_on_checking("subtasks", subtask_fn)
       end
     end

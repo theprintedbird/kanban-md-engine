@@ -14,7 +14,7 @@ function M.register_property_types()
 end
 
 -- Convert subtasks to checking trigger
-function M.create_subtask_trigger()
+function M.create_subtask_trigger(enforcement_mode)
   local execute_fn = function(column, context)
     -- Only check for completion columns
     local column_helper = require('kanban-md.helpers.column')
@@ -34,6 +34,7 @@ function M.create_subtask_trigger()
       local subtask, subtask_column = context.board:find_task(subtask_id)
 
       if not subtask then
+        -- Missing subtasks are always errors, regardless of mode
         return Triggerable:error(string.format("Subtask '%s' not found", subtask_id))
       end
 
@@ -46,13 +47,21 @@ function M.create_subtask_trigger()
     if #incomplete > 0 then
       local count = #incomplete
       local task_list = table.concat(incomplete, ", ")
-      return Triggerable:error(string.format(
+      local message = string.format(
         "Cannot complete: %d subtask%s still incomplete (%s). Complete %s first.",
         count,
         count > 1 and "s" or "",
         task_list,
         count > 1 and "them" or "it"
-      ))
+      )
+
+      -- Return warning or error based on enforcement mode
+      if enforcement_mode == "warn" then
+        return Triggerable:warning(message)
+      else
+        -- Default to strict mode (error)
+        return Triggerable:error(message)
+      end
     end
 
     return Triggerable:success()
@@ -62,7 +71,7 @@ function M.create_subtask_trigger()
 end
 
 -- Convert dependencies to checking trigger
-function M.create_dependency_trigger()
+function M.create_dependency_trigger(enforcement_mode)
   local execute_fn = function(column, context)
     -- Only check for completion columns
     local column_helper = require('kanban-md.helpers.column')
@@ -79,20 +88,26 @@ function M.create_dependency_trigger()
     for _, dep_id in ipairs(context.card.properties.depends_on) do
       local dep_task, dep_column = context.board:find_task(dep_id)
       if not dep_task then
+        -- Missing dependencies are always errors, regardless of mode
         return Triggerable:error(string.format("Dependency '%s' not found", dep_id))
       end
 
       local dep_complete = dep_column and column_helper.is_completion_column(dep_column, context.board)
       if not dep_complete then
         local current_status = dep_column and dep_column.name or "Unknown"
-        local error_result = Triggerable:error(string.format(
+        local message = string.format(
           "Cannot complete: dependency '%s' is not done (currently in '%s'). Complete it first.",
           dep_id,
           current_status
-        ))
-        if _G._TEST then
+        )
+
+        -- Return warning or error based on enforcement mode
+        if enforcement_mode == "warn" then
+          return Triggerable:warning(message)
+        else
+          -- Default to strict mode (error)
+          return Triggerable:error(message)
         end
-        return error_result
       end
     end
 

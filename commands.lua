@@ -96,6 +96,24 @@ local function get_current_board()
   local lines = get_buffer_lines()
   local board = Board:new()
   board:parse(lines)
+
+  -- Validate dependencies on parse if enabled
+  if config.get_value("dependency_check_on_parse") then
+    local result = board:validate_dependencies()
+    if not result:is_success() then
+      -- Show errors
+      if #result.errors > 0 then
+        local error_msg = "Dependency errors:\n" .. table.concat(result.errors, "\n")
+        notify(error_msg, vim.log.levels.ERROR)
+      end
+      -- Show warnings
+      if #result.warnings > 0 then
+        local warning_msg = "Dependency warnings:\n" .. table.concat(result.warnings, "\n")
+        notify(warning_msg, vim.log.levels.WARN)
+      end
+    end
+  end
+
   return board
 end
 

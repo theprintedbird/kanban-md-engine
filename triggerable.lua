@@ -338,7 +338,7 @@ function Triggerable:clear_triggers(event_type, name)
     if self.triggers[event_type] then
       self.triggers[event_type][name] = nil
     end
-    if self.command_factories[event_type] then
+    if self.command_factories and self.command_factories[event_type] then
       self.command_factories[event_type][name] = nil
     end
     -- Remove from trigger order
@@ -353,12 +353,16 @@ function Triggerable:clear_triggers(event_type, name)
   elseif event_type then
     -- Clear all triggers for event type
     self.triggers[event_type] = {}
-    self.command_factories[event_type] = {}
+    if self.command_factories then
+      self.command_factories[event_type] = {}
+    end
     self.trigger_order[event_type] = {}
   else
     -- Clear all triggers
     self.triggers = {}
-    self.command_factories = {}
+    if self.command_factories then
+      self.command_factories = {}
+    end
     self.trigger_order = {}
   end
 end

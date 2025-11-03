@@ -36,8 +36,15 @@ local default_config = {
 
   -- Optional features (disabled by default)
   enable_subtasks = false, -- Enable subtask validation triggers
-  enable_dependencies = false, -- Enable dependency validation triggers
+  -- Dependency validation mode:
+  --   false or "off": No dependency validation (default)
+  --   true, "on", or "strict": Block moves to completion if dependencies incomplete
+  --   "warn": Show warning but allow moves with incomplete dependencies
+  enable_dependencies = false,
   enable_cursor_positioning = false, -- Move cursor to newly created cards
+
+  -- Dependency validation on parse
+  dependency_check_on_parse = false, -- Validate dependencies when loading board
 
   -- Actions specific config
   auto_archive_after_days = 30,
@@ -130,6 +137,20 @@ end
 -- Get defaults (for reference)
 function M.get_defaults()
   return vim.deepcopy(default_config)
+end
+
+-- Normalize dependency enforcement mode to standard values
+-- @param mode any - The mode value to normalize (boolean, string, or nil)
+-- @return string|boolean - Normalized mode: "strict", "warn", "off", or false
+function M.normalize_dependency_mode(mode)
+  if mode == true or mode == "on" or mode == "strict" then
+    return "strict"
+  elseif mode == "warn" then
+    return "warn"
+  else
+    -- false, "off", nil, or any other value
+    return false
+  end
 end
 
 return M

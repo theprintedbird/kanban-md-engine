@@ -17,7 +17,8 @@ end
 function M.create_subtask_trigger()
   local execute_fn = function(column, context)
     -- Only check for completion columns
-    local is_completion = context.target_column.name == "Done" or context.target_column.name == "__ARCHIVE__"
+    local column_helper = require('kanban-md.helpers.column')
+    local is_completion = column_helper.is_completion_column(context.target_column, context.board)
     if not is_completion then
       return Triggerable:success()
     end
@@ -36,7 +37,7 @@ function M.create_subtask_trigger()
         return Triggerable:error(string.format("Subtask '%s' not found", subtask_id))
       end
 
-      local subtask_complete = subtask_column and (subtask_column.name == "Done" or subtask_column.name == "__ARCHIVE__")
+      local subtask_complete = subtask_column and column_helper.is_completion_column(subtask_column, context.board)
       if not subtask_complete then
         table.insert(incomplete, subtask_id)
       end
@@ -64,7 +65,8 @@ end
 function M.create_dependency_trigger()
   local execute_fn = function(column, context)
     -- Only check for completion columns
-    local is_completion = context.target_column.name == "Done" or context.target_column.name == "__ARCHIVE__"
+    local column_helper = require('kanban-md.helpers.column')
+    local is_completion = column_helper.is_completion_column(context.target_column, context.board)
     if not is_completion then
       return Triggerable:success()
     end
@@ -80,7 +82,7 @@ function M.create_dependency_trigger()
         return Triggerable:error(string.format("Dependency '%s' not found", dep_id))
       end
 
-      local dep_complete = dep_column and (dep_column.name == "Done" or dep_column.name == "__ARCHIVE__")
+      local dep_complete = dep_column and column_helper.is_completion_column(dep_column, context.board)
       if not dep_complete then
         local current_status = dep_column and dep_column.name or "Unknown"
         local error_result = Triggerable:error(string.format(

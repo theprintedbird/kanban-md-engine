@@ -35,12 +35,18 @@ local default_config = {
   default_complexity = 1,    -- Default complexity value for new cards
 
   -- Optional features (disabled by default)
-  enable_subtasks = false, -- Enable subtask validation triggers
-  -- Dependency validation mode:
+  -- Dependency validation enforcement mode:
   --   false or "off": No dependency validation (default)
   --   true, "on", or "strict": Block moves to completion if dependencies incomplete
   --   "warn": Show warning but allow moves with incomplete dependencies
-  enable_dependencies = false,
+  dependency_validation = false,
+
+  -- Subtask validation enforcement mode:
+  --   false or "off": No subtask validation (default)
+  --   true, "on", or "strict": Block moves to completion if subtasks incomplete
+  --   "warn": Show warning but allow moves with incomplete subtasks
+  subtask_validation = false,
+
   enable_cursor_positioning = false, -- Move cursor to newly created cards
 
   -- Dependency validation on parse
@@ -151,6 +157,18 @@ function M.normalize_dependency_mode(mode)
     -- false, "off", nil, or any other value
     return false
   end
+end
+
+-- Get effective dependency validation mode from current config
+-- @return string|boolean - Normalized dependency mode
+function M.get_dependency_mode()
+  return M.normalize_dependency_mode(current_config.dependency_validation)
+end
+
+-- Get effective subtask validation mode from current config
+-- @return string|boolean - Normalized subtask mode
+function M.get_subtask_mode()
+  return M.normalize_dependency_mode(current_config.subtask_validation)
 end
 
 return M

@@ -354,19 +354,24 @@ function Board:auto_register_triggers()
 
   -- Register optional subtasks/dependencies triggers if enabled
   local plugin_config = require('kanban-md.config')
-  local enable_subtasks = self.config.enable_subtasks
-  if enable_subtasks == nil then
-    enable_subtasks = plugin_config.get_value('enable_subtasks')
-  end
 
-  -- Get and normalize dependency mode
-  local dependency_mode = self.config.enable_dependencies
+  -- Get dependency mode (board config overrides plugin config)
+  local dependency_mode = self.config.dependency_validation
   if dependency_mode == nil then
-    dependency_mode = plugin_config.get_value('enable_dependencies')
+    dependency_mode = plugin_config.get_dependency_mode()
+  else
+    dependency_mode = plugin_config.normalize_dependency_mode(dependency_mode)
   end
-  dependency_mode = plugin_config.normalize_dependency_mode(dependency_mode)
 
-  if enable_subtasks or dependency_mode then
+  -- Get subtask mode (board config overrides plugin config)
+  local subtask_mode = self.config.subtask_validation
+  if subtask_mode == nil then
+    subtask_mode = plugin_config.get_subtask_mode()
+  else
+    subtask_mode = plugin_config.normalize_dependency_mode(subtask_mode)
+  end
+
+  if dependency_mode or subtask_mode then
     local subtasks_module = require('kanban-md.extras.subtasks_triggers')
 
     -- Register property types with TypeConverter
@@ -374,14 +379,15 @@ function Board:auto_register_triggers()
 
     -- Register triggers on all columns
     for _, column in ipairs(self.columns) do
+      -- Register dependency triggers
       if dependency_mode then
         local dep_fn = subtasks_module.create_dependency_trigger(dependency_mode)
         column:register_on_checking("dependencies", dep_fn)
       end
 
-      if enable_subtasks then
-        -- Subtasks use the same enforcement mode as dependencies
-        local subtask_fn = subtasks_module.create_subtask_trigger(dependency_mode)
+      -- Register subtask triggers with potentially different mode
+      if subtask_mode then
+        local subtask_fn = subtasks_module.create_subtask_trigger(subtask_mode)
         column:register_on_checking("subtasks", subtask_fn)
       end
     end

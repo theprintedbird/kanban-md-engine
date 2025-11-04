@@ -1,6 +1,6 @@
 -- lua/kanban-md/extras/subtasks_triggers.lua
 -- Optional subtasks and dependencies validation triggers
--- Enable via config: enable_subtasks = true, enable_dependencies = true
+-- Enable via config: subtask_validation = "strict"/"warn", dependency_validation = "strict"/"warn"
 
 local Triggerable = require('kanban-md.triggerable')
 

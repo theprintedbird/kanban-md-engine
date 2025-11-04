@@ -451,6 +451,87 @@ function M.complete_card()
   notify("Completed card '" .. card.text .. "'", vim.log.levels.INFO)
 end
 
+-- Helper function to execute force complete
+local function execute_force_complete(card, current_column, done_column, board)
+  -- Add completion timestamp if enabled
+  if config.get_value("auto_timestamp") then
+    local col_key = done_column.name:lower():gsub("%s+", "_")
+    card.properties[col_key] = os.time()
+  end
+
+  -- Attempt move with dependency/subtask bypass
+  local success, err = pcall(function()
+    board:move_card_with_bypass(
+      card,
+      current_column,
+      done_column,
+      {"dependency", "subtask"}  -- Only bypass these categories
+    )
+  end)
+
+  if not success then
+    notify(extract_error_message(err), vim.log.levels.ERROR)
+    return
+  end
+
+  update_buffer_with_board(board)
+  notify(
+    string.format("Force completed '%s' (bypassed dependency/subtask checks)", card.text),
+    vim.log.levels.INFO
+  )
+end
+
+-- Command: Force complete card (bypass dependency/subtask validation)
+function M.force_complete_card()
+  local card, current_column, board = get_card_at_cursor()
+
+  if not card then
+    vim.notify("No card found at cursor position", vim.log.levels.WARN)
+    return
+  end
+
+  -- Find completion column
+  local done_column = nil
+  for _, col in ipairs(board.columns) do
+    if column_helper.is_completion_column(col, board) then
+      done_column = col
+      break
+    end
+  end
+
+  if not done_column then
+    vim.notify("No completion column found", vim.log.levels.ERROR)
+    return
+  end
+
+  -- Check if card already in completion column
+  if column_helper.is_completion_column(current_column, board) then
+    vim.notify("Card is already in a completion column", vim.log.levels.WARN)
+    return
+  end
+
+  -- Show confirmation if configured
+  if config.get_value("confirm_destructive") then
+    vim.ui.select(
+      {"Yes, force complete", "Cancel"},
+      {
+        prompt = string.format(
+          "Force complete '%s' (bypasses dependency/subtask checks)?\n" ..
+          "⚠️  WIP limits and workflow rules will still apply.",
+          card.text
+        ),
+      },
+      function(choice)
+        if choice == "Yes, force complete" then
+          execute_force_complete(card, current_column, done_column, board)
+        end
+      end
+    )
+  else
+    execute_force_complete(card, current_column, done_column, board)
+  end
+end
+
 -- Command: Set complexity on card at cursor
 function M.set_complexity()
   local card, current_column, board = get_card_at_cursor()
@@ -870,6 +951,7 @@ function M.setup()
     KanbanNewColumn = M.new_column,
     KanbanMoveCard = M.move_card,
     KanbanCompleteCard = M.complete_card,
+    KanbanForceCompleteCard = M.force_complete_card,
     KanbanSetComplexity = M.set_complexity,
     KanbanArchive = M.archive_done_cards,
     KanbanStats = M.show_stats,

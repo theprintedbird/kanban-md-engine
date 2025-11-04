@@ -75,15 +75,32 @@ local build_context_and_checking = function(event_type, self, card, context)
   local trigger_names = self.trigger_order["on_checking"] or {}
   for _, name in ipairs(trigger_names) do
     if checking_triggers[name] then
-      local success, result = pcall(checking_triggers[name], self, context)
-      -- Check if trigger failed
-      if not success then
-        error(string.format("Card %s validation failed [%s]: %s", event_type, name, result or "Unknown error"))
+      -- Check if this trigger should be bypassed
+      local metadata = self.trigger_metadata and
+                      self.trigger_metadata["on_checking"] and
+                      self.trigger_metadata["on_checking"][name] or {}
+
+      local should_bypass = false
+      if context._bypass_categories and metadata.bypassable then
+        for _, category in ipairs(context._bypass_categories) do
+          if metadata.category == category then
+            should_bypass = true
+            break
+          end
+        end
       end
-      -- Check if result indicated failure
-      if result and type(result) == "table" and result.success == false then
-        local err_msg = result.errors and result.errors[1] or "Unknown error"
-        error(string.format("Card %s validation failed [%s]: %s", event_type, name, err_msg))
+
+      if not should_bypass then
+        local success, result = pcall(checking_triggers[name], self, context)
+        -- Check if trigger failed
+        if not success then
+          error(string.format("Card %s validation failed [%s]: %s", event_type, name, result or "Unknown error"))
+        end
+        -- Check if result indicated failure
+        if result and type(result) == "table" and result.success == false then
+          local err_msg = result.errors and result.errors[1] or "Unknown error"
+          error(string.format("Card %s validation failed [%s]: %s", event_type, name, err_msg))
+        end
       end
     end
   end

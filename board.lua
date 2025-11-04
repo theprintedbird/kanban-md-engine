@@ -206,6 +206,42 @@ function Board:move_card(card, from_column, to_column)
   return true
 end
 
+-- Move a card with selective validation bypass
+-- @param card Card - The card to move
+-- @param from_column Column - Source column
+-- @param to_column Column - Target column
+-- @param bypass_categories table - Array of trigger categories to bypass (e.g., {"dependency", "subtask"})
+-- @return boolean - Success status
+function Board:move_card_with_bypass(card, from_column, to_column, bypass_categories)
+  if type(card) ~= "table" or not card.id then
+    error("Board:move_card_with_bypass() expects Card object as first parameter")
+  end
+  if type(from_column) ~= "table" or not from_column.id then
+    error("Board:move_card_with_bypass() expects Column object as second parameter")
+  end
+  if type(to_column) ~= "table" or not to_column.id then
+    error("Board:move_card_with_bypass() expects Column object as third parameter")
+  end
+  if type(bypass_categories) ~= "table" then
+    error("Board:move_card_with_bypass() expects array of categories as fourth parameter")
+  end
+
+  -- Build context with bypass flag
+  local context = {
+    card = card,
+    source_column = from_column,
+    target_column = to_column,
+    board = self,
+    _bypass_categories = bypass_categories
+  }
+
+  -- Execute move with bypass context
+  from_column:remove_card(card, context)
+  to_column:add_card(card, context)
+
+  return true
+end
+
 function Board:get_column(id)
   for _, column in ipairs(self.columns) do
     if column.id == id then
@@ -379,16 +415,22 @@ function Board:auto_register_triggers()
 
     -- Register triggers on all columns
     for _, column in ipairs(self.columns) do
-      -- Register dependency triggers
+      -- Register dependency triggers with bypass metadata
       if dependency_mode then
         local dep_fn = subtasks_module.create_dependency_trigger(dependency_mode)
-        column:register_on_checking("dependencies", dep_fn)
+        column:register_on_checking("dependencies", dep_fn, {
+          bypassable = true,
+          category = "dependency"
+        })
       end
 
-      -- Register subtask triggers with potentially different mode
+      -- Register subtask triggers with bypass metadata
       if subtask_mode then
         local subtask_fn = subtasks_module.create_subtask_trigger(subtask_mode)
-        column:register_on_checking("subtasks", subtask_fn)
+        column:register_on_checking("subtasks", subtask_fn, {
+          bypassable = true,
+          category = "subtask"
+        })
       end
     end
   end

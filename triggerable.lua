@@ -70,13 +70,19 @@ See lua/kanban-md/triggers.lua and lua/kanban-md/extras/id_triggers.lua for more
 -- Triggerable mixin
 local Triggerable = {}
 
--- Register a trigger
-function Triggerable:register_trigger(event_type, name, execute_fn)
+-- Register a trigger with optional metadata
+function Triggerable:register_trigger(event_type, name, execute_fn, metadata)
   if not self.triggers[event_type] then
     self.triggers[event_type] = {}
   end
   if not self.trigger_order[event_type] then
     self.trigger_order[event_type] = {}
+  end
+  if not self.trigger_metadata then
+    self.trigger_metadata = {}
+  end
+  if not self.trigger_metadata[event_type] then
+    self.trigger_metadata[event_type] = {}
   end
 
   -- Track insertion order if this is a new trigger
@@ -85,26 +91,27 @@ function Triggerable:register_trigger(event_type, name, execute_fn)
   end
 
   self.triggers[event_type][name] = execute_fn
+  self.trigger_metadata[event_type][name] = metadata or {}
 end
 
-function Triggerable:register_on_entry(name, execute_fn)
-  self:register_trigger("on_entry", name, execute_fn)
+function Triggerable:register_on_entry(name, execute_fn, metadata)
+  self:register_trigger("on_entry", name, execute_fn, metadata)
 end
 
-function Triggerable:register_on_exit(name, execute_fn)
-  self:register_trigger("on_exit", name, execute_fn)
+function Triggerable:register_on_exit(name, execute_fn, metadata)
+  self:register_trigger("on_exit", name, execute_fn, metadata)
 end
 
-function Triggerable:register_on_stay(name, execute_fn)
-  self:register_trigger("on_stay", name, execute_fn)
+function Triggerable:register_on_stay(name, execute_fn, metadata)
+  self:register_trigger("on_stay", name, execute_fn, metadata)
 end
 
-function Triggerable:register_on_checking(name, execute_fn)
-  self:register_trigger("on_checking", name, execute_fn)
+function Triggerable:register_on_checking(name, execute_fn, metadata)
+  self:register_trigger("on_checking", name, execute_fn, metadata)
 end
 
-function Triggerable:register_on_create(name, execute_fn)
-  self:register_trigger("on_create", name, execute_fn)
+function Triggerable:register_on_create(name, execute_fn, metadata)
+  self:register_trigger("on_create", name, execute_fn, metadata)
 end
 
 function Triggerable:get_triggers(event_type)
@@ -341,6 +348,9 @@ function Triggerable:clear_triggers(event_type, name)
     if self.command_factories and self.command_factories[event_type] then
       self.command_factories[event_type][name] = nil
     end
+    if self.trigger_metadata and self.trigger_metadata[event_type] then
+      self.trigger_metadata[event_type][name] = nil
+    end
     -- Remove from trigger order
     if self.trigger_order[event_type] then
       for i, trigger_name in ipairs(self.trigger_order[event_type]) do
@@ -356,12 +366,18 @@ function Triggerable:clear_triggers(event_type, name)
     if self.command_factories then
       self.command_factories[event_type] = {}
     end
+    if self.trigger_metadata then
+      self.trigger_metadata[event_type] = {}
+    end
     self.trigger_order[event_type] = {}
   else
     -- Clear all triggers
     self.triggers = {}
     if self.command_factories then
       self.command_factories = {}
+    end
+    if self.trigger_metadata then
+      self.trigger_metadata = {}
     end
     self.trigger_order = {}
   end

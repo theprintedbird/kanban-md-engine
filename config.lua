@@ -23,6 +23,7 @@ local default_config = {
   show_stats_virtual_text = true,
   show_cycle_time = true,
   date_format = "epoch", -- or "iso", "relative"
+  dependency_marking_hl = "Visual", -- Highlight group for dependency marking visual feedback
 
   -- Automation
   auto_archive = true,

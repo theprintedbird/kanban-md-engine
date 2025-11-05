@@ -746,9 +746,7 @@ function M.add_dependency()
     -- Add visual feedback (highlight the line)
     local bufnr = vim.api.nvim_get_current_buf()
     dependency_state.extmark_id = vim.api.nvim_buf_set_extmark(bufnr, ns_dependency, card.line_number - 1, 0, {
-      end_col = 0,
-      hl_group = "Visual",
-      hl_eol = true,
+      line_hl_group = config.get_value("dependency_marking_hl"),
       priority = 100,
     })
 

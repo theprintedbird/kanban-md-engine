@@ -2,6 +2,8 @@
 -- Optional capacity-based triggers for advanced capacity management
 -- These triggers extend beyond simple WIP limits to include point-based and reviewer-based capacity
 
+local column_helper = require('kanban-md.helpers.column')
+
 local M = {}
 
 -- Point-based capacity trigger
@@ -62,15 +64,15 @@ end
 -- Checks if the team can handle additional work based on historical velocity
 function M.create_velocity_capacity_trigger(max_velocity_points)
   local execute_fn = function(column, context)
-    -- Only check work-in-progress columns (not Done or Archive)
-    if context.target_column.name == "Done" or context.target_column.name == "__ARCHIVE__" then
+    -- Only check work-in-progress columns (not completion or Archive)
+    if column_helper.is_completion_column(context.target_column, context.board) or context.target_column.name == "__ARCHIVE__" then
       return true
     end
 
     -- Calculate total points currently in progress across all non-completion columns
     local total_wip_points = 0
     for _, col in ipairs(context.board.columns) do
-      if col.name ~= "Done" and col.name ~= "__ARCHIVE__" then
+      if not column_helper.is_completion_column(col, context.board) and col.name ~= "__ARCHIVE__" then
         for _, card in ipairs(col.cards) do
           total_wip_points = total_wip_points + (card.properties.points or 0)
         end
@@ -127,7 +129,7 @@ function M.create_skill_capacity_trigger(board)
         -- Check if this member is currently available (not assigned to other tasks)
         local is_busy = false
         for _, col in ipairs(context.board.columns) do
-          if col.name ~= "Done" and col.name ~= "__ARCHIVE__" then
+          if not column_helper.is_completion_column(col, context.board) and col.name ~= "__ARCHIVE__" then
             for _, card in ipairs(col.cards) do
               if card.properties.assignee == member.name then
                 is_busy = true

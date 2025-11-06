@@ -3,6 +3,7 @@
 
 local Triggerable = require('kanban-md.triggerable')
 local WorkflowEngine = require('kanban-md.workflow_engine')
+local column_helper = require('kanban-md.helpers.column')
 
 local M = {}
 
@@ -24,7 +25,7 @@ function M.create_sla_compliance_trigger(sla_config)
     local elapsed_hours = (current_time - created_time) / 3600
 
     -- Check if task is moving to completion after SLA deadline
-    if (context.target_column.name == "Done" or context.target_column.name == "__ARCHIVE__") then
+    if column_helper.is_completion_column(context.target_column, context.board) or context.target_column.name == "__ARCHIVE__" then
       if elapsed_hours > task_sla.completion_hours then
         return true, nil, string.format(
           "Task completed after SLA deadline: %.1f hours (limit: %d hours)",

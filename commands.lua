@@ -4,6 +4,7 @@
 local Board = require("kanban-md.board")
 local config = require("kanban-md.config")
 local column_helper = require("kanban-md.helpers.column")
+local virtual_text = require("kanban-md.virtual_text")
 
 local M = {}
 
@@ -118,9 +119,13 @@ local function get_current_board()
 end
 
 -- Helper function to update current buffer with board content
-local function update_buffer_with_board(board)
+local function update_buffer_with_board(board, bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
   local lines = board:write()
-  set_buffer_lines(lines)
+  set_buffer_lines(lines, bufnr)
+
+  -- Update virtual text after writing board
+  virtual_text.update_virtual_text(board, bufnr)
 end
 
 -- Helper function to get user input
@@ -962,6 +967,40 @@ function M.setup()
       desc = "Kanban: " .. name:gsub("Kanban", ""):gsub("(%l)(%u)", "%1 %2")
     })
   end
+
+  -- Setup autocmd to refresh virtual text when entering kanban buffers
+  vim.api.nvim_create_autocmd({"BufEnter", "BufWritePost"}, {
+    pattern = "*.md",
+    callback = function(args)
+      local bufnr = args.buf
+      local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+
+      -- Quick check: does this look like a kanban board?
+      -- Look for H6 headers (######) which are used for columns
+      local is_kanban = false
+      for _, line in ipairs(lines) do
+        if line:match("^######%s+") then
+          is_kanban = true
+          break
+        end
+      end
+
+      if is_kanban then
+        -- Parse and update virtual text
+        local board = Board:new()
+        local ok, err = pcall(function()
+          board:parse(lines)
+          virtual_text.update_virtual_text(board, bufnr)
+        end)
+
+        if not ok then
+          -- Silently fail - don't want to spam users with errors
+          -- on non-kanban markdown files
+        end
+      end
+    end,
+    desc = "Update kanban virtual text on buffer enter"
+  })
 end
 
 return M

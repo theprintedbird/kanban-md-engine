@@ -53,7 +53,16 @@ local function create_ulid_id_trigger()
     -- Only generate if ID doesn't exist or is empty
     if not obj.id or obj.id == "" then
       local prefix = get_id_prefix(obj, context)
-      obj.id = prefix .. ulid()
+      local generated_id = prefix .. ulid()
+      obj.id = generated_id
+
+      -- If persist_card_ids is enabled, sync to properties for persistence
+      if config.get_value('persist_card_ids') and obj.properties then
+        obj.properties.id = generated_id
+      end
+    elseif obj.id and config.get_value('persist_card_ids') and obj.properties then
+      -- If ID already exists and persist_card_ids is enabled, ensure it's synced to properties
+      obj.properties.id = obj.id
     end
 
     return true
@@ -79,7 +88,16 @@ local function create_time_based_id_trigger()
       for i = 1, #id_source do
         hash = (hash * 31 + string.byte(id_source, i)) % 0x100000000
       end
-      card.id = string.format("%08x", hash)
+      local generated_id = string.format("%08x", hash)
+      card.id = generated_id
+
+      -- If persist_card_ids is enabled, sync to properties for persistence
+      if config.get_value('persist_card_ids') and card.properties then
+        card.properties.id = generated_id
+      end
+    elseif card.id and config.get_value('persist_card_ids') and card.properties then
+      -- If ID already exists and persist_card_ids is enabled, ensure it's synced to properties
+      card.properties.id = card.id
     end
     return true
   end

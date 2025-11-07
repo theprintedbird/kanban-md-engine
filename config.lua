@@ -41,7 +41,7 @@ local default_config = {
 
   -- block_on_wip_exceeded (boolean)
   -- Block card movements when WIP limit would be exceeded (not actively used - placeholder)
-  -- Future feature: control whether WIP limits are enforced strictly
+  -- Rejected feature: control whether WIP limits are enforced strictly - if WIP limits need to be exceeded, change the WIP limits. #wontdo
   block_on_wip_exceeded = false,
 
   ----------------------------

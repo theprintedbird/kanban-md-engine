@@ -207,7 +207,7 @@ local function parse_task(line)
 	end
 
 	-- Check for inline comment with properties
-	-- e.g. - Complex task <!-- created: 1735862400, started: 1735948800, complexity: 3 -->
+	-- e.g. - Complex task <!-- backlog: 1735862400, in_progress: 1735948800, complexity: 3 -->
 	local task_text, comment = text:match("^(.-)%s*<!%-%-%s*(.-)%s*%-%->%s*$")
 
 	if task_text and comment then

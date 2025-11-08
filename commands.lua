@@ -680,49 +680,57 @@ function M.show_stats()
   local board = get_current_board()
   board:calculate_stats()
 
-  local stats = board.stats
-  if not stats then
-    vim.notify("No statistics available", vim.log.levels.WARN)
-    return
-  end
-
-  -- Format statistics message
-  local lines = {
-    "=== Kanban Board Statistics ===",
-    "",
-    "Total tasks: " .. stats.total_tasks,
-    "Completed tasks: " .. stats.completed_tasks,
-    "In progress tasks: " .. stats.in_progress_tasks,
-    "Blocked tasks: " .. stats.blocked_tasks,
-    "Total complexity: " .. stats.total_complexity,
-    ""
-  }
-
-  -- WIP by column
-  table.insert(lines, "WIP by column:")
-  for col_name, wip_count in pairs(stats.wip_by_column) do
-    table.insert(lines, "  " .. col_name .. ": " .. wip_count)
-  end
-
-  -- Cycle time info
-  if stats.average_cycle_time then
-    table.insert(lines, "")
-    local unit = board.config.cycle_time_unit or "seconds"
-    table.insert(lines, "Average cycle time: " .. string.format("%.1f", stats.average_cycle_time) .. " " .. unit)
-    table.insert(lines, "Completed tasks with cycle time: " .. #stats.cycle_times)
-  end
+  -- Get formatted stats from stats module
+  local stats_module = require("kanban-md.stats")
+  local lines = stats_module.format_stats_display(board)
 
   -- Show in a new buffer or floating window
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(buf, "modifiable", false)
-  vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
+  -- Check if a stats buffer already exists
+  local stats_buf_name = "Kanban Statistics"
+  local existing_buf = nil
 
-  -- Open in split
-  vim.cmd("split")
-  local win = vim.api.nvim_get_current_win()
-  vim.api.nvim_win_set_buf(win, buf)
-  vim.api.nvim_buf_set_name(buf, "Kanban Statistics")
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_valid(buf) then
+      local name = vim.api.nvim_buf_get_name(buf)
+      if name:match(stats_buf_name .. "$") then
+        existing_buf = buf
+        break
+      end
+    end
+  end
+
+  local buf
+  if existing_buf then
+    -- Reuse existing buffer
+    buf = existing_buf
+    vim.api.nvim_buf_set_option(buf, "modifiable", true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.api.nvim_buf_set_option(buf, "modifiable", false)
+  else
+    -- Create new buffer
+    buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.api.nvim_buf_set_option(buf, "modifiable", false)
+    vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
+    vim.api.nvim_buf_set_name(buf, stats_buf_name)
+  end
+
+  -- Find existing window with this buffer or open in split
+  local stats_win = nil
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
+      stats_win = win
+      break
+    end
+  end
+
+  if not stats_win then
+    vim.cmd("split")
+    stats_win = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(stats_win, buf)
+  else
+    vim.api.nvim_set_current_win(stats_win)
+  end
 end
 
 -- Command: Add dependency between two cards (two-step process)

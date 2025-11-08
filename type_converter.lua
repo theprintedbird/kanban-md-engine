@@ -37,7 +37,14 @@ local BOOLEAN_PROPERTIES = {
   reviewed = true,
   auto = true,
   revalidated = true,
-  changes_requested = true
+  changes_requested = true,
+  -- Semantic state flags for columns
+  is_start_state = true,
+  is_backlog_state = true,
+  is_blocked_state = true,
+  is_waiting_state = true,
+  is_completion_state = true,
+  is_active_state = true
 }
 
 function TypeConverter:new(raw_config)

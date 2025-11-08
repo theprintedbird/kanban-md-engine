@@ -6,46 +6,165 @@ local column_helpers = require("kanban-md.helpers.column")
 -- Stats mixin that can be applied to Board instances
 local StatsMixin = {}
 
--- Calculate cycle time using first and last timestamps chronologically
--- @param task_properties table: Task properties containing timestamp fields
--- @param board table: Board object to get dynamic column timestamp keys
--- @return number|nil: Cycle time in seconds, or nil if insufficient timestamps
-local function calculate_cycle_time(task_properties, board)
-	-- Build timestamp keys dynamically from board columns
-	local timestamp_keys = {"created"} -- Always include "created" as baseline
+-- Helper: normalize column name to timestamp key format
+local function normalize_column_name(column_name)
+	return column_name:lower():gsub("[^%w_]", "_")
+end
 
-	-- Add timestamp key for each column (normalized name)
-	if board and board.columns then
-		for _, column in ipairs(board.columns) do
-			if column.name then
-				local timestamp_key = column.name:lower():gsub("[^%w_]", "_")
-				table.insert(timestamp_keys, timestamp_key)
+-- Helper: find column by name
+local function find_column_by_name(board, column_name)
+	for _, column in ipairs(board.columns) do
+		if column.name == column_name then
+			return column
+		end
+	end
+	return nil
+end
+
+-- Helper: find earliest timestamp from columns matching a predicate
+-- @param task_properties table: Task properties containing timestamp fields
+-- @param board table: Board object
+-- @param predicate function: Function(column, board) that returns true for matching columns
+-- @return number|nil, string|nil: Earliest timestamp value and column name, or nil
+local function find_earliest_timestamp_for_columns(task_properties, board, predicate)
+	local earliest_timestamp = nil
+	local earliest_column = nil
+
+	for _, column in ipairs(board.columns) do
+		if predicate(column, board) then
+			local timestamp_key = normalize_column_name(column.name)
+			local timestamp = task_properties[timestamp_key]
+
+			if timestamp and (not earliest_timestamp or timestamp < earliest_timestamp) then
+				earliest_timestamp = timestamp
+				earliest_column = column.name
 			end
 		end
 	end
 
-	-- Add special timestamp keys that may not correspond to columns
-	table.insert(timestamp_keys, "archived")
+	return earliest_timestamp, earliest_column
+end
 
-	local timestamps = {}
+-- Helper: find completion timestamp
+-- @param task_properties table: Task properties containing timestamp fields
+-- @param board table: Board object
+-- @return number|nil, string|nil: Completion timestamp and column name, or nil
+local function find_completion_timestamp(task_properties, board)
+	-- First check archive
+	if task_properties.archived then
+		return task_properties.archived, "__ARCHIVE__"
+	end
 
-	-- Collect all existing timestamps
-	for _, key in ipairs(timestamp_keys) do
-		if task_properties[key] then
-			table.insert(timestamps, {key = key, value = task_properties[key]})
+	-- Find latest timestamp from completion columns
+	return find_earliest_timestamp_for_columns(task_properties, board, column_helpers.is_completion_column)
+end
+
+-- Helper: find backlog timestamp (earliest backlog state)
+-- @param task_properties table: Task properties containing timestamp fields
+-- @param board table: Board object
+-- @return number|nil, string|nil: Backlog timestamp and column name, or nil
+local function find_backlog_timestamp(task_properties, board)
+	local backlog_timestamp, backlog_column = find_earliest_timestamp_for_columns(
+		task_properties, board, column_helpers.is_backlog_column
+	)
+
+	return backlog_timestamp, backlog_column
+end
+
+-- Helper: find start state timestamp
+-- @param task_properties table: Task properties containing timestamp fields
+-- @param board table: Board object
+-- @return number|nil, string|nil: Start timestamp and column name, or nil
+local function find_start_state_timestamp(task_properties, board)
+	return find_earliest_timestamp_for_columns(task_properties, board, column_helpers.is_start_column)
+end
+
+-- Helper: calculate total blocked/waiting time
+-- @param task_properties table: Task properties containing timestamp fields
+-- @param board table: Board object
+-- @return number: Total blocked/waiting time in seconds
+local function calculate_blocked_time(task_properties, board)
+	local total_blocked = 0
+
+	-- Collect all timestamps chronologically with their column info
+	local timeline = {}
+
+	for _, column in ipairs(board.columns) do
+		local timestamp_key = normalize_column_name(column.name)
+		local timestamp = task_properties[timestamp_key]
+
+		if timestamp then
+			table.insert(timeline, {
+				timestamp = timestamp,
+				column = column,
+				is_blocked = column_helpers.is_blocked_column(column, board),
+				is_waiting = column_helpers.is_waiting_column(column, board)
+			})
 		end
 	end
-	
-	-- Need at least 2 timestamps for cycle time
-	if #timestamps < 2 then
+
+	-- Sort chronologically
+	table.sort(timeline, function(a, b) return a.timestamp < b.timestamp end)
+
+	-- Calculate time spent in blocked/waiting states
+	for i = 1, #timeline - 1 do
+		local current = timeline[i]
+		local next = timeline[i + 1]
+
+		if current.is_blocked or current.is_waiting then
+			total_blocked = total_blocked + (next.timestamp - current.timestamp)
+		end
+	end
+
+	return total_blocked
+end
+
+-- Calculate lead time (from backlog or creation to completion)
+-- @param task_properties table: Task properties containing timestamp fields
+-- @param board table: Board object
+-- @return table|nil: Lead time data {duration, start_time, start_column, end_time, end_column}, or nil
+local function calculate_lead_time(task_properties, board)
+	local start_time, start_column = find_backlog_timestamp(task_properties, board)
+	local end_time, end_column = find_completion_timestamp(task_properties, board)
+
+	if not start_time or not end_time then
 		return nil
 	end
-	
-	-- Sort by timestamp value (chronological order)
-	table.sort(timestamps, function(a, b) return a.value < b.value end)
-	
-	-- Return difference between first and last timestamps
-	return timestamps[#timestamps].value - timestamps[1].value
+
+	return {
+		duration = end_time - start_time,
+		start_time = start_time,
+		start_column = start_column,
+		end_time = end_time,
+		end_column = end_column
+	}
+end
+
+-- Calculate cycle time (from start state to completion)
+-- @param task_properties table: Task properties containing timestamp fields
+-- @param board table: Board object
+-- @return table|nil: Cycle time data {duration, start_time, start_column, end_time, end_column, blocked_time, active_time}, or nil
+local function calculate_cycle_time(task_properties, board)
+	local start_time, start_column = find_start_state_timestamp(task_properties, board)
+	local end_time, end_column = find_completion_timestamp(task_properties, board)
+
+	if not start_time or not end_time then
+		return nil
+	end
+
+	local total_duration = end_time - start_time
+	local blocked_time = calculate_blocked_time(task_properties, board)
+	local active_time = total_duration - blocked_time
+
+	return {
+		duration = total_duration,
+		start_time = start_time,
+		start_column = start_column,
+		end_time = end_time,
+		end_column = end_column,
+		blocked_time = blocked_time,
+		active_time = active_time
+	}
 end
 
 -- Calculate comprehensive board statistics
@@ -57,6 +176,7 @@ function StatsMixin:calculate_stats()
 		blocked_tasks = 0,
 		total_complexity = 0,
 		wip_by_column = {},
+		lead_times = {},
 		cycle_times = {},
 	}
 
@@ -79,7 +199,12 @@ function StatsMixin:calculate_stats()
 			if is_completed then
 				stats.completed_tasks = stats.completed_tasks + 1
 
-				-- Calculate cycle time if timestamps exist
+				-- Calculate lead time and cycle time for completed tasks
+				local lead_time = calculate_lead_time(task.properties, self)
+				if lead_time then
+					table.insert(stats.lead_times, lead_time)
+				end
+
 				local cycle_time = calculate_cycle_time(task.properties, self)
 				if cycle_time then
 					table.insert(stats.cycle_times, cycle_time)
@@ -105,6 +230,11 @@ function StatsMixin:calculate_stats()
 			stats.total_tasks = stats.total_tasks + 1
 			stats.completed_tasks = stats.completed_tasks + 1
 
+			local lead_time = calculate_lead_time(task.properties, self)
+			if lead_time then
+				table.insert(stats.lead_times, lead_time)
+			end
+
 			local cycle_time = calculate_cycle_time(task.properties, self)
 			if cycle_time then
 				table.insert(stats.cycle_times, cycle_time)
@@ -112,19 +242,45 @@ function StatsMixin:calculate_stats()
 		end
 	end
 
+	-- Calculate average lead time
+	if #stats.lead_times > 0 then
+		local sum = 0
+		for _, time_data in ipairs(stats.lead_times) do
+			sum = sum + time_data.duration
+		end
+		stats.average_lead_time = sum / #stats.lead_times
+
+		-- Convert to days if needed
+		if self.config.cycle_time_unit == "days" then
+			stats.average_lead_time = stats.average_lead_time / 86400
+		elseif self.config.cycle_time_unit == "hours" then
+			stats.average_lead_time = stats.average_lead_time / 3600
+		end
+	end
+
 	-- Calculate average cycle time
 	if #stats.cycle_times > 0 then
 		local sum = 0
-		for _, time in ipairs(stats.cycle_times) do
-			sum = sum + time
+		local blocked_sum = 0
+		local active_sum = 0
+		for _, time_data in ipairs(stats.cycle_times) do
+			sum = sum + time_data.duration
+			blocked_sum = blocked_sum + time_data.blocked_time
+			active_sum = active_sum + time_data.active_time
 		end
 		stats.average_cycle_time = sum / #stats.cycle_times
+		stats.average_blocked_time = blocked_sum / #stats.cycle_times
+		stats.average_active_time = active_sum / #stats.cycle_times
 
 		-- Convert to days if needed
 		if self.config.cycle_time_unit == "days" then
 			stats.average_cycle_time = stats.average_cycle_time / 86400
+			stats.average_blocked_time = stats.average_blocked_time / 86400
+			stats.average_active_time = stats.average_active_time / 86400
 		elseif self.config.cycle_time_unit == "hours" then
 			stats.average_cycle_time = stats.average_cycle_time / 3600
+			stats.average_blocked_time = stats.average_blocked_time / 3600
+			stats.average_active_time = stats.average_active_time / 3600
 		end
 	end
 
@@ -204,10 +360,81 @@ function StatsMixin:validate()
 	return self.validation.valid
 end
 
--- For testing, conditionally export private functions
+-- Format stats into human-readable text output
+-- @param board table: Board object with calculated stats
+-- @return table: Array of formatted text lines
+local function format_stats_display(board)
+	local stats = board.stats
+	if not stats then
+		return {"No statistics available"}
+	end
+
+	local lines = {
+		"=== Kanban Board Statistics ===",
+		"",
+		"Total tasks: " .. stats.total_tasks,
+		"Completed tasks: " .. stats.completed_tasks,
+		"In progress tasks: " .. stats.in_progress_tasks,
+		"Blocked tasks: " .. stats.blocked_tasks,
+		"Total complexity: " .. stats.total_complexity,
+		""
+	}
+
+	-- WIP by column
+	table.insert(lines, "WIP by column:")
+	for col_name, wip_count in pairs(stats.wip_by_column) do
+		table.insert(lines, "  " .. col_name .. ": " .. wip_count)
+	end
+
+	-- Lead time info
+	if stats.average_lead_time then
+		table.insert(lines, "")
+		local unit = board.config.cycle_time_unit or "days"
+		table.insert(lines, "Average lead time: " .. string.format("%.1f", stats.average_lead_time) .. " " .. unit)
+		table.insert(lines, "Completed tasks with lead time: " .. #stats.lead_times)
+	else
+		-- Show why lead time isn't available
+		if stats.completed_tasks > 0 and #stats.lead_times == 0 then
+			table.insert(lines, "")
+			table.insert(lines, "Lead time: N/A (completed cards missing backlog timestamps)")
+		end
+	end
+
+	-- Cycle time info
+	if stats.average_cycle_time then
+		table.insert(lines, "")
+		local unit = board.config.cycle_time_unit or "days"
+		table.insert(lines, "Average cycle time: " .. string.format("%.1f", stats.average_cycle_time) .. " " .. unit)
+
+		-- Show blocked/active time breakdown if available
+		if stats.average_blocked_time and stats.average_blocked_time > 0 then
+			table.insert(lines, "  - Average active time: " .. string.format("%.1f", stats.average_active_time) .. " " .. unit)
+			table.insert(lines, "  - Average blocked time: " .. string.format("%.1f", stats.average_blocked_time) .. " " .. unit)
+		end
+
+		table.insert(lines, "Completed tasks with cycle time: " .. #stats.cycle_times)
+	end
+
+	return lines
+end
+
+-- Export calculation and formatting functions for use by virtual_text and other modules
+StatsMixin.calculate_lead_time = calculate_lead_time
+StatsMixin.calculate_cycle_time = calculate_cycle_time
+StatsMixin.calculate_blocked_time = calculate_blocked_time
+StatsMixin.format_stats_display = format_stats_display
+
+-- For testing, conditionally export additional private functions
 if _G._TEST then
 	StatsMixin._private = {
-		check_tasks_for_duplicates = check_tasks_for_duplicates
+		check_tasks_for_duplicates = check_tasks_for_duplicates,
+		calculate_lead_time = calculate_lead_time,
+		calculate_cycle_time = calculate_cycle_time,
+		calculate_blocked_time = calculate_blocked_time,
+		find_backlog_timestamp = find_backlog_timestamp,
+		find_start_state_timestamp = find_start_state_timestamp,
+		find_completion_timestamp = find_completion_timestamp,
+		normalize_column_name = normalize_column_name
 	}
 end
 

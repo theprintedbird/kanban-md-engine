@@ -72,88 +72,138 @@ local function display_wip_warnings(board, bufnr)
   end
 end
 
--- Calculate cycle time for a single card using stats module
--- @param card table: Card object with properties
--- @param board table: Board object for timestamp key lookup
--- @return number|nil: Cycle time in the configured unit, or nil
-local function calculate_cycle_time(card, board)
-  if not card.properties then
-    return nil
-  end
-
-  -- Use the stats module's calculation (returns seconds)
-  local cycle_time_seconds = stats._private and stats._private.calculate_cycle_time
-    or require("kanban-md.stats")._calculate_cycle_time
-
-  -- Direct calculation using the same logic as stats.lua
-  local timestamp_keys = {"created"}
-
-  if board and board.columns then
-    for _, column in ipairs(board.columns) do
-      if column.name then
-        local timestamp_key = column.name:lower():gsub("[^%w_]", "_")
-        table.insert(timestamp_keys, timestamp_key)
-      end
-    end
-  end
-
-  table.insert(timestamp_keys, "archived")
-
-  local timestamps = {}
-  for _, key in ipairs(timestamp_keys) do
-    if card.properties[key] then
-      table.insert(timestamps, {key = key, value = card.properties[key]})
-    end
-  end
-
-  if #timestamps < 2 then
-    return nil
-  end
-
-  table.sort(timestamps, function(a, b) return a.value < b.value end)
-  local cycle_time_seconds = timestamps[#timestamps].value - timestamps[1].value
-
-  -- Convert based on configured unit
+-- Helper: format time duration to configured unit
+-- @param seconds number: Time in seconds
+-- @param board table: Board object with config
+-- @return number, string: Formatted value and unit label
+local function format_time(seconds, board)
   local unit = board.config.cycle_time_unit or "days"
+  local value
+
   if unit == "days" then
-    return math.floor(cycle_time_seconds / 86400)
+    value = math.floor(seconds / 86400)
   elseif unit == "hours" then
-    return math.floor(cycle_time_seconds / 3600)
+    value = math.floor(seconds / 3600)
   else
-    return cycle_time_seconds
+    value = seconds
   end
+
+  local unit_label = unit
+  if value == 1 then
+    -- Singularize
+    unit_label = unit:gsub("s$", "")
+  end
+
+  return value, unit_label
 end
 
--- Display cycle time for completed cards
+-- Helper: format decimal time to 1 decimal place
+-- @param seconds number: Time in seconds
+-- @param board table: Board object with config
+-- @return string: Formatted time with unit
+local function format_time_decimal(seconds, board)
+  local unit = board.config.cycle_time_unit or "days"
+  local value
+
+  if unit == "days" then
+    value = seconds / 86400
+  elseif unit == "hours" then
+    value = seconds / 3600
+  else
+    value = seconds
+  end
+
+  local unit_label = unit
+  if value >= 0.95 and value < 1.05 then
+    -- Close to 1, singularize
+    unit_label = unit:gsub("s$", "")
+  end
+
+  return string.format("%.1f %s", value, unit_label)
+end
+
+-- Display lead time and cycle time for completed cards
 -- @param board table: Board object with columns and archive
 -- @param bufnr number: Buffer number to display in
-local function display_cycle_times(board, bufnr)
+local function display_metrics(board, bufnr)
+  local show_lead = board.config.show_lead_time ~= false
+  local show_cycle = board.config.show_cycle_time ~= false
+
+  -- Helper function to display metrics for a single card
+  local function display_card_metrics(card, line_num)
+    if not card.properties then
+      return
+    end
+
+    -- Get metrics from stats module
+    local lead_time_data = stats.calculate_lead_time(card.properties, board)
+    local cycle_time_data = stats.calculate_cycle_time(card.properties, board)
+
+    -- Build virtual text segments
+    local virt_text = {}
+
+    -- Lead time section
+    if show_lead and lead_time_data then
+      local value, unit = format_time(lead_time_data.duration, board)
+      local text = string.format("⏱ Lead (%s → %s): %d %s",
+        lead_time_data.start_column or "?",
+        lead_time_data.end_column or "?",
+        value,
+        unit
+      )
+      table.insert(virt_text, {" " .. text, "Comment"})
+    end
+
+    -- Cycle time section
+    if show_cycle and cycle_time_data then
+      -- Add separator if we showed lead time
+      if #virt_text > 0 then
+        table.insert(virt_text, {" | ", "Comment"})
+      end
+
+      local value, unit = format_time(cycle_time_data.duration, board)
+      local text = string.format("⚡ Cycle (%s → %s): %d %s",
+        cycle_time_data.start_column or "?",
+        cycle_time_data.end_column or "?",
+        value,
+        unit
+      )
+      table.insert(virt_text, {text, "Comment"})
+
+      -- Show blocked time breakdown if present
+      if cycle_time_data.blocked_time and cycle_time_data.blocked_time > 0 then
+        local blocked_str = format_time_decimal(cycle_time_data.blocked_time, board)
+        local active_str = format_time_decimal(cycle_time_data.active_time, board)
+        table.insert(virt_text, {string.format(" [active: %s, blocked: %s]", active_str, blocked_str), "Comment"})
+      end
+    elseif show_cycle and not cycle_time_data and lead_time_data then
+      -- Show N/A if cycle time is unavailable but lead time exists
+      if #virt_text > 0 then
+        table.insert(virt_text, {" | ", "Comment"})
+      end
+      table.insert(virt_text, {"⚡ Cycle: N/A", "Comment"})
+    end
+
+    -- Display if we have any virtual text
+    if #virt_text > 0 then
+      vim.api.nvim_buf_set_extmark(bufnr, ns_id, line_num, 0, {
+        virt_text = virt_text,
+        virt_text_pos = "eol"
+      })
+    end
+  end
+
   -- Process regular columns
   for _, column in ipairs(board.columns) do
-    -- Only show cycle time for completed cards
+    -- Only show metrics for completed cards
     if column_helpers.is_completion_column(column, board) then
       local tasks = column.tasks or column.cards or {}
 
       for _, card in ipairs(tasks) do
         if card.line_number then
-          local cycle_time = calculate_cycle_time(card, board)
-
-          if cycle_time then
-            -- Line numbers in parser are 1-indexed, but nvim_buf_set_extmark is 0-indexed
-            local line_num = card.line_number - 1
-
-            local unit = board.config.cycle_time_unit or "days"
-            local unit_label = unit
-            if cycle_time == 1 then
-              -- Singularize
-              unit_label = unit:gsub("s$", "")
-            end
-
-            vim.api.nvim_buf_set_extmark(bufnr, ns_id, line_num, 0, {
-              virt_text = {{string.format(" ⏱ %d %s", cycle_time, unit_label), "Comment"}},
-              virt_text_pos = "eol"
-            })
-          end
+          -- Line numbers in parser are 1-indexed, but nvim_buf_set_extmark is 0-indexed
+          local line_num = card.line_number - 1
+          display_card_metrics(card, line_num)
         end
       end
     end
@@ -165,22 +215,8 @@ local function display_cycle_times(board, bufnr)
 
     for _, card in ipairs(archive_tasks) do
       if card.line_number then
-        local cycle_time = calculate_cycle_time(card, board)
-
-        if cycle_time then
-          local line_num = card.line_number - 1
-
-          local unit = board.config.cycle_time_unit or "days"
-          local unit_label = unit
-          if cycle_time == 1 then
-            unit_label = unit:gsub("s$", "")
-          end
-
-          vim.api.nvim_buf_set_extmark(bufnr, ns_id, line_num, 0, {
-            virt_text = {{string.format(" ⏱ %d %s", cycle_time, unit_label), "Comment"}},
-            virt_text_pos = "eol"
-          })
-        end
+        local line_num = card.line_number - 1
+        display_card_metrics(card, line_num)
       end
     end
   end
@@ -213,9 +249,9 @@ function M.update_virtual_text(board, bufnr)
   -- Display WIP warnings (always shown if show_stats_virtual_text is enabled)
   display_wip_warnings(board, bufnr)
 
-  -- Display cycle times (if enabled)
-  if board.config.show_cycle_time ~= false then
-    display_cycle_times(board, bufnr)
+  -- Display lead time and cycle time metrics (if enabled)
+  if board.config.show_lead_time ~= false or board.config.show_cycle_time ~= false then
+    display_metrics(board, bufnr)
   end
 end
 

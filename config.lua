@@ -53,10 +53,41 @@ local default_config = {
   -- Used by: lua/kanban-md/virtual_text.lua
   show_stats_virtual_text = true,
 
+  -- show_lead_time (boolean)
+  -- Include lead time statistics in virtual text display
+  -- Lead time: Total time from backlog/creation to completion
+  -- Used by: lua/kanban-md/virtual_text.lua (stats display)
+  show_lead_time = true,
+
   -- show_cycle_time (boolean)
   -- Include cycle time statistics in virtual text display
+  -- Cycle time: Time from start state to completion (active work time)
   -- Used by: lua/kanban-md/virtual_text.lua (stats display)
   show_cycle_time = true,
+
+  -- cycle_time_unit (string: "days" | "hours" | "seconds")
+  -- Unit for displaying lead time and cycle time metrics
+  -- "days": Time displayed in days (e.g., "5 days")
+  -- "hours": Time displayed in hours (e.g., "120 hours")
+  -- "seconds": Time displayed in seconds (e.g., "432000 seconds")
+  -- Used by: lua/kanban-md/stats.lua, lua/kanban-md/virtual_text.lua, lua/kanban-md/commands.lua
+  cycle_time_unit = "days",
+
+  -- default_start_column (string or nil)
+  -- Default column name to use as "start state" for cycle time calculation
+  -- This is used as a fallback when no column has is_start_state explicitly set
+  -- Pattern matching: Partial case-insensitive match (e.g., "progress" matches "In Progress")
+  -- Set to nil to rely only on explicit is_start_state or position-based fallback
+  -- Used by: lua/kanban-md/helpers/column.lua (is_start_column)
+  default_start_column = nil,
+
+  -- default_backlog_column (string or nil)
+  -- Default column name to use as "backlog state" for lead time calculation
+  -- This is used when no column has is_backlog_state explicitly set
+  -- Pattern matching: Partial case-insensitive match (e.g., "backlog" matches "Backlog")
+  -- Set to nil to rely only on explicit is_backlog_state or position-based fallback
+  -- Used by: lua/kanban-md/helpers/column.lua (is_backlog_column)
+  default_backlog_column = nil,
 
   -- date_format (string: "epoch" | "iso" | "relative")
   -- Format for displaying dates in UI and commands
@@ -268,7 +299,7 @@ local default_config = {
 
   -- property_separator (string)
   -- Separator between properties in HTML comments
-  -- Default: ", " produces: <!-- id: 123, created: 1709567890 -->
+  -- Default: ", " produces: <!-- id: 123, backlog: 1709567890 -->
   -- Used by: writer_mixin.lua when serializing card properties
   property_separator = ", ",
 
@@ -392,9 +423,54 @@ local default_config = {
   -- Used by:
   --   - helpers/column.lua:is_completion_column() - detection logic
   --   - board.lua - dependency validation, archiving
-  --   - stats.lua - completed task counts, cycle time calculations
+  --   - stats.lua - completed task counts, lead time and cycle time calculations
   --   - extras/subtasks_triggers.lua - subtask/dependency validation
   --   - commands.lua:complete_card() - finding completion column
+  --
+  -- is_start_state (boolean) [CORE COLUMN PROPERTY FOR CYCLE TIME]
+  -- Marks a column as the "start state" where active work begins
+  -- Used for cycle time calculation (start state → completion state)
+  -- Detection logic (priority order):
+  --   1. Explicit property: <!-- column:config is_start_state: true -->
+  --   2. Configuration default: config.default_start_column matches column name
+  --   3. Position-based fallback: First regular column
+  -- Used by:
+  --   - helpers/column.lua:is_start_column() - detection logic
+  --   - stats.lua - cycle time calculations
+  --   - virtual_text.lua - cycle time display with column names
+  --
+  -- is_backlog_state (boolean) [OPTIONAL COLUMN PROPERTY FOR LEAD TIME]
+  -- Marks a column as a "backlog" state for lead time calculation
+  -- Lead time calculation uses this as the start point (backlog → completion)
+  -- Detection logic (priority order):
+  --   1. Explicit property: <!-- column:config is_backlog_state: true -->
+  --   2. Configuration default: config.default_backlog_column matches column name
+  --   3. Position-based fallback: First column (only if multiple regular columns exist)
+  -- Used by:
+  --   - helpers/column.lua:is_backlog_column() - detection logic
+  --   - stats.lua - lead time calculations
+  --
+  -- is_blocked_state (boolean) [OPTIONAL COLUMN PROPERTY FOR BLOCKED TIME]
+  -- Marks a column as a "blocked" state (e.g., "Blocked", "On Hold")
+  -- Time spent in blocked/waiting columns is tracked separately in cycle time metrics
+  -- Detection logic:
+  --   - Explicit property only: <!-- column:config is_blocked_state: true -->
+  --   - No fallback (explicit declaration required)
+  -- Used by:
+  --   - helpers/column.lua:is_blocked_column() - detection logic
+  --   - stats.lua - blocked time calculations
+  --   - virtual_text.lua - blocked time breakdown display
+  --
+  -- is_waiting_state (boolean) [OPTIONAL COLUMN PROPERTY FOR BLOCKED TIME]
+  -- Marks a column as a "waiting" state (e.g., "Waiting for Review", "External Dependency")
+  -- Similar to is_blocked_state, tracked separately in cycle time metrics
+  -- Detection logic:
+  --   - Explicit property only: <!-- column:config is_waiting_state: true -->
+  --   - No fallback (explicit declaration required)
+  -- Used by:
+  --   - helpers/column.lua:is_waiting_column() - detection logic
+  --   - stats.lua - blocked time calculations
+  --   - virtual_text.lua - blocked time breakdown display
   --
   -- is_active_state (boolean) [DEFINED BUT NOT ACTIVELY USED]
   -- Marks a column as an "active work" state (typically WIP columns)

@@ -16,13 +16,22 @@ function M.create_sla_compliance_trigger(sla_config)
       return true -- No SLA defined
     end
 
-    local created_time = context.card.properties.created
-    if not created_time then
-      return true -- No creation time to check against
+    -- Find earliest timestamp from any column (task start time)
+    local earliest_time = nil
+    for key, value in pairs(context.card.properties) do
+      if type(value) == "number" and value > 1000000000 and value < 2000000000 then
+        if not earliest_time or value < earliest_time then
+          earliest_time = value
+        end
+      end
+    end
+
+    if not earliest_time then
+      return true -- No timestamp to check against
     end
 
     local current_time = context.timestamp or os.time()
-    local elapsed_hours = (current_time - created_time) / 3600
+    local elapsed_hours = (current_time - earliest_time) / 3600
 
     -- Check if task is moving to completion after SLA deadline
     if column_helper.is_completion_column(context.target_column, context.board) or context.target_column.name == "__ARCHIVE__" then

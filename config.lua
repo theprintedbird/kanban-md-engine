@@ -348,11 +348,11 @@ local default_config = {
   --   }
   --
   -- Used by:
-  --   - column_type_resolver.lua - type resolution and property merging (PLANNED)
-  --   - parser_mixin.lua - applies types during column parsing (PLANNED)
-  --   - board.lua:register_type_triggers() - auto-registers triggers (PLANNED)
+  --   - column_type_resolver.lua - type resolution and property merging (IMPLEMENTED)
+  --   - parser.lua:164-192, 440-479 - applies types during column parsing (IMPLEMENTED)
+  --   - board.lua:register_type_triggers() - auto-registers triggers (IMPLEMENTED)
   --
-  -- Status: Partially implemented (structure defined, resolver planned)
+  -- Status: Fully implemented (structure, resolver, and integration complete)
   column_config = {
     types = {},
     definitions = {}
@@ -364,7 +364,7 @@ local default_config = {
   -- "none": Silent (no validation)
   -- "warning": Emit warning message during validation
   -- "error": Fail with error and halt processing
-  -- Used by: column_type_resolver.lua:validate_requirements() (PLANNED)
+  -- Used by: column_type_resolver.lua:validate_requirements() (IMPLEMENTED)
   missing_property_requirement = "warning",
 
   -- write_full_config_to_markdown (boolean)
@@ -373,7 +373,7 @@ local default_config = {
   -- true: Write resolved type to markdown config comments
   -- Example when true:
   --   Column "Done" matched pattern "done" → writes <!-- config type: completion -->
-  -- Used by: writer_mixin.lua (PLANNED)
+  -- Used by: writer_mixin.lua (NOT IMPLEMENTED - feature not needed yet)
   write_full_config_to_markdown = false,
 
   ----------------------------
@@ -396,11 +396,11 @@ local default_config = {
   --   - extras/subtasks_triggers.lua - subtask/dependency validation
   --   - commands.lua:complete_card() - finding completion column
   --
-  -- is_active_state (boolean) [PLANNED COLUMN PROPERTY]
+  -- is_active_state (boolean) [DEFINED BUT NOT ACTIVELY USED]
   -- Marks a column as an "active work" state (typically WIP columns)
-  -- Status: Defined in type system but no active runtime behavior
+  -- Status: Can be set via column types or markdown config, but no code currently checks it
   -- Future use: WIP limit enforcement, capacity management, workflow validations
-  -- Currently: Metadata only, can be set via column types or markdown config
+  -- Currently: Metadata only - parser/writer preserve it, but no triggers/stats use it
   --
   -- wip_limit (number) [CORE COLUMN/BOARD PROPERTY]
   -- Enforces Work In Progress limits to prevent too many cards in a column/board

@@ -9,7 +9,7 @@ function M.is_completion_column(column, board)
   end
 
   -- 1. Check explicit property
-  if column.properties and column.properties.is_completion_state then
+  if column.config and column.config.is_completion_state then
     return true
   end
 
@@ -50,14 +50,14 @@ function M.is_start_column(column, board)
   end
 
   -- 1. Check explicit property on this column
-  if column.properties and column.properties.is_start_state then
+  if column.config and column.config.is_start_state then
     return true
   end
 
   -- Check if ANY column has explicit is_start_state
   local has_explicit_start = false
   for _, col in ipairs(board.columns) do
-    if col.properties and col.properties.is_start_state then
+    if col.config and col.config.is_start_state then
       has_explicit_start = true
       break
     end
@@ -93,14 +93,14 @@ function M.is_backlog_column(column, board)
   end
 
   -- 1. Check explicit property on this column
-  if column.properties and column.properties.is_backlog_state then
+  if column.config and column.config.is_backlog_state then
     return true
   end
 
   -- Check if ANY column has explicit is_backlog_state
   local has_explicit_backlog = false
   for _, col in ipairs(board.columns) do
-    if col.properties and col.properties.is_backlog_state then
+    if col.config and col.config.is_backlog_state then
       has_explicit_backlog = true
       break
     end
@@ -135,7 +135,7 @@ function M.is_blocked_column(column, board)
   end
 
   -- Check explicit property only (no fallback for blocked state)
-  if column.properties and column.properties.is_blocked_state then
+  if column.config and column.config.is_blocked_state then
     return true
   end
 
@@ -148,7 +148,7 @@ function M.is_waiting_column(column, board)
   end
 
   -- Check explicit property only (no fallback for waiting state)
-  if column.properties and column.properties.is_waiting_state then
+  if column.config and column.config.is_waiting_state then
     return true
   end
 

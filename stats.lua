@@ -279,8 +279,14 @@ function StatsMixin:calculate_stats()
 			-- Task is completed if in completion column
 			local is_completed = column_helpers.is_completion_column(column, self)
 
+			-- Task is in progress if in an active/start state column
+			local is_in_progress = column_helpers.is_start_column(column, self)
+
 			if not is_completed then
 				wip_count = wip_count + 1
+			end
+
+			if is_in_progress and not is_completed then
 				stats.in_progress_tasks = stats.in_progress_tasks + 1
 			end
 

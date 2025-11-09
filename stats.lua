@@ -263,7 +263,14 @@ function StatsMixin:calculate_stats()
 		in_progress_tasks = 0,
 		blocked_tasks = 0,
 		total_complexity = 0,
+		wip_complexity = 0,
+		completed_complexity = 0,
+		backlog_complexity = 0,
+		waiting_complexity = 0,
+		active_complexity = 0,
+		blocked_complexity = 0,
 		wip_by_column = {},
+		complexity_by_column = {},
 		lead_times = {},
 		cycle_times = {},
 	}
@@ -271,27 +278,45 @@ function StatsMixin:calculate_stats()
 	-- Process regular columns
 	for _, column in ipairs(self.columns) do
 		local wip_count = 0
+		local column_complexity = 0
 		local tasks = column.tasks or column.cards or {}
+
+		-- Determine column semantic state
+		local is_completion = column_helpers.is_completion_column(column, self)
+		local is_backlog = column_helpers.is_backlog_column(column, self)
+		local is_start = column_helpers.is_start_column(column, self)
+		local is_blocked = column_helpers.is_blocked_column(column, self)
+		local is_waiting = column_helpers.is_waiting_column(column, self)
 
 		for _, task in ipairs(tasks) do
 			stats.total_tasks = stats.total_tasks + 1
 
-			-- Task is completed if in completion column
-			local is_completed = column_helpers.is_completion_column(column, self)
+			-- Get task complexity
+			local task_complexity = task.properties.complexity or 0
 
-			-- Task is in progress if in an active/start state column
-			local is_in_progress = column_helpers.is_start_column(column, self)
-
-			if not is_completed then
+			if not is_completion then
 				wip_count = wip_count + 1
+				stats.wip_complexity = stats.wip_complexity + task_complexity
+
+				-- Add to semantic state complexity buckets
+				if is_backlog then
+					stats.backlog_complexity = stats.backlog_complexity + task_complexity
+				elseif is_waiting then
+					stats.waiting_complexity = stats.waiting_complexity + task_complexity
+				elseif is_start then
+					stats.active_complexity = stats.active_complexity + task_complexity
+				elseif is_blocked then
+					stats.blocked_complexity = stats.blocked_complexity + task_complexity
+				end
 			end
 
-			if is_in_progress and not is_completed then
+			if is_start and not is_completion then
 				stats.in_progress_tasks = stats.in_progress_tasks + 1
 			end
 
-			if is_completed then
+			if is_completion then
 				stats.completed_tasks = stats.completed_tasks + 1
+				stats.completed_complexity = stats.completed_complexity + task_complexity
 
 				-- Calculate lead time and cycle time for completed tasks
 				local lead_time = calculate_lead_time(task.properties, self)
@@ -309,12 +334,13 @@ function StatsMixin:calculate_stats()
 				stats.blocked_tasks = stats.blocked_tasks + 1
 			end
 
-			if task.properties.complexity then
-				stats.total_complexity = stats.total_complexity + task.properties.complexity
-			end
+			-- Add to total and column complexity
+			stats.total_complexity = stats.total_complexity + task_complexity
+			column_complexity = column_complexity + task_complexity
 		end
 
 		stats.wip_by_column[column.name] = wip_count
+		stats.complexity_by_column[column.name] = column_complexity
 	end
 
 	-- Process archive
@@ -323,6 +349,10 @@ function StatsMixin:calculate_stats()
 		for _, task in ipairs(archive_tasks) do
 			stats.total_tasks = stats.total_tasks + 1
 			stats.completed_tasks = stats.completed_tasks + 1
+
+			local task_complexity = task.properties.complexity or 0
+			stats.total_complexity = stats.total_complexity + task_complexity
+			stats.completed_complexity = stats.completed_complexity + task_complexity
 
 			local lead_time = calculate_lead_time(task.properties, self)
 			if lead_time then
@@ -456,7 +486,15 @@ local function format_stats_display(board)
 		"Completed tasks: " .. stats.completed_tasks,
 		"In progress tasks: " .. stats.in_progress_tasks,
 		"Blocked tasks: " .. stats.blocked_tasks,
-		"Total complexity: " .. stats.total_complexity,
+		"",
+		"Complexity:",
+		"  Total: " .. stats.total_complexity,
+		"  Work In Progress (not done): " .. stats.wip_complexity,
+		"    - Backlog: " .. stats.backlog_complexity,
+		"    - Ready/Waiting: " .. stats.waiting_complexity,
+		"    - Active: " .. stats.active_complexity,
+		"    - Blocked: " .. stats.blocked_complexity,
+		"  Completed: " .. stats.completed_complexity,
 		""
 	}
 
@@ -464,6 +502,13 @@ local function format_stats_display(board)
 	table.insert(lines, "WIP by column:")
 	for col_name, wip_count in pairs(stats.wip_by_column) do
 		table.insert(lines, "  " .. col_name .. ": " .. wip_count)
+	end
+
+	-- Complexity by column
+	table.insert(lines, "")
+	table.insert(lines, "Complexity by column:")
+	for col_name, complexity in pairs(stats.complexity_by_column) do
+		table.insert(lines, "  " .. col_name .. ": " .. complexity)
 	end
 
 	-- Lead time info

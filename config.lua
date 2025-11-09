@@ -73,6 +73,14 @@ local default_config = {
   -- Used by: lua/kanban-md/stats.lua, lua/kanban-md/virtual_text.lua, lua/kanban-md/commands.lua
   cycle_time_unit = "days",
 
+  -- stats_time_format (string: "precise" | "decimal" | "compact")
+  -- Format style for displaying time durations in stats
+  -- "precise": Human-friendly with units (e.g., "2 days 3 hours", "5 hours 30 mins")
+  -- "decimal": Decimal format (e.g., "2.1 days", "5.5 hours")
+  -- "compact": Short form (e.g., "2d 3h", "5h 30m")
+  -- Used by: lua/kanban-md/stats.lua (format_duration function)
+  stats_time_format = "precise",
+
   -- default_start_column (string or nil)
   -- Default column name to use as "start state" for cycle time calculation
   -- This is used as a fallback when no column has is_start_state explicitly set

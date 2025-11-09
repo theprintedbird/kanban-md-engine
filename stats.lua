@@ -2,9 +2,97 @@
 -- Statistics calculation mixin for Board class
 
 local column_helpers = require("kanban-md.helpers.column")
+local config = require("kanban-md.config")
 
 -- Stats mixin that can be applied to Board instances
 local StatsMixin = {}
+
+-- Helper: format duration in human-friendly way
+-- @param seconds number: Duration in seconds
+-- @param format string: Format style ("precise", "decimal", "compact")
+-- @param unit string: Target unit ("days", "hours", "seconds")
+-- @return string: Formatted duration
+local function format_duration(seconds, format, unit)
+	format = format or "precise"
+	unit = unit or "days"
+
+	if unit == "seconds" then
+		return string.format("%.0f seconds", seconds)
+	end
+
+	if unit == "hours" then
+		local hours = seconds / 3600
+		if format == "decimal" then
+			return string.format("%.1f hours", hours)
+		elseif format == "compact" then
+			local h = math.floor(hours)
+			local m = math.floor((hours - h) * 60)
+			if h > 0 and m > 0 then
+				return string.format("%dh %dm", h, m)
+			elseif h > 0 then
+				return string.format("%dh", h)
+			else
+				return string.format("%dm", m)
+			end
+		else -- precise
+			local h = math.floor(hours)
+			local m = math.floor((hours - h) * 60)
+			if h > 0 and m > 0 then
+				return string.format("%d hours %d mins", h, m)
+			elseif h > 0 then
+				return string.format("%d hours", h)
+			else
+				return string.format("%d mins", m)
+			end
+		end
+	end
+
+	-- Default: days
+	local days = seconds / 86400
+	if format == "decimal" then
+		return string.format("%.1f days", days)
+	elseif format == "compact" then
+		local d = math.floor(days)
+		local h = math.floor((days - d) * 24)
+		if d > 0 and h > 0 then
+			return string.format("%dd %dh", d, h)
+		elseif d > 0 then
+			return string.format("%dd", d)
+		else
+			-- Less than 1 day, show hours/mins
+			local total_hours = seconds / 3600
+			local hrs = math.floor(total_hours)
+			local mins = math.floor((total_hours - hrs) * 60)
+			if hrs > 0 and mins > 0 then
+				return string.format("%dh %dm", hrs, mins)
+			elseif hrs > 0 then
+				return string.format("%dh", hrs)
+			else
+				return string.format("%dm", mins)
+			end
+		end
+	else -- precise
+		local d = math.floor(days)
+		local h = math.floor((days - d) * 24)
+		if d > 0 and h > 0 then
+			return string.format("%d days %d hours", d, h)
+		elseif d > 0 then
+			return string.format("%d days", d)
+		else
+			-- Less than 1 day, show hours/mins
+			local total_hours = seconds / 3600
+			local hrs = math.floor(total_hours)
+			local mins = math.floor((total_hours - hrs) * 60)
+			if hrs > 0 and mins > 0 then
+				return string.format("%d hours %d mins", hrs, mins)
+			elseif hrs > 0 then
+				return string.format("%d hours", hrs)
+			else
+				return string.format("%d mins", mins)
+			end
+		end
+	end
+end
 
 -- Helper: normalize column name to timestamp key format
 local function normalize_column_name(column_name)
@@ -242,23 +330,16 @@ function StatsMixin:calculate_stats()
 		end
 	end
 
-	-- Calculate average lead time
+	-- Calculate average lead time (keep in seconds for now, format_stats_display will convert)
 	if #stats.lead_times > 0 then
 		local sum = 0
 		for _, time_data in ipairs(stats.lead_times) do
 			sum = sum + time_data.duration
 		end
 		stats.average_lead_time = sum / #stats.lead_times
-
-		-- Convert to days if needed
-		if self.config.cycle_time_unit == "days" then
-			stats.average_lead_time = stats.average_lead_time / 86400
-		elseif self.config.cycle_time_unit == "hours" then
-			stats.average_lead_time = stats.average_lead_time / 3600
-		end
 	end
 
-	-- Calculate average cycle time
+	-- Calculate average cycle time (keep in seconds for now, format_stats_display will convert)
 	if #stats.cycle_times > 0 then
 		local sum = 0
 		local blocked_sum = 0
@@ -271,17 +352,6 @@ function StatsMixin:calculate_stats()
 		stats.average_cycle_time = sum / #stats.cycle_times
 		stats.average_blocked_time = blocked_sum / #stats.cycle_times
 		stats.average_active_time = active_sum / #stats.cycle_times
-
-		-- Convert to days if needed
-		if self.config.cycle_time_unit == "days" then
-			stats.average_cycle_time = stats.average_cycle_time / 86400
-			stats.average_blocked_time = stats.average_blocked_time / 86400
-			stats.average_active_time = stats.average_active_time / 86400
-		elseif self.config.cycle_time_unit == "hours" then
-			stats.average_cycle_time = stats.average_cycle_time / 3600
-			stats.average_blocked_time = stats.average_blocked_time / 3600
-			stats.average_active_time = stats.average_active_time / 3600
-		end
 	end
 
 	-- Store stats on the board instance
@@ -369,6 +439,10 @@ local function format_stats_display(board)
 		return {"No statistics available"}
 	end
 
+	-- Get formatting preferences from config
+	local time_format = config.get_value("stats_time_format") or "precise"
+	local time_unit = config.get_value("cycle_time_unit") or "days"
+
 	local lines = {
 		"=== Kanban Board Statistics ===",
 		"",
@@ -389,8 +463,8 @@ local function format_stats_display(board)
 	-- Lead time info
 	if stats.average_lead_time then
 		table.insert(lines, "")
-		local unit = board.config.cycle_time_unit or "days"
-		table.insert(lines, "Average lead time: " .. string.format("%.1f", stats.average_lead_time) .. " " .. unit)
+		local formatted_time = format_duration(stats.average_lead_time, time_format, time_unit)
+		table.insert(lines, "Average lead time: " .. formatted_time)
 		table.insert(lines, "Completed tasks with lead time: " .. #stats.lead_times)
 	else
 		-- Show why lead time isn't available
@@ -403,13 +477,15 @@ local function format_stats_display(board)
 	-- Cycle time info
 	if stats.average_cycle_time then
 		table.insert(lines, "")
-		local unit = board.config.cycle_time_unit or "days"
-		table.insert(lines, "Average cycle time: " .. string.format("%.1f", stats.average_cycle_time) .. " " .. unit)
+		local formatted_cycle = format_duration(stats.average_cycle_time, time_format, time_unit)
+		table.insert(lines, "Average cycle time: " .. formatted_cycle)
 
 		-- Show blocked/active time breakdown if available
 		if stats.average_blocked_time and stats.average_blocked_time > 0 then
-			table.insert(lines, "  - Average active time: " .. string.format("%.1f", stats.average_active_time) .. " " .. unit)
-			table.insert(lines, "  - Average blocked time: " .. string.format("%.1f", stats.average_blocked_time) .. " " .. unit)
+			local formatted_active = format_duration(stats.average_active_time, time_format, time_unit)
+			local formatted_blocked = format_duration(stats.average_blocked_time, time_format, time_unit)
+			table.insert(lines, "  - Average active time: " .. formatted_active)
+			table.insert(lines, "  - Average blocked time: " .. formatted_blocked)
 		end
 
 		table.insert(lines, "Completed tasks with cycle time: " .. #stats.cycle_times)
@@ -423,6 +499,7 @@ StatsMixin.calculate_lead_time = calculate_lead_time
 StatsMixin.calculate_cycle_time = calculate_cycle_time
 StatsMixin.calculate_blocked_time = calculate_blocked_time
 StatsMixin.format_stats_display = format_stats_display
+StatsMixin.format_duration = format_duration
 
 -- For testing, conditionally export additional private functions
 if _G._TEST then
@@ -434,7 +511,8 @@ if _G._TEST then
 		find_backlog_timestamp = find_backlog_timestamp,
 		find_start_state_timestamp = find_start_state_timestamp,
 		find_completion_timestamp = find_completion_timestamp,
-		normalize_column_name = normalize_column_name
+		normalize_column_name = normalize_column_name,
+		format_duration = format_duration
 	}
 end
 

@@ -6,6 +6,7 @@ local config_module = require("kanban-md.config")
 local triggers_module = require("kanban-md.triggers")
 local column_helpers = require("kanban-md.helpers.column")
 local TblUtils = require("kanban-md.utils.table")
+local adapter = require("kanban-md.adapters.neovim")
 
 -- Writer mixin that can be applied to Board instances
 local WriterMixin = {}
@@ -358,30 +359,30 @@ end
 
 -- Write board to buffer
 function WriterMixin:write_to_buffer(bufnr)
-	bufnr = bufnr or vim.api.nvim_get_current_buf()
+	bufnr = bufnr or adapter:get_current_buffer()
 	local lines = self:write()
 
 	-- Save cursor position
-	local cursor = vim.api.nvim_win_get_cursor(0)
+	local cursor = adapter:get_cursor(0)
 
 	-- Update buffer
-	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+	adapter:write_buffer(lines,{ bufnr = bufnr, start = 0, _end = -1})
 
 	-- Try to restore cursor position intelligently
-	local max_line = vim.api.nvim_buf_line_count(bufnr)
+	local max_line = adapter:buf_line_count(bufnr)
 	if cursor[1] > max_line then
 		cursor[1] = max_line
 	end
 
 	-- Restore cursor
-	pcall(vim.api.nvim_win_set_cursor, 0, cursor)
+	adapter:set_cursor(cursor)
 
 	return true
 end
 
 -- Update a single task in place (minimal change)
 function WriterMixin:update_task_in_buffer(task_id, bufnr)
-	bufnr = bufnr or vim.api.nvim_get_current_buf()
+	bufnr = bufnr or adapter:get_current_buffer()
 
 	-- Find the task in the board
 	local parser = require("kanban-md.parser")
@@ -396,10 +397,10 @@ function WriterMixin:update_task_in_buffer(task_id, bufnr)
 
 	if type(updated_line) == "table" then
 		-- Multi-line (shouldn't happen often for cards)
-		vim.api.nvim_buf_set_lines(bufnr, task.line_number - 1, task.line_number, false, updated_line)
+		adapter:write_buffer(updated_line, {bufnr = bufnr, start = task.line_number - 1, _end = task.line_number })
 	else
 		-- Single line (normal case)
-		vim.api.nvim_buf_set_lines(bufnr, task.line_number - 1, task.line_number, false, { updated_line })
+		adapter:write_buffer(updated_line,{bufnr = bufnr, start = task.line_number - 1, _end = task.line_number })
 	end
 
 	return true

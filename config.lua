@@ -253,10 +253,11 @@ local default_config = {
   -- Use Telescope picker for card selection (if available)
   -- Falls back to vim.ui.select if Telescope not installed
   -- Used by: commands.lua for card/column selection UI
+	-- TODO make this specific to Neovim
   use_telescope = true,
 
   -- use_input (boolean)
-  -- Use vim.ui.input for text input in commands
+  -- Use vim.ui.input (or the relevant adapter's input) for text input in commands
   -- Used by: commands.lua for card/column name input
   use_input = true,
 

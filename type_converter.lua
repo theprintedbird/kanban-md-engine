@@ -9,6 +9,9 @@
 local TypeConverter = {}
 TypeConverter.__index = TypeConverter
 
+local NeovimAdapter = require("kanban-md.adapters.neovim")
+local adapter = NeovimAdapter  -- NeovimAdapter is already an instance, don't call .new()
+
 -- Define which properties should be converted to numbers
 local NUMERIC_PROPERTIES = {
   wip_limit = true,
@@ -69,7 +72,7 @@ function TypeConverter:_convert_value(key, value)
       return num
     else
       -- If conversion fails, log warning and return original
-      vim.notify(string.format("Warning: Could not convert '%s' to number for property '%s'", tostring(value), key), vim.log.levels.WARN)
+      adapter:notify(string.format("Warning: Could not convert '%s' to number for property '%s'", tostring(value), key), "warn")
       return value
     end
   end

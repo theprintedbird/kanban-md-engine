@@ -3,6 +3,7 @@
 
 local stats = require("kanban-md.stats")
 local column_helpers = require("kanban-md.helpers.column")
+local adapter = require("kanban-md.adapters.neovim")
 
 local M = {}
 
@@ -12,7 +13,7 @@ local ns_id = nil
 -- Initialize the virtual text namespace
 function M.setup()
   if not ns_id then
-    ns_id = vim.api.nvim_create_namespace("kanban_md_virtual_text")
+    ns_id = adapter:create_namespace("kanban_md_virtual_text")
   end
 end
 
@@ -21,7 +22,7 @@ local function clear_virtual_text(bufnr)
   if not ns_id then
     M.setup()
   end
-  vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+  adapter:clear_namespace(bufnr, ns_id)
 end
 
 -- Display WIP limit warnings for columns that exceed their limits
@@ -47,7 +48,7 @@ local function display_wip_warnings(board, bufnr)
         line_num = board.title_line - 1
       end
 
-      vim.api.nvim_buf_set_extmark(bufnr, ns_id, line_num, 0, {
+      adapter:set_extmark(bufnr, ns_id, line_num, 0, {
         virt_text = {{string.format(" ⚠ Board WIP limit exceeded (%d/%d)", total_wip, board.config.wip_limit), "WarningMsg"}},
         virt_text_pos = "eol"
       })
@@ -63,7 +64,7 @@ local function display_wip_warnings(board, bufnr)
         -- Line numbers in parser are 1-indexed, but nvim_buf_set_extmark is 0-indexed
         local line_num = column.line_number - 1
 
-        vim.api.nvim_buf_set_extmark(bufnr, ns_id, line_num, 0, {
+        adapter:set_extmark(bufnr, ns_id, line_num, 0, {
           virt_text = {{string.format(" ⚠ WIP limit exceeded (%d/%d)", wip, column.config.wip_limit), "WarningMsg"}},
           virt_text_pos = "eol"
         })
@@ -186,7 +187,7 @@ local function display_metrics(board, bufnr)
 
     -- Display if we have any virtual text
     if #virt_text > 0 then
-      vim.api.nvim_buf_set_extmark(bufnr, ns_id, line_num, 0, {
+      adapter:set_extmark(bufnr, ns_id, line_num, 0, {
         virt_text = virt_text,
         virt_text_pos = "eol"
       })

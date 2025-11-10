@@ -5,6 +5,7 @@ local Board = require("kanban-md.board")
 local config = require("kanban-md.config")
 local column_helper = require("kanban-md.helpers.column")
 local virtual_text = require("kanban-md.virtual_text")
+local adapter = require("kanban-md.adapters.neovim")
 
 local M = {}
 
@@ -17,7 +18,7 @@ local dependency_state = {
 }
 
 -- Namespace for dependency marking highlights
-local ns_dependency = vim.api.nvim_create_namespace('kanban_dependency_mark')
+local ns_dependency = adapter:create_namespace('kanban_dependency_mark')
 
 -- Helper function to clear dependency state
 local function clear_dependency_state()
@@ -77,19 +78,19 @@ end
 
 -- Helper function to notify user with Kanban plugin context
 local function notify(message, level)
-  vim.notify(message, level, { title = "Kanban" })
+  adapter:notify(message, level, { title = "Kanban" })
 end
 
 -- Helper function to get current buffer lines
 local function get_buffer_lines(bufnr)
   bufnr = bufnr or 0
-  return vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  return adapter:read_buffer(bufnr )
 end
 
 -- Helper function to set buffer lines
 local function set_buffer_lines(lines, bufnr)
   bufnr = bufnr or 0
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  adapter:write_buffer(lines,{ bufnr = bufnr})
 end
 
 -- Helper function to get current buffer's board
@@ -105,12 +106,12 @@ local function get_current_board()
       -- Show errors
       if #result.errors > 0 then
         local error_msg = "Dependency errors:\n" .. table.concat(result.errors, "\n")
-        notify(error_msg, vim.log.levels.ERROR)
+        notify(error_msg, "error")
       end
       -- Show warnings
       if #result.warnings > 0 then
         local warning_msg = "Dependency warnings:\n" .. table.concat(result.warnings, "\n")
-        notify(warning_msg, vim.log.levels.WARN)
+        notify(warning_msg, "warn")
       end
     end
   end
@@ -134,7 +135,7 @@ end
 
 -- Helper function to get user input
 local function get_input(prompt, default, callback)
-  vim.ui.input({
+  adapter:prompt_input({
     prompt = prompt,
     default = default or "",
   }, function(result)
@@ -147,11 +148,11 @@ end
 -- Helper function to show selection menu
 local function select_from_list(items, prompt, callback)
   if not items or #items == 0 then
-    vim.notify("No items to select from", vim.log.levels.WARN)
+    adapter:notify("No items to select from", "warn")
     return
   end
   
-  vim.ui.select(items, {
+  adapter:prompt_select(items, {
     prompt = prompt,
     format_item = function(item)
       return tostring(item)
@@ -162,7 +163,7 @@ end
 -- Helper function to find cursor position card
 local function get_card_at_cursor()
   local board = get_current_board()
-  local cursor = vim.api.nvim_win_get_cursor(0)
+  local cursor = adapter:get_cursor(0)
   local line_num = cursor[1]
   
   -- Look through all columns and cards to find one at this line
@@ -233,7 +234,7 @@ local function move_cursor_to_target_card(board_with_flag)
 
   -- If found, move cursor
   if target_line then
-    vim.api.nvim_win_set_cursor(0, {target_line, 0})
+    adapter:set_cursor(0, {line = target_line, col = 0})
     return true
   end
 
@@ -254,7 +255,7 @@ function M.new_board()
 
     -- Clear current buffer and set new board content
     update_buffer_with_board(board)
-    vim.notify("Created new kanban board: " .. title, vim.log.levels.INFO)
+    adapter:notify("Created new kanban board: " .. title, "info")
   end)
 end
 
@@ -263,7 +264,7 @@ function M.new_card()
   local board = get_current_board()
 
   if #board.columns == 0 then
-    vim.notify("No columns found. Create a board first.", vim.log.levels.ERROR)
+    adapter:notify("No columns found. Create a board first.", "error")
     return
   end
 
@@ -299,7 +300,7 @@ function M.new_card()
         end)
 
         if not success then
-          notify(extract_error_message(err), vim.log.levels.ERROR)
+          notify(extract_error_message(err), "error")
           return
         end
 
@@ -311,7 +312,7 @@ function M.new_card()
           move_cursor_to_target_card(current_board)
         end
 
-        notify("Added card '" .. card_text .. "' to " .. choice, vim.log.levels.INFO)
+        notify("Added card '" .. card_text .. "' to " .. choice, "info")
       end
     end)
   end)
@@ -322,7 +323,7 @@ function M.move_card()
   local card, current_column, board = get_card_at_cursor()
   
   if not card then
-    vim.notify("No card found at cursor position", vim.log.levels.WARN)
+    adapter:notify("No card found at cursor position", "warn")
     return
   end
   
@@ -369,7 +370,7 @@ function M.move_card()
     end
 
     if not current_card or not source_column then
-      vim.notify("Card not found after refresh", vim.log.levels.ERROR)
+      adapter:notify("Card not found after refresh", "error")
       return
     end
 
@@ -398,7 +399,7 @@ function M.move_card()
     end
 
     if not target_column then
-      vim.notify("Target column not found", vim.log.levels.ERROR)
+      adapter:notify("Target column not found", "error")
       return
     end
 
@@ -408,12 +409,12 @@ function M.move_card()
     end)
 
     if not success then
-      notify(extract_error_message(err), vim.log.levels.ERROR)
+      notify(extract_error_message(err), "error")
       return
     end
 
     update_buffer_with_board(current_board)
-    notify("Moved card '" .. current_card.text .. "' to " .. choice, vim.log.levels.INFO)
+    notify("Moved card '" .. current_card.text .. "' to " .. choice, "info")
   end)
 end
 
@@ -422,7 +423,7 @@ function M.complete_card()
   local card, current_column, board = get_card_at_cursor()
 
   if not card then
-    vim.notify("No card found at cursor position", vim.log.levels.WARN)
+    adapter:notify("No card found at cursor position", "warn")
     return
   end
 
@@ -436,7 +437,7 @@ function M.complete_card()
   end
 
   if not done_column then
-    vim.notify("No completion column found", vim.log.levels.ERROR)
+    adapter:notify("No completion column found", "error")
     return
   end
 
@@ -452,12 +453,12 @@ function M.complete_card()
   end)
 
   if not success then
-    notify(extract_error_message(err), vim.log.levels.ERROR)
+    notify(extract_error_message(err), "error")
     return
   end
 
   update_buffer_with_board(board)
-  notify("Completed card '" .. card.text .. "'", vim.log.levels.INFO)
+  notify("Completed card '" .. card.text .. "'", "info")
 end
 
 -- Helper function to execute force complete
@@ -479,14 +480,14 @@ local function execute_force_complete(card, current_column, done_column, board)
   end)
 
   if not success then
-    notify(extract_error_message(err), vim.log.levels.ERROR)
+    notify(extract_error_message(err), "error")
     return
   end
 
   update_buffer_with_board(board)
   notify(
     string.format("Force completed '%s' (bypassed dependency/subtask checks)", card.text),
-    vim.log.levels.INFO
+    "info"
   )
 end
 
@@ -495,7 +496,7 @@ function M.force_complete_card()
   local card, current_column, board = get_card_at_cursor()
 
   if not card then
-    vim.notify("No card found at cursor position", vim.log.levels.WARN)
+    adapter:notify("No card found at cursor position", "warn")
     return
   end
 
@@ -509,19 +510,19 @@ function M.force_complete_card()
   end
 
   if not done_column then
-    vim.notify("No completion column found", vim.log.levels.ERROR)
+    adapter:notify("No completion column found", "error")
     return
   end
 
   -- Check if card already in completion column
   if column_helper.is_completion_column(current_column, board) then
-    vim.notify("Card is already in a completion column", vim.log.levels.WARN)
+    adapter:notify("Card is already in a completion column", "warn")
     return
   end
 
   -- Show confirmation if configured
   if config.get_value("confirm_destructive") then
-    vim.ui.select(
+    adapter:prompt_select(
       {"Yes, force complete", "Cancel"},
       {
         prompt = string.format(
@@ -546,7 +547,7 @@ function M.set_complexity()
   local card, current_column, board = get_card_at_cursor()
 
   if not card then
-    vim.notify("No card found at cursor position", vim.log.levels.WARN)
+    adapter:notify("No card found at cursor position", "warn")
     return
   end
 
@@ -558,12 +559,12 @@ function M.set_complexity()
     local complexity = tonumber(input)
 
     if not complexity then
-      vim.notify("Invalid complexity value. Must be a number.", vim.log.levels.ERROR)
+      adapter:notify("Invalid complexity value. Must be a number.", "error")
       return
     end
 
     if complexity < 0 then
-      vim.notify("Complexity must be a positive number", vim.log.levels.ERROR)
+      adapter:notify("Complexity must be a positive number", "error")
       return
     end
 
@@ -593,7 +594,7 @@ function M.set_complexity()
     end
 
     if not current_card then
-      vim.notify("Card not found after refresh", vim.log.levels.ERROR)
+      adapter:notify("Card not found after refresh", "error")
       return
     end
 
@@ -602,7 +603,7 @@ function M.set_complexity()
 
     -- Update buffer
     update_buffer_with_board(current_board)
-    vim.notify("Set complexity to " .. complexity .. " for card '" .. current_card.text .. "'", vim.log.levels.INFO)
+    adapter:notify("Set complexity to " .. complexity .. " for card '" .. current_card.text .. "'", "info")
   end)
 end
 
@@ -616,9 +617,9 @@ function M.archive_done_cards()
 
   if archived_count > 0 then
     update_buffer_with_board(board)
-    vim.notify("Archived " .. archived_count .. " cards older than " .. archive_days .. " days", vim.log.levels.INFO)
+    adapter:notify("Archived " .. archived_count .. " cards older than " .. archive_days .. " days", "info")
   else
-    vim.notify("No cards to archive", vim.log.levels.INFO)
+    adapter:notify("No cards to archive", "info")
   end
 end
 
@@ -628,53 +629,53 @@ function M.new_column()
 
   get_input("Column name: ", "", function(column_name)
     if not column_name or column_name == "" then
-      vim.notify("Column name cannot be empty", vim.log.levels.ERROR)
+      adapter:notify("Column name cannot be empty", "error")
       return
     end
 
     -- Check if column already exists
     if board:get_column_by_name(column_name) then
-      vim.notify("Column '" .. column_name .. "' already exists", vim.log.levels.ERROR)
+      adapter:notify("Column '" .. column_name .. "' already exists", "error")
       return
     end
 
-    -- Optionally prompt for WIP limit (use vim.ui.input directly to handle empty input)
-    vim.ui.input({
+    -- Optionally prompt for WIP limit (use adapter:prompt_input directly to handle empty input)
+    adapter:prompt_input({
       prompt = "WIP limit (optional, press Enter to skip): ",
       default = "",
-    }, function(wip_input)
-      -- Re-parse board to get current state
-      local current_board = get_current_board()
+    },function(wip_input)
+				-- Re-parse board to get current state
+				local current_board = get_current_board()
 
-      -- Prepare config
-      local col_config = nil
-      if wip_input and wip_input ~= "" then
-        local wip_limit = tonumber(wip_input)
-        if wip_limit and wip_limit > 0 then
-          col_config = { wip_limit = wip_limit }
-        else
-          vim.notify("Invalid WIP limit. Column created without WIP limit.", vim.log.levels.WARN)
-        end
-      end
+				-- Prepare config
+				local col_config = nil
+				if wip_input and wip_input ~= "" then
+					local wip_limit = tonumber(wip_input)
+					if wip_limit and wip_limit > 0 then
+						col_config = { wip_limit = wip_limit }
+					else
+						adapter:notify("Invalid WIP limit. Column created without WIP limit.", "warn")
+					end
+				end
 
-      -- Wrap column creation in pcall to catch any errors
-      local success, err = pcall(function()
-        current_board:add_new_column(column_name, col_config)
-      end)
+				-- Wrap column creation in pcall to catch any errors
+				local success, err = pcall(function()
+					current_board:add_new_column(column_name, col_config)
+				end)
 
-      if not success then
-        notify(extract_error_message(err), vim.log.levels.ERROR)
-        return
-      end
+				if not success then
+					notify(extract_error_message(err), "error")
+					return
+				end
 
-      -- Update buffer
-      update_buffer_with_board(current_board)
+				-- Update buffer
+				update_buffer_with_board(current_board)
 
-      local msg = "Added column '" .. column_name .. "'"
-      if col_config and col_config.wip_limit then
-        msg = msg .. " with WIP limit " .. col_config.wip_limit
-      end
-      notify(msg, vim.log.levels.INFO)
+				local msg = "Added column '" .. column_name .. "'"
+				if col_config and col_config.wip_limit then
+					msg = msg .. " with WIP limit " .. col_config.wip_limit
+				end
+				notify(msg, "info")
     end)
   end)
 end
@@ -708,12 +709,12 @@ function M.show_stats()
     -- Reuse existing buffer
     buf = existing_buf
     vim.api.nvim_buf_set_option(buf, "modifiable", true)
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    adapter:write_buffer(lines, {bufnr = buf})
     vim.api.nvim_buf_set_option(buf, "modifiable", false)
   else
     -- Create new buffer
     buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    adapter:write_buffer(lines, { bufnr = buf})
     vim.api.nvim_buf_set_option(buf, "modifiable", false)
     vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
     vim.api.nvim_buf_set_name(buf, stats_buf_name)
@@ -742,7 +743,7 @@ function M.add_dependency()
   local card, column, board = get_card_at_cursor()
 
   if not card then
-    vim.notify("No card found at cursor position", vim.log.levels.WARN)
+    adapter:notify("No card found at cursor position", "warn")
     clear_dependency_state()
     return
   end
@@ -751,7 +752,7 @@ function M.add_dependency()
   if not dependency_state.first_card then
     -- Validate card has ID
     if not card.properties.id or card.properties.id == "" then
-      vim.notify("Card must have an ID property. Run :KanbanPersistIds to enable persistent IDs.", vim.log.levels.ERROR)
+      adapter:notify("Card must have an ID property. Run :KanbanPersistIds to enable persistent IDs.", "error")
       return
     end
 
@@ -762,26 +763,26 @@ function M.add_dependency()
 
     -- Add visual feedback (highlight the line)
     local bufnr = vim.api.nvim_get_current_buf()
-    dependency_state.extmark_id = vim.api.nvim_buf_set_extmark(bufnr, ns_dependency, card.line_number - 1, 0, {
+    dependency_state.extmark_id = adapter:set_extmark(bufnr, ns_dependency, card.line_number - 1, 0, {
       line_hl_group = config.get_value("dependency_marking_hl"),
       priority = 100,
     })
 
-    notify("First card marked. Select the dependency card and run command again.", vim.log.levels.INFO)
+    notify("First card marked. Select the dependency card and run command again.", "info")
     return
   end
 
   -- Second invocation: Mark the dependency card
   -- Validate second card has ID
   if not card.properties.id or card.properties.id == "" then
-    vim.notify("Dependency card must have an ID property. Run :KanbanPersistIds to enable persistent IDs, or move the card to generate a temporary ID.", vim.log.levels.ERROR)
+    adapter:notify("Dependency card must have an ID property. Run :KanbanPersistIds to enable persistent IDs, or move the card to generate a temporary ID.", "error")
     clear_dependency_state()
     return
   end
 
   -- Validate not adding self-dependency
   if card.properties.id == dependency_state.first_card.properties.id then
-    vim.notify("Cannot add a card as its own dependency", vim.log.levels.ERROR)
+    adapter:notify("Cannot add a card as its own dependency", "error")
     clear_dependency_state()
     return
   end
@@ -815,7 +816,7 @@ function M.add_dependency()
   end
 
   if not first_card_refreshed then
-    vim.notify("First card not found after refresh", vim.log.levels.ERROR)
+    adapter:notify("First card not found after refresh", "error")
     clear_dependency_state()
     return
   end
@@ -833,7 +834,7 @@ function M.add_dependency()
   -- Check for duplicate dependency
   for _, dep_id in ipairs(first_card_refreshed.properties.depends_on) do
     if dep_id == card.properties.id then
-      vim.notify("Dependency already exists", vim.log.levels.WARN)
+      adapter:notify("Dependency already exists", "warn")
       clear_dependency_state()
       return
     end
@@ -867,7 +868,7 @@ function M.add_dependency()
   end
 
   if has_circular_dependency(card.properties.id, dependency_state.first_card.properties.id, current_board) then
-    vim.notify("Cannot add dependency: would create a circular dependency", vim.log.levels.ERROR)
+    adapter:notify("Cannot add dependency: would create a circular dependency", "error")
     clear_dependency_state()
     return
   end
@@ -881,7 +882,7 @@ function M.add_dependency()
   -- Clear state and visual feedback
   clear_dependency_state()
 
-  notify("Added dependency: '" .. first_card_refreshed.text .. "' depends on '" .. card.text .. "'", vim.log.levels.INFO)
+  notify("Added dependency: '" .. first_card_refreshed.text .. "' depends on '" .. card.text .. "'", "info")
 end
 
 -- Command: Enable persistent IDs for cards
@@ -895,7 +896,7 @@ function M.persist_card_ids()
   local global_enabled = config.get_value("persist_card_ids")
 
   if already_enabled and global_enabled then
-    vim.notify("Persistent card IDs are already enabled for this board", vim.log.levels.INFO)
+    adapter:notify("Persistent card IDs are already enabled for this board", "info")
     return
   end
 
@@ -955,7 +956,7 @@ function M.persist_card_ids()
     msg = msg .. string.format(" (%d new ID%s generated)", cards_needing_ids, cards_needing_ids == 1 and "" or "s")
   end
 
-  notify(msg, vim.log.levels.INFO)
+  notify(msg, "info")
 end
 
 -- Setup function to register all commands
@@ -985,7 +986,7 @@ function M.setup()
     pattern = "*.md",
     callback = function(args)
       local bufnr = args.buf
-      local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+      local lines = adapter:read_buffer(bufnr)
 
       -- Quick check: does this look like a kanban board?
       -- Look for H6 headers (######) which are used for columns

@@ -4,6 +4,8 @@
 local Column = require("kanban-md.column")
 local Card = require("kanban-md.card")
 local TypeConverter = require("kanban-md.type_converter")
+local StringUtils = require("kanban-md.utils.string")
+local TblUtils = require("kanban-md.utils.table")
 
 -- Parser mixin that can be applied to Board instances
 local ParserMixin = {}
@@ -223,7 +225,7 @@ end
 local function split_content_to_lines(content)
 	local lines
 	if type(content) == "string" then
-		lines = vim.split(content, "\n")
+		lines = StringUtils.split(content, "\n")
 	elseif type(content) == "table" then
 		lines = content
 	else
@@ -238,7 +240,7 @@ local function flush_markdown_buffer(board, buffer)
 		-- Always create markdown blocks, even for whitespace-only content
 		-- Blank lines are semantically meaningful in board structure
 		local ContentBlock = require("kanban-md.content_block")
-		table.insert(board.content_blocks, ContentBlock.markdown(vim.deepcopy(buffer)))
+		table.insert(board.content_blocks, ContentBlock.markdown(TblUtils.deepcopy(buffer)))
 	end
 end
 

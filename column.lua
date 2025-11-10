@@ -1,5 +1,6 @@
 local Triggerable = require('kanban-md.triggerable')
 local TypeConverter = require('kanban-md.type_converter')
+local TblUtils = require("kanban-md.utils.table")
 
 -- Column class with enhanced capabilities
 local Column = {}
@@ -143,7 +144,7 @@ function Column:add_card(card, context)
 		card_copy = {
 			id = card.id,
 			text = card.text,
-			properties = vim.deepcopy(card.properties or {}),
+			properties = TblUtils.deepcopy(card.properties or {}),
 			column = card.column
 		}
 	end
@@ -208,7 +209,7 @@ function Column:remove_card(card, context)
 		card_copy = {
 			id = card.id,
 			text = card.text,
-			properties = vim.deepcopy(card.properties or {}),
+			properties = TblUtils.deepcopy(card.properties or {}),
 			column = card.column
 		}
 	end

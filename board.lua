@@ -6,6 +6,7 @@ local Column = require('kanban-md.column')
 local StatsMixin = require('kanban-md.stats')
 local ParserMixin = require('kanban-md.parser')
 local WriterMixin = require('kanban-md.writer_mixin')
+local TblUtils = require("kanban-md.utils.table")
 
 -- Board class with stats calculation and parsing capabilities
 local Board = {}
@@ -293,7 +294,7 @@ function Board:validate_dependencies()
   end
 
   -- Iterate through all cards and check dependencies
-  local all_columns = vim.deepcopy(self.columns)
+  local all_columns = TblUtils.deepcopy(self.columns)
   if self.archive then
     table.insert(all_columns, self.archive)
   end

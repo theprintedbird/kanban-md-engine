@@ -7,6 +7,7 @@
   -- - Example settings: show_stats_virtual_text, auto_archive, default_columns
 
 local M = {}
+local TblUtils = require("kanban-md.utils.table")
 
 -- Default configuration
 local default_config = {
@@ -501,7 +502,7 @@ local default_config = {
 }
 
 -- Current configuration (starts as copy of defaults)
-local current_config = vim.deepcopy(default_config)
+local current_config = TblUtils.deepcopy(default_config)
 
 -- Get the current configuration
 function M.get()
@@ -516,20 +517,20 @@ end
 -- Update configuration (merge with existing)
 function M.setup(user_config)
   if user_config then
-    current_config = vim.tbl_deep_extend("force", current_config, user_config)
+    current_config = TblUtils.extend(current_config, user_config)
   end
   return current_config
 end
 
 -- Reset to defaults
 function M.reset()
-  current_config = vim.deepcopy(default_config)
+  current_config = TblUtils.deepcopy(default_config)
   return current_config
 end
 
 -- Get defaults (for reference)
 function M.get_defaults()
-  return vim.deepcopy(default_config)
+  return TblUtils.deepcopy(default_config)
 end
 
 -- Normalize dependency enforcement mode to standard values

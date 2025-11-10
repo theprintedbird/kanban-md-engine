@@ -5,6 +5,7 @@
 local config_module = require("kanban-md.config")
 local triggers_module = require("kanban-md.triggers")
 local column_helpers = require("kanban-md.helpers.column")
+local TblUtils = require("kanban-md.utils.table")
 
 -- Writer mixin that can be applied to Board instances
 local WriterMixin = {}
@@ -61,7 +62,7 @@ local function properties_to_comment(properties, prefix)
 	-- Ensure properties is a plain table, not a TypeConverter
 	properties = to_plain_table(properties)
 
-	if not properties or vim.tbl_isempty(properties) then
+	if not properties or TblUtils.isEmpty(properties) then
 		return nil
 	end
 
@@ -73,7 +74,7 @@ local function properties_to_comment(properties, prefix)
 	end
 
 	-- Sort properties for consistent output
-	local keys = vim.tbl_keys(properties)
+	local keys = TblUtils.keys(properties)
 	table.sort(keys)
 
 	for _, key in ipairs(keys) do
@@ -145,7 +146,7 @@ local function write_column(column)
 
 	-- Column configuration comment if present
 	local plain_config = to_plain_table(column.config)
-	if plain_config and not vim.tbl_isempty(plain_config) then
+	if plain_config and not TblUtils.isEmpty(plain_config) then
 		local config_comment = properties_to_comment(plain_config, "column:config")
 		if type(config_comment) == "table" then
 			for _, line in ipairs(config_comment) do
@@ -220,7 +221,7 @@ function WriterMixin:write_from_blocks()
 
 			-- Add board config if present (immediately after title)
 			local plain_board_config = to_plain_table(self.config)
-			if plain_board_config and not vim.tbl_isempty(plain_board_config) then
+			if plain_board_config and not TblUtils.isEmpty(plain_board_config) then
 				local config_comment = properties_to_comment(plain_board_config, "kanban:config")
 				if type(config_comment) == "table" then
 					for _, line in ipairs(config_comment) do
@@ -241,7 +242,7 @@ function WriterMixin:write_from_blocks()
 
 			-- Column configuration comment if present
 			local plain_config = to_plain_table(column.config)
-			if plain_config and not vim.tbl_isempty(plain_config) then
+			if plain_config and not TblUtils.isEmpty(plain_config) then
 				local config_comment = properties_to_comment(plain_config, "column:config")
 				if type(config_comment) == "table" then
 					for _, line in ipairs(config_comment) do
@@ -291,7 +292,7 @@ function WriterMixin:write_legacy()
 
 	-- Board configuration
 	local plain_board_config = to_plain_table(self.config)
-	if plain_board_config and not vim.tbl_isempty(plain_board_config) then
+	if plain_board_config and not TblUtils.isEmpty(plain_board_config) then
 		local config_comment = properties_to_comment(plain_board_config, "kanban:config")
 		if type(config_comment) == "table" then
 			for _, line in ipairs(config_comment) do

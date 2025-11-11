@@ -146,10 +146,7 @@ end
 
 -- Helper function to get user input
 local function get_input(prompt, default, callback)
-  get_adapter():prompt_input({
-    prompt = prompt,
-    default = default or "",
-  }, function(result)
+  get_adapter():prompt_input(prompt, default or "", function(result)
     if result and result ~= "" then
       callback(result)
     end
@@ -651,10 +648,7 @@ function M.new_column()
     end
 
     -- Optionally prompt for WIP limit (use get_adapter():prompt_input directly to handle empty input)
-    get_adapter():prompt_input({
-      prompt = "WIP limit (optional, press Enter to skip): ",
-      default = "",
-    },function(wip_input)
+    get_adapter():prompt_input("WIP limit (optional, press Enter to skip): ", "", function(wip_input)
 				-- Re-parse board to get current state
 				local current_board = get_current_board()
 

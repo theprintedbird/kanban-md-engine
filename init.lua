@@ -39,8 +39,9 @@ function M.setup(user_config, opts)
     M.adapter = opts.adapter
   else
     -- Default to NeovimAdapter when running in Neovim
+    -- Note: neovim.lua returns an already-instantiated adapter, don't call .new()
     local NeovimAdapter = require('kanban-md.adapters.neovim')
-    M.adapter = NeovimAdapter.new()
+    M.adapter = NeovimAdapter
   end
 
   -- Configure the plugin

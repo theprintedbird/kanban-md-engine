@@ -5,9 +5,14 @@ local Board = require("kanban-md.board")
 local config = require("kanban-md.config")
 local column_helper = require("kanban-md.helpers.column")
 local virtual_text = require("kanban-md.virtual_text")
-local adapter = require("kanban-md.adapters.neovim")
 
 local M = {}
+
+-- Lazy-load adapter to avoid circular dependency (init.lua requires commands.lua)
+local function get_adapter()
+  local kanban = require("kanban-md")
+  return kanban.adapter
+end
 
 -- State for two-step dependency creation
 local dependency_state = {
@@ -17,15 +22,21 @@ local dependency_state = {
   extmark_id = nil,        -- ID of the highlight extmark
 }
 
--- Namespace for dependency marking highlights
-local ns_dependency = adapter:create_namespace('kanban_dependency_mark')
+-- Namespace for dependency marking highlights (initialized lazily on first use)
+local ns_dependency = nil
+local function get_ns_dependency()
+  if not ns_dependency then
+    ns_dependency = get_adapter():create_namespace('kanban_dependency_mark')
+  end
+  return ns_dependency
+end
 
 -- Helper function to clear dependency state
 local function clear_dependency_state()
   -- Clear highlight if exists
   if dependency_state.extmark_id and dependency_state.first_line then
     local bufnr = vim.api.nvim_get_current_buf()
-    pcall(vim.api.nvim_buf_del_extmark, bufnr, ns_dependency, dependency_state.extmark_id)
+    pcall(vim.api.nvim_buf_del_extmark, bufnr, get_ns_dependency(), dependency_state.extmark_id)
   end
 
   -- Reset state
@@ -78,19 +89,19 @@ end
 
 -- Helper function to notify user with Kanban plugin context
 local function notify(message, level)
-  adapter:notify(message, level, { title = "Kanban" })
+  get_adapter():notify(message, level, { title = "Kanban" })
 end
 
 -- Helper function to get current buffer lines
 local function get_buffer_lines(bufnr)
   bufnr = bufnr or 0
-  return adapter:read_buffer(bufnr )
+  return get_adapter():read_buffer(bufnr )
 end
 
 -- Helper function to set buffer lines
 local function set_buffer_lines(lines, bufnr)
   bufnr = bufnr or 0
-  adapter:write_buffer(lines,{ bufnr = bufnr})
+  get_adapter():write_buffer(lines,{ bufnr = bufnr})
 end
 
 -- Helper function to get current buffer's board
@@ -135,7 +146,7 @@ end
 
 -- Helper function to get user input
 local function get_input(prompt, default, callback)
-  adapter:prompt_input({
+  get_adapter():prompt_input({
     prompt = prompt,
     default = default or "",
   }, function(result)
@@ -148,11 +159,11 @@ end
 -- Helper function to show selection menu
 local function select_from_list(items, prompt, callback)
   if not items or #items == 0 then
-    adapter:notify("No items to select from", "warn")
+    get_adapter():notify("No items to select from", "warn")
     return
   end
-  
-  adapter:prompt_select(items, {
+
+  get_adapter():prompt_select(items, {
     prompt = prompt,
     format_item = function(item)
       return tostring(item)
@@ -163,7 +174,7 @@ end
 -- Helper function to find cursor position card
 local function get_card_at_cursor()
   local board = get_current_board()
-  local cursor = adapter:get_cursor(0)
+  local cursor = get_adapter():get_cursor(0)
   local line_num = cursor[1]
   
   -- Look through all columns and cards to find one at this line
@@ -234,7 +245,7 @@ local function move_cursor_to_target_card(board_with_flag)
 
   -- If found, move cursor
   if target_line then
-    adapter:set_cursor(0, {line = target_line, col = 0})
+    get_adapter():set_cursor(0, {line = target_line, col = 0})
     return true
   end
 
@@ -255,7 +266,7 @@ function M.new_board()
 
     -- Clear current buffer and set new board content
     update_buffer_with_board(board)
-    adapter:notify("Created new kanban board: " .. title, "info")
+    get_adapter():notify("Created new kanban board: " .. title, "info")
   end)
 end
 
@@ -264,7 +275,7 @@ function M.new_card()
   local board = get_current_board()
 
   if #board.columns == 0 then
-    adapter:notify("No columns found. Create a board first.", "error")
+    get_adapter():notify("No columns found. Create a board first.", "error")
     return
   end
 
@@ -321,9 +332,9 @@ end
 -- Command: Move card to different column
 function M.move_card()
   local card, current_column, board = get_card_at_cursor()
-  
+
   if not card then
-    adapter:notify("No card found at cursor position", "warn")
+    get_adapter():notify("No card found at cursor position", "warn")
     return
   end
   
@@ -370,7 +381,7 @@ function M.move_card()
     end
 
     if not current_card or not source_column then
-      adapter:notify("Card not found after refresh", "error")
+      get_adapter():notify("Card not found after refresh", "error")
       return
     end
 
@@ -399,7 +410,7 @@ function M.move_card()
     end
 
     if not target_column then
-      adapter:notify("Target column not found", "error")
+      get_adapter():notify("Target column not found", "error")
       return
     end
 
@@ -423,7 +434,7 @@ function M.complete_card()
   local card, current_column, board = get_card_at_cursor()
 
   if not card then
-    adapter:notify("No card found at cursor position", "warn")
+    get_adapter():notify("No card found at cursor position", "warn")
     return
   end
 
@@ -437,7 +448,7 @@ function M.complete_card()
   end
 
   if not done_column then
-    adapter:notify("No completion column found", "error")
+    get_adapter():notify("No completion column found", "error")
     return
   end
 
@@ -496,7 +507,7 @@ function M.force_complete_card()
   local card, current_column, board = get_card_at_cursor()
 
   if not card then
-    adapter:notify("No card found at cursor position", "warn")
+    get_adapter():notify("No card found at cursor position", "warn")
     return
   end
 
@@ -510,19 +521,19 @@ function M.force_complete_card()
   end
 
   if not done_column then
-    adapter:notify("No completion column found", "error")
+    get_adapter():notify("No completion column found", "error")
     return
   end
 
   -- Check if card already in completion column
   if column_helper.is_completion_column(current_column, board) then
-    adapter:notify("Card is already in a completion column", "warn")
+    get_adapter():notify("Card is already in a completion column", "warn")
     return
   end
 
   -- Show confirmation if configured
   if config.get_value("confirm_destructive") then
-    adapter:prompt_select(
+    get_adapter():prompt_select(
       {"Yes, force complete", "Cancel"},
       {
         prompt = string.format(
@@ -547,7 +558,7 @@ function M.set_complexity()
   local card, current_column, board = get_card_at_cursor()
 
   if not card then
-    adapter:notify("No card found at cursor position", "warn")
+    get_adapter():notify("No card found at cursor position", "warn")
     return
   end
 
@@ -559,12 +570,12 @@ function M.set_complexity()
     local complexity = tonumber(input)
 
     if not complexity then
-      adapter:notify("Invalid complexity value. Must be a number.", "error")
+      get_adapter():notify("Invalid complexity value. Must be a number.", "error")
       return
     end
 
     if complexity < 0 then
-      adapter:notify("Complexity must be a positive number", "error")
+      get_adapter():notify("Complexity must be a positive number", "error")
       return
     end
 
@@ -594,7 +605,7 @@ function M.set_complexity()
     end
 
     if not current_card then
-      adapter:notify("Card not found after refresh", "error")
+      get_adapter():notify("Card not found after refresh", "error")
       return
     end
 
@@ -603,7 +614,7 @@ function M.set_complexity()
 
     -- Update buffer
     update_buffer_with_board(current_board)
-    adapter:notify("Set complexity to " .. complexity .. " for card '" .. current_card.text .. "'", "info")
+    get_adapter():notify("Set complexity to " .. complexity .. " for card '" .. current_card.text .. "'", "info")
   end)
 end
 
@@ -617,9 +628,9 @@ function M.archive_done_cards()
 
   if archived_count > 0 then
     update_buffer_with_board(board)
-    adapter:notify("Archived " .. archived_count .. " cards older than " .. archive_days .. " days", "info")
+    get_adapter():notify("Archived " .. archived_count .. " cards older than " .. archive_days .. " days", "info")
   else
-    adapter:notify("No cards to archive", "info")
+    get_adapter():notify("No cards to archive", "info")
   end
 end
 
@@ -629,18 +640,18 @@ function M.new_column()
 
   get_input("Column name: ", "", function(column_name)
     if not column_name or column_name == "" then
-      adapter:notify("Column name cannot be empty", "error")
+      get_adapter():notify("Column name cannot be empty", "error")
       return
     end
 
     -- Check if column already exists
     if board:get_column_by_name(column_name) then
-      adapter:notify("Column '" .. column_name .. "' already exists", "error")
+      get_adapter():notify("Column '" .. column_name .. "' already exists", "error")
       return
     end
 
-    -- Optionally prompt for WIP limit (use adapter:prompt_input directly to handle empty input)
-    adapter:prompt_input({
+    -- Optionally prompt for WIP limit (use get_adapter():prompt_input directly to handle empty input)
+    get_adapter():prompt_input({
       prompt = "WIP limit (optional, press Enter to skip): ",
       default = "",
     },function(wip_input)
@@ -654,7 +665,7 @@ function M.new_column()
 					if wip_limit and wip_limit > 0 then
 						col_config = { wip_limit = wip_limit }
 					else
-						adapter:notify("Invalid WIP limit. Column created without WIP limit.", "warn")
+						get_adapter():notify("Invalid WIP limit. Column created without WIP limit.", "warn")
 					end
 				end
 
@@ -709,12 +720,12 @@ function M.show_stats()
     -- Reuse existing buffer
     buf = existing_buf
     vim.api.nvim_buf_set_option(buf, "modifiable", true)
-    adapter:write_buffer(lines, {bufnr = buf})
+    get_adapter():write_buffer(lines, {bufnr = buf})
     vim.api.nvim_buf_set_option(buf, "modifiable", false)
   else
     -- Create new buffer
     buf = vim.api.nvim_create_buf(false, true)
-    adapter:write_buffer(lines, { bufnr = buf})
+    get_adapter():write_buffer(lines, { bufnr = buf})
     vim.api.nvim_buf_set_option(buf, "modifiable", false)
     vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
     vim.api.nvim_buf_set_name(buf, stats_buf_name)
@@ -743,7 +754,7 @@ function M.add_dependency()
   local card, column, board = get_card_at_cursor()
 
   if not card then
-    adapter:notify("No card found at cursor position", "warn")
+    get_adapter():notify("No card found at cursor position", "warn")
     clear_dependency_state()
     return
   end
@@ -752,7 +763,7 @@ function M.add_dependency()
   if not dependency_state.first_card then
     -- Validate card has ID
     if not card.properties.id or card.properties.id == "" then
-      adapter:notify("Card must have an ID property. Run :KanbanPersistIds to enable persistent IDs.", "error")
+      get_adapter():notify("Card must have an ID property. Run :KanbanPersistIds to enable persistent IDs.", "error")
       return
     end
 
@@ -763,7 +774,7 @@ function M.add_dependency()
 
     -- Add visual feedback (highlight the line)
     local bufnr = vim.api.nvim_get_current_buf()
-    dependency_state.extmark_id = adapter:set_extmark(bufnr, ns_dependency, card.line_number - 1, 0, {
+    dependency_state.extmark_id = get_adapter():set_extmark(bufnr, get_ns_dependency(), card.line_number - 1, 0, {
       line_hl_group = config.get_value("dependency_marking_hl"),
       priority = 100,
     })
@@ -775,14 +786,14 @@ function M.add_dependency()
   -- Second invocation: Mark the dependency card
   -- Validate second card has ID
   if not card.properties.id or card.properties.id == "" then
-    adapter:notify("Dependency card must have an ID property. Run :KanbanPersistIds to enable persistent IDs, or move the card to generate a temporary ID.", "error")
+    get_adapter():notify("Dependency card must have an ID property. Run :KanbanPersistIds to enable persistent IDs, or move the card to generate a temporary ID.", "error")
     clear_dependency_state()
     return
   end
 
   -- Validate not adding self-dependency
   if card.properties.id == dependency_state.first_card.properties.id then
-    adapter:notify("Cannot add a card as its own dependency", "error")
+    get_adapter():notify("Cannot add a card as its own dependency", "error")
     clear_dependency_state()
     return
   end
@@ -816,7 +827,7 @@ function M.add_dependency()
   end
 
   if not first_card_refreshed then
-    adapter:notify("First card not found after refresh", "error")
+    get_adapter():notify("First card not found after refresh", "error")
     clear_dependency_state()
     return
   end
@@ -834,7 +845,7 @@ function M.add_dependency()
   -- Check for duplicate dependency
   for _, dep_id in ipairs(first_card_refreshed.properties.depends_on) do
     if dep_id == card.properties.id then
-      adapter:notify("Dependency already exists", "warn")
+      get_adapter():notify("Dependency already exists", "warn")
       clear_dependency_state()
       return
     end
@@ -868,7 +879,7 @@ function M.add_dependency()
   end
 
   if has_circular_dependency(card.properties.id, dependency_state.first_card.properties.id, current_board) then
-    adapter:notify("Cannot add dependency: would create a circular dependency", "error")
+    get_adapter():notify("Cannot add dependency: would create a circular dependency", "error")
     clear_dependency_state()
     return
   end
@@ -896,7 +907,7 @@ function M.persist_card_ids()
   local global_enabled = config.get_value("persist_card_ids")
 
   if already_enabled and global_enabled then
-    adapter:notify("Persistent card IDs are already enabled for this board", "info")
+    get_adapter():notify("Persistent card IDs are already enabled for this board", "info")
     return
   end
 
@@ -986,7 +997,7 @@ function M.setup()
     pattern = "*.md",
     callback = function(args)
       local bufnr = args.buf
-      local lines = adapter:read_buffer(bufnr)
+      local lines = get_adapter():read_buffer(bufnr)
 
       -- Quick check: does this look like a kanban board?
       -- Look for H6 headers (######) which are used for columns

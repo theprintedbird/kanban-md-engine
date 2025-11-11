@@ -7,6 +7,8 @@ local Adapter = require("kanban-md.adapters.interface")
 
 --- Internal state for CLI adapter
 local CLIAdapter = Adapter.new({
+  name = "CLIAdapter",
+
   --- Cursor tracking for CLI adapter (simple line tracking)
   _cursor = { line = 1, col = 0 },
 
@@ -25,7 +27,7 @@ local CLIAdapter = Adapter.new({
     if level == "info" then
       prefix = "9 "
     elseif level == "warn" then
-      prefix = "  "
+      prefix = "ï¿½ "
     elseif level == "error" then
       prefix = "L"
     end

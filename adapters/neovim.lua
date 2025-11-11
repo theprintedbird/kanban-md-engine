@@ -1,6 +1,8 @@
 local Adapter = require("kanban-md.adapters.interface")
 
 local NeovimAdapter = Adapter.new({
+  name = "NeovimAdapter",
+
   notify = function(self, message, level)
     -- level should be a string like "info", "warn", "error"
     -- Convert to vim.log.levels constant

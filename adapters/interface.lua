@@ -15,12 +15,34 @@ Adapter.__index = Adapter
 
 --- Create an error message for unimplemented methods
 --- @param method_name string The name of the method that wasn't implemented
+--- @param adapter table|nil Optional adapter instance to identify the adapter type
 --- @return string error_message
-local function not_implemented(method_name)
+local function not_implemented(method_name, adapter)
+  local adapter_info = ""
+  if adapter then
+    -- Try to get a useful identifier for the adapter
+    local adapter_type = type(adapter)
+    if adapter_type == "table" then
+      -- Check for common identifier fields
+      if adapter.name then
+        adapter_info = string.format(" (adapter: %s)", adapter.name)
+      elseif adapter._type then
+        adapter_info = string.format(" (adapter type: %s)", adapter._type)
+      else
+        -- Try to identify by metatable
+        local mt = getmetatable(adapter)
+        if mt and mt.__name then
+          adapter_info = string.format(" (adapter: %s)", mt.__name)
+        end
+      end
+    end
+  end
+
   return string.format(
-    "Abstract method '%s' must be implemented by adapter. " ..
+    "Abstract method '%s' must be implemented by adapter%s. " ..
     "This adapter did not provide an implementation.",
-    method_name
+    method_name,
+    adapter_info
   )
 end
 
@@ -29,7 +51,7 @@ end
 --- @param level string|nil Severity level: "info", "warn", "error" (default: "info")
 --- @return nil
 function Adapter:notify(message, level)
-	error(not_implemented("notify"))
+	error(not_implemented("notify", self))
 end
 
 --- @return integer
@@ -48,7 +70,7 @@ end
 --- @param opts table|nil Optional arguments: {start: number, _end: number} (defaults: start=0, _end=-1)
 --- @return table lines Array of strings, one per line
 function Adapter:read_buffer(bufnr, opts)
-  error(not_implemented("read_buffer"))
+  error(not_implemented("read_buffer", self))
 end
 
 --- Buffer I/O: Write lines to the current buffer/file
@@ -56,14 +78,14 @@ end
 --- @param opts table|nil Optional arguments: {bufnr: number, start: number, _end: number} (defaults: bufnr=current, start=0, _end=-1)
 --- @return nil
 function Adapter:write_buffer(lines, opts)
-  error(not_implemented("write_buffer"))
+  error(not_implemented("write_buffer", self))
 end
 
 --- Cursor Management: Get current cursor position
 --- @return number line 1-indexed line number
 --- @return number col 0-indexed column number
 function Adapter:get_cursor()
-  error(not_implemented("get_cursor"))
+  error(not_implemented("get_cursor", self))
 end
 
 --- Cursor Management: Set cursor position
@@ -71,7 +93,7 @@ end
 --- @param col number 0-indexed column number
 --- @return nil
 function Adapter:set_cursor(line, col)
-  error(not_implemented("set_cursor"))
+  error(not_implemented("set_cursor", self))
 end
 
 --- UI Prompts: Prompt user for text input
@@ -80,7 +102,7 @@ end
 --- @param callback function Callback receiving the input: function(input)
 --- @return nil
 function Adapter:prompt_input(prompt, default, callback)
-  error(not_implemented("prompt_input"))
+  error(not_implemented("prompt_input", self))
 end
 
 --- UI Prompts: Prompt user to select from a list of items
@@ -89,7 +111,7 @@ end
 --- @param callback function Callback receiving selected item and index: function(item, idx)
 --- @return nil
 function Adapter:prompt_select(items, opts, callback)
-  error(not_implemented("prompt_select"))
+  error(not_implemented("prompt_select", self))
 end
 
 --- Optional: Virtual Text Support

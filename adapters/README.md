@@ -29,6 +29,8 @@ This directory contains the adapter interface and platform-specific implementati
 
 ### Using an Existing Adapter
 
+TODO update this
+
 ```lua
 local NeovimAdapter = require('kanban-md.adapters.neovim')
 local adapter = NeovimAdapter.new()
@@ -333,6 +335,7 @@ If your platform supports inline text display (like Neovim's extmarks), override
 
 ### Step 4: Inject Your Adapter
 
+TODO update this
 In your application code:
 
 ```lua

@@ -16,10 +16,33 @@ local M = {
   Triggerable = Triggerable,
   triggers = triggers,
   config = config,
+  adapter = nil, -- Injected adapter instance (defaults to NeovimAdapter)
 }
 
 -- Plugin setup function
-function M.setup(user_config)
+-- @param user_config table|nil Optional configuration overrides
+-- @param opts table|nil Optional setup options:
+--   - adapter: Adapter instance to use (defaults to NeovimAdapter if not provided)
+--
+-- Example usage:
+--   -- Default Neovim setup
+--   require('kanban-md').setup({})
+--
+--   -- Custom adapter injection (for CLI, web, etc.)
+--   local CLIAdapter = require('kanban-md.adapters.cli')
+--   require('kanban-md').setup({}, { adapter = CLIAdapter.new() })
+function M.setup(user_config, opts)
+  opts = opts or {}
+
+  -- Inject adapter or default to NeovimAdapter
+  if opts.adapter then
+    M.adapter = opts.adapter
+  else
+    -- Default to NeovimAdapter when running in Neovim
+    local NeovimAdapter = require('kanban-md.adapters.neovim')
+    M.adapter = NeovimAdapter.new()
+  end
+
   -- Configure the plugin
   config.setup(user_config)
 

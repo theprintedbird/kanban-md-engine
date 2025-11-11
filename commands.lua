@@ -124,8 +124,12 @@ local function update_buffer_with_board(board, bufnr)
   local lines = board:write()
   set_buffer_lines(lines, bufnr)
 
-  -- Update virtual text after writing board
-  virtual_text.update_virtual_text(board, bufnr)
+  -- Re-parse board to get fresh line numbers after writing
+  local fresh_board = Board:new()
+  fresh_board:parse(lines)
+
+  -- Update virtual text with fresh line numbers
+  virtual_text.update_virtual_text(fresh_board, bufnr)
 end
 
 -- Helper function to get user input

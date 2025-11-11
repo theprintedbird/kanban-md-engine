@@ -3,17 +3,22 @@
 
 local stats = require("kanban-md.stats")
 local column_helpers = require("kanban-md.helpers.column")
-local adapter = require("kanban-md.adapters.neovim")
+local adapter_registry = require("kanban-md.adapter_registry")
 
 local M = {}
 
 -- Namespace for virtual text extmarks
 local ns_id = nil
 
+-- Get adapter from registry
+local function get_adapter()
+  return adapter_registry.get_adapter()
+end
+
 -- Initialize the virtual text namespace
 function M.setup()
   if not ns_id then
-    ns_id = adapter:create_namespace("kanban_md_virtual_text")
+    ns_id = get_adapter():create_namespace("kanban_md_virtual_text")
   end
 end
 
@@ -22,7 +27,7 @@ local function clear_virtual_text(bufnr)
   if not ns_id then
     M.setup()
   end
-  adapter:clear_namespace(bufnr, ns_id)
+  get_adapter():clear_namespace(bufnr, ns_id)
 end
 
 -- Display WIP limit warnings for columns that exceed their limits
@@ -48,7 +53,7 @@ local function display_wip_warnings(board, bufnr)
         line_num = board.title_line - 1
       end
 
-      adapter:set_extmark(bufnr, ns_id, line_num, 0, {
+      get_adapter():set_extmark(bufnr, ns_id, line_num, 0, {
         virt_text = {{string.format(" ⚠ Board WIP limit exceeded (%d/%d)", total_wip, board.config.wip_limit), "WarningMsg"}},
         virt_text_pos = "eol"
       })
@@ -64,7 +69,7 @@ local function display_wip_warnings(board, bufnr)
         -- Line numbers in parser are 1-indexed, but nvim_buf_set_extmark is 0-indexed
         local line_num = column.line_number - 1
 
-        adapter:set_extmark(bufnr, ns_id, line_num, 0, {
+        get_adapter():set_extmark(bufnr, ns_id, line_num, 0, {
           virt_text = {{string.format(" ⚠ WIP limit exceeded (%d/%d)", wip, column.config.wip_limit), "WarningMsg"}},
           virt_text_pos = "eol"
         })
@@ -187,7 +192,7 @@ local function display_metrics(board, bufnr)
 
     -- Display if we have any virtual text
     if #virt_text > 0 then
-      adapter:set_extmark(bufnr, ns_id, line_num, 0, {
+      get_adapter():set_extmark(bufnr, ns_id, line_num, 0, {
         virt_text = virt_text,
         virt_text_pos = "eol"
       })
@@ -227,6 +232,9 @@ end
 -- @param board table: Board object to display stats for
 -- @param bufnr number: Buffer number to display in
 function M.update_virtual_text(board, bufnr)
+	if not get_adapter():supports_virtual_text() then
+		return
+	end
   if not board or not bufnr then
     return
   end

@@ -8,6 +8,7 @@ local Triggerable = require('kanban-md.triggerable')
 local triggers = require('kanban-md.triggers')
 local config = require('kanban-md.config')
 local commands = require('kanban-md.commands')
+local adapter_registry = require('kanban-md.adapter_registry')
 
 local M = {
   Board = Board,
@@ -43,6 +44,9 @@ function M.setup(user_config, opts)
     local NeovimAdapter = require('kanban-md.adapters.neovim')
     M.adapter = NeovimAdapter
   end
+
+  -- Register adapter in central registry for use by other modules
+  adapter_registry.set_adapter(M.adapter)
 
   -- Configure the plugin
   config.setup(user_config)

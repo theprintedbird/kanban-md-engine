@@ -5,13 +5,13 @@ local Board = require("kanban-md.board")
 local config = require("kanban-md.config")
 local column_helper = require("kanban-md.helpers.column")
 local virtual_text = require("kanban-md.virtual_text")
+local adapter_registry = require("kanban-md.adapter_registry")
 
 local M = {}
 
--- Lazy-load adapter to avoid circular dependency (init.lua requires commands.lua)
+-- Get adapter from central registry
 local function get_adapter()
-  local kanban = require("kanban-md")
-  return kanban.adapter
+  return adapter_registry.get_adapter()
 end
 
 -- State for two-step dependency creation

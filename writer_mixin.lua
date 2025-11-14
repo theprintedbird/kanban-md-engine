@@ -6,7 +6,7 @@ local config_module = require("kanban-md.config")
 local triggers_module = require("kanban-md.triggers")
 local column_helpers = require("kanban-md.helpers.column")
 local TblUtils = require("kanban-md.utils.table")
-local adapter = require("kanban-md.adapters.neovim")
+local adapter_registry = require("kanban-md.adapter_registry")
 
 -- Writer mixin that can be applied to Board instances
 local WriterMixin = {}
@@ -359,30 +359,30 @@ end
 
 -- Write board to buffer
 function WriterMixin:write_to_buffer(bufnr)
-	bufnr = bufnr or adapter:get_current_buffer()
+	bufnr = bufnr or adapter_registry.get_adapter():get_current_buffer()
 	local lines = self:write()
 
 	-- Save cursor position
-	local cursor = adapter:get_cursor(0)
+	local cursor = adapter_registry.get_adapter():get_cursor(0)
 
 	-- Update buffer
-	adapter:write_buffer(lines,{ bufnr = bufnr, start = 0, _end = -1})
+	adapter_registry.get_adapter():write_buffer(lines,{ bufnr = bufnr, start = 0, _end = -1})
 
 	-- Try to restore cursor position intelligently
-	local max_line = adapter:buf_line_count(bufnr)
+	local max_line = adapter_registry.get_adapter():buf_line_count(bufnr)
 	if cursor[1] > max_line then
 		cursor[1] = max_line
 	end
 
 	-- Restore cursor
-	adapter:set_cursor(cursor)
+	adapter_registry.get_adapter():set_cursor(cursor)
 
 	return true
 end
 
 -- Update a single task in place (minimal change)
 function WriterMixin:update_task_in_buffer(task_id, bufnr)
-	bufnr = bufnr or adapter:get_current_buffer()
+	bufnr = bufnr or adapter_registry.get_adapter():get_current_buffer()
 
 	-- Find the task in the board
 	local parser = require("kanban-md.parser")
@@ -397,10 +397,10 @@ function WriterMixin:update_task_in_buffer(task_id, bufnr)
 
 	if type(updated_line) == "table" then
 		-- Multi-line (shouldn't happen often for cards)
-		adapter:write_buffer(updated_line, {bufnr = bufnr, start = task.line_number - 1, _end = task.line_number })
+		adapter_registry.get_adapter():write_buffer(updated_line, {bufnr = bufnr, start = task.line_number - 1, _end = task.line_number })
 	else
 		-- Single line (normal case)
-		adapter:write_buffer(updated_line,{bufnr = bufnr, start = task.line_number - 1, _end = task.line_number })
+		adapter_registry.get_adapter():write_buffer(updated_line,{bufnr = bufnr, start = task.line_number - 1, _end = task.line_number })
 	end
 
 	return true

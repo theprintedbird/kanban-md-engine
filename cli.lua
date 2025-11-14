@@ -30,14 +30,14 @@ local M = {
 --     auto_archive = true,
 --   })
 function M.setup(user_config)
-  -- Prevent accidental use in Neovim
-  if vim ~= nil then
+  -- Prevent accidental use in Neovim (allow in test mode)
+  if vim ~= nil and not _G._TEST then
     error("Use require('kanban-md').setup() in Neovim, not require('kanban-md.cli')")
   end
 
   -- Use CLIAdapter for standalone Lua
   local CLIAdapter = require('kanban-md.adapters.cli')
-  M.adapter = CLIAdapter.new()
+  M.adapter = CLIAdapter  -- CLIAdapter is already an instance, not a class
 
   -- Perform core setup (no Neovim commands)
   core_setup.setup(user_config, M.adapter)

@@ -25,6 +25,7 @@ function Card:new(id, text, properties)
   local obj = {
     id = id,
     text = text or "",
+    content_lines = nil,  -- Array of all lines (including first line) for multi-line cards
     properties = props,
     column = nil,
     triggers = {},
@@ -86,6 +87,7 @@ function Card:deep_copy()
   local obj = {
     id = self.id,
     text = self.text,
+    content_lines = self.content_lines and copy_table(self.content_lines) or nil,
     properties = props_copy,
     column = self.column,
     triggers = {},
@@ -94,6 +96,16 @@ function Card:deep_copy()
   setmetatable(obj, Card)
 
   return obj
+end
+
+-- Get the full text content of the card
+-- For single-line cards, returns card.text
+-- For multi-line cards, returns all content_lines joined with newlines
+function Card:get_full_text()
+  if self.content_lines then
+    return table.concat(self.content_lines, "\n")
+  end
+  return self.text
 end
 
 return Card

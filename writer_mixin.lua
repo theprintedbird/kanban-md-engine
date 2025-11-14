@@ -111,25 +111,48 @@ end
 -- Write a task line
 local function write_task(task, column_name)
 	local config = config_module.get()
-	-- Simple list item (no checkboxes)
-	local line = string.format("%s- %s", config.task_indent, task.text)
+	local lines = {}
 
-	-- Add properties as inline comment if present
+	-- Get properties to write
 	local props_to_write = to_plain_table(task.properties or {})
-
-	-- Sync card.id to card.properties.id if persist_card_ids is enabled
-	-- This ensures the properties table is up-to-date before writing
 	if config_module.get_value('persist_card_ids') and task.id then
 		props_to_write.id = task.id
 	end
 
+	-- Build property comment
 	local comment = properties_to_comment(props_to_write)
+
+	-- Handle multi-line cards
+	if task.content_lines then
+		-- First line with properties
+		local first_line = task.content_lines[1]
+		if comment then
+			if type(comment) == "table" then
+				table.insert(lines, first_line .. " " .. comment[1])
+				for i = 2, #comment do
+					table.insert(lines, comment[i])
+				end
+			else
+				table.insert(lines, first_line .. " " .. comment)
+			end
+		else
+			table.insert(lines, first_line)
+		end
+
+		-- Continuation lines (preserve original indentation)
+		for i = 2, #task.content_lines do
+			table.insert(lines, task.content_lines[i])
+		end
+
+		return lines
+	end
+
+	-- Single-line card (existing behaviour)
+	local line = string.format("%s- %s", config.task_indent, task.text)
 	if comment then
 		if type(comment) == "table" then
-			-- Multi-line comment (rare for cards)
 			return { line .. " " .. comment[1], unpack(comment, 2) }
 		else
-			-- Single-line comment
 			return line .. " " .. comment
 		end
 	end

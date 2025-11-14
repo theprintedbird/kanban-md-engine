@@ -170,6 +170,16 @@ local function parse_properties(comment_text)
 	return props
 end
 
+-- Detect if a line is a continuation line (indented by 2+ spaces or 1+ tabs)
+local function is_continuation_line(line)
+	return line:match("^  +") or line:match("^\t+")  -- 2+ spaces or 1+ tabs at start
+end
+
+-- Detect if a line has a list marker
+local function has_list_marker(line)
+	return line:match("^%s*%-%s+")
+end
+
 -- Apply column configuration with type resolution and property merging
 -- Handles both "column:config" and simplified "config" syntax
 local function apply_column_config(column, config_content)
@@ -204,6 +214,7 @@ end
 local function parse_task(line)
 	local task = {
 		text = "",
+		content_lines = {line},  -- Start with first line
 		properties = TypeConverter:new({}),
 		raw = line,
 	}
@@ -257,6 +268,43 @@ local function add_structured_block(board, block)
 	table.insert(board.content_blocks, block)
 end
 
+-- Helper: Finalize a card and add it to the column
+local function finalize_card(column, card_data)
+	-- Extract text from first line
+	local first_line = card_data.content_lines[1]
+	local text = first_line:match(patterns.task_item)
+
+	-- Check for inline properties on first line
+	local task_text, comment = text:match("^(.-)%s*<!%-%-%s*(.-)%s*%-%->%s*$")
+	if task_text and comment then
+		card_data.text = task_text:gsub("^%s+", ""):gsub("%s+$", "")
+		card_data.properties = TypeConverter:new(parse_properties(comment))
+
+		-- Update first line in content_lines to remove properties
+		card_data.content_lines[1] = "- " .. card_data.text
+	else
+		card_data.text = text:gsub("^%s+", ""):gsub("%s+$", "")
+	end
+
+	-- Create Card object
+	local card = Card:new(
+		card_data.properties.id,
+		card_data.text,
+		card_data.properties
+	)
+
+	card.line_number = card_data.line_number
+	card.column = card_data.column
+	card.raw = card_data.raw
+
+	-- Store content lines if multi-line
+	if #card_data.content_lines > 1 then
+		card.content_lines = card_data.content_lines
+	end
+
+	column:add_card(card)
+end
+
 -- Parse markdown content and populate this Board instance
 function ParserMixin:parse(content)
 	-- Initialize board properties if not already set
@@ -281,6 +329,10 @@ function ParserMixin:parse(content)
 	local markdown_buffer = {}
 	local seen_title = false
 	local ContentBlock = require("kanban-md.content_block")
+
+	-- Multiline card tracking
+	local current_card = nil          -- Card being accumulated
+	local blank_line_seen = false     -- Track blank lines
 
 	if lines ~= nil then
 		for _, line in ipairs(lines) do
@@ -372,6 +424,21 @@ function ParserMixin:parse(content)
 			-- Parse archive section
 			elseif line:match(patterns.archive_section) then
 				add_to_markdown = false
+
+				-- Flush current card if any
+				if current_card then
+					-- Apply pending config if any
+					if pending_config then
+						for k, v in pairs(pending_config.properties) do
+							current_card.properties[k] = v
+						end
+						pending_config = nil
+					end
+					finalize_card(current_column, current_card)
+					current_card = nil
+					blank_line_seen = false
+				end
+
 				-- Flush markdown buffer before column
 				flush_markdown_buffer(self, markdown_buffer)
 				markdown_buffer = {}
@@ -391,6 +458,20 @@ function ParserMixin:parse(content)
 				local column_name = line:match(patterns.column_header)
 
 				if not column_name:match("^__") then  -- Regular column
+					-- Flush current card if any
+					if current_card then
+						-- Apply pending config if any
+						if pending_config then
+							for k, v in pairs(pending_config.properties) do
+								current_card.properties[k] = v
+							end
+							pending_config = nil
+						end
+						finalize_card(current_column, current_card)
+						current_card = nil
+						blank_line_seen = false
+					end
+
 					-- Flush markdown buffer before column
 					flush_markdown_buffer(self, markdown_buffer)
 					markdown_buffer = {}
@@ -403,36 +484,75 @@ function ParserMixin:parse(content)
 					-- Add column block
 					add_structured_block(self, ContentBlock.column(current_column))
 				end
-			-- Parse tasks
+			-- Parse tasks with multi-line support
 			elseif current_column then
-				local task_data = nil
+				local is_blank = line:match("^%s*$")
+				local is_task = line:match(patterns.task_item)
+				local is_continuation = is_continuation_line(line)
 
-				-- Check for task item
-				if line:match(patterns.task_item) then
-					task_data = parse_task(line)
-				end
-
-				if task_data then
+				-- Handle blank lines
+				if is_blank then
+					if current_card then
+						blank_line_seen = true
+					end
+					table.insert(markdown_buffer, line)
 					add_to_markdown = false
-					task_data.line_number = line_number
-					task_data.column = current_column.name
 
-					-- Apply pending config if any
-					if pending_config then
-						for k, v in pairs(pending_config.properties) do
-							task_data.properties[k] = v
+				-- Handle list items
+				elseif is_task then
+					-- Flush current card if any
+					if current_card then
+						-- Flush markdown buffer before finalizing card
+						flush_markdown_buffer(self, markdown_buffer)
+						markdown_buffer = {}
+
+						-- Apply pending config if any
+						if pending_config then
+							for k, v in pairs(pending_config.properties) do
+								current_card.properties[k] = v
+							end
+							pending_config = nil
 						end
-						pending_config = nil
+
+						finalize_card(current_column, current_card)
+						current_card = nil
+					else
+						-- Flush markdown buffer before starting new card
+						flush_markdown_buffer(self, markdown_buffer)
+						markdown_buffer = {}
 					end
 
-					-- Create Card object and add to column
-					local card = Card:new(task_data.properties.id, task_data.text, task_data.properties)
-					card.line_number = task_data.line_number
-					card.column = task_data.column
-					card.raw = task_data.raw
+					-- Start new card
+					current_card = parse_task(line)
+					current_card.line_number = line_number
+					current_card.column = current_column.name
+					blank_line_seen = false
+					add_to_markdown = false
 
-					-- Use column's add_card method to properly integrate with event system
-					current_column:add_card(card)
+				-- Handle continuation lines
+				elseif current_card and is_continuation and not blank_line_seen then
+					table.insert(current_card.content_lines, line)
+					add_to_markdown = false
+
+				-- Handle column documentation
+				else
+					-- Flush current card if transitioning to markdown
+					if current_card then
+						-- Apply pending config if any
+						if pending_config then
+							for k, v in pairs(pending_config.properties) do
+								current_card.properties[k] = v
+							end
+							pending_config = nil
+						end
+
+						finalize_card(current_column, current_card)
+						current_card = nil
+					end
+
+					table.insert(markdown_buffer, line)
+					add_to_markdown = false
+					blank_line_seen = false
 				end
 			end
 
@@ -440,6 +560,19 @@ function ParserMixin:parse(content)
 			if add_to_markdown then
 				table.insert(markdown_buffer, line)
 			end
+		end
+
+		-- Flush current card if any at end of file
+		if current_card then
+			-- Apply pending config if any
+			if pending_config then
+				for k, v in pairs(pending_config.properties) do
+					current_card.properties[k] = v
+				end
+				pending_config = nil
+			end
+			finalize_card(current_column, current_card)
+			current_card = nil
 		end
 
 		-- Flush remaining markdown buffer at the end

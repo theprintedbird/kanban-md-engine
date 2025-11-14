@@ -173,7 +173,7 @@ local function get_card_at_cursor()
   local board = get_current_board()
   local cursor = get_adapter():get_cursor(0)
   local line_num = cursor[1]
-  
+
   -- Look through all columns and cards to find one at this line
   for _, column in ipairs(board.columns) do
     for _, card in ipairs(column.cards) do
@@ -182,7 +182,7 @@ local function get_card_at_cursor()
       end
     end
   end
-  
+
   -- Check archive
   if board.archive then
     for _, card in ipairs(board.archive.cards) do
@@ -191,7 +191,7 @@ local function get_card_at_cursor()
       end
     end
   end
-  
+
   return nil, nil, board
 end
 
@@ -334,7 +334,11 @@ function M.move_card()
     get_adapter():notify("No card found at cursor position", "warn")
     return
   end
-  
+	if not current_column then
+		get_adapter():notify("The current column could not be ascertained or found.", "error")
+		return
+	end
+
   -- Get column names for selection (excluding current column)
   local column_names = {}
   for _, col in ipairs(board.columns) do
@@ -342,10 +346,10 @@ function M.move_card()
       table.insert(column_names, col.name)
     end
   end
-  
+
   -- Add archive option
   table.insert(column_names, "__ARCHIVE__")
-  
+
   select_from_list(column_names, "Move card to:", function(choice)
     if not choice then return end
 
@@ -713,15 +717,15 @@ function M.show_stats()
   if existing_buf then
     -- Reuse existing buffer
     buf = existing_buf
-    vim.api.nvim_buf_set_option(buf, "modifiable", true)
+		vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
     get_adapter():write_buffer(lines, {bufnr = buf})
-    vim.api.nvim_buf_set_option(buf, "modifiable", false)
+		vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
   else
     -- Create new buffer
     buf = vim.api.nvim_create_buf(false, true)
     get_adapter():write_buffer(lines, { bufnr = buf})
-    vim.api.nvim_buf_set_option(buf, "modifiable", false)
-    vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
+		vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+		vim.api.nvim_set_option_value("filetype", "markdown", { buf = buf })
     vim.api.nvim_buf_set_name(buf, stats_buf_name)
   end
 

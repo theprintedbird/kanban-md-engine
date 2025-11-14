@@ -112,6 +112,13 @@ local function parse_properties(comment_text)
 				bracket_count = bracket_count - 1
 			elseif char == ',' and bracket_count == 0 then
 				break
+			elseif bracket_count == 0 then
+				-- Check if we're at the start of the next property (word followed by colon)
+				-- Look ahead to detect pattern: whitespace + word + colon
+				local ahead = comment_text:sub(value_end)
+				if ahead:match("^%s+[%w_]+:%s*") then
+					break  -- Stop here, next property detected
+				end
 			end
 			value_end = value_end + 1
 		end

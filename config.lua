@@ -120,6 +120,23 @@ local default_config = {
   -- Used by: Archive operations (not actively implemented yet)
   auto_archive = true,
 
+  -- detection_strategy (string)
+  -- Strategy for detecting kanban board files in markdown buffers
+  -- Options:
+  --   "marker"    - Require explicit <!-- kanban-board --> marker in first 10 lines (safest, recommended)
+  --   "extension" - Only parse files with .kanban.md extension
+  --   "auto"      - Auto-detect based on H6 headers (######) (legacy, may parse non-board files)
+  --   "both"      - Accept either marker OR .kanban.md extension
+  -- Used by: commands.lua autocommand for BufEnter/BufWritePost
+  -- Recommended: "marker" or "both" (prevents accidental parsing of documentation/README files)
+  detection_strategy = "marker",
+
+  -- require_kanban_marker (boolean) [DEPRECATED]
+  -- Legacy config option - use detection_strategy instead
+  -- For backwards compatibility: true maps to "marker", false maps to "auto"
+  -- This option is ignored if detection_strategy is explicitly set
+  require_kanban_marker = nil,
+
   -- auto_timestamp (boolean) [CORE FEATURE]
   -- Automatically set timestamp properties when cards enter columns
   -- When enabled: Moving a card to "In Progress" sets card.properties.in_progress = os.time()

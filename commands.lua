@@ -994,12 +994,56 @@ function M.setup()
       local lines = get_adapter():read_buffer(bufnr)
 
       -- Quick check: does this look like a kanban board?
-      -- Look for H6 headers (######) which are used for columns
       local is_kanban = false
-      for _, line in ipairs(lines) do
-        if line:match("^######%s+") then
+      local strategy = config.get_value("detection_strategy")
+
+      -- Handle legacy config option for backwards compatibility
+      if not strategy or strategy == "" then
+        local require_marker = config.get_value("require_kanban_marker")
+        if require_marker == true then
+          strategy = "marker"
+        elseif require_marker == false then
+          strategy = "auto"
+        else
+          strategy = "marker" -- default
+        end
+      end
+
+      -- Get buffer name for extension checking
+      local bufname = get_adapter():get_buffer_name(bufnr)
+      local has_kanban_extension = bufname and bufname:match("%.kanban%.md$") ~= nil
+
+      if strategy == "marker" then
+        -- Look for explicit <!-- kanban-board --> marker in first 10 lines
+        for i = 1, math.min(10, #lines) do
+          if lines[i]:match("<!%-%-%s*kanban%-board%s*%-%->") then
+            is_kanban = true
+            break
+          end
+        end
+      elseif strategy == "extension" then
+        -- Only parse files with .kanban.md extension
+        is_kanban = has_kanban_extension
+      elseif strategy == "both" then
+        -- Accept either marker OR .kanban.md extension
+        if has_kanban_extension then
           is_kanban = true
-          break
+        else
+          -- Check for marker
+          for i = 1, math.min(10, #lines) do
+            if lines[i]:match("<!%-%-%s*kanban%-board%s*%-%->") then
+              is_kanban = true
+              break
+            end
+          end
+        end
+      elseif strategy == "auto" then
+        -- Legacy behaviour: Look for H6 headers (######) which are used for columns
+        for _, line in ipairs(lines) do
+          if line:match("^######%s+") then
+            is_kanban = true
+            break
+          end
         end
       end
 

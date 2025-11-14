@@ -15,6 +15,9 @@ local CLIAdapter = Adapter.new({
   --- Buffer storage (for in-memory buffer operations)
   _buffer_lines = {},
 
+  --- Buffer filename tracking
+  _buffer_filename = nil,
+
   --- User Feedback: Display a notification message with emoji prefixes
   --- @param message string The message to display
   --- @param level string|nil Severity level: "info", "warn", "error" (default: "info")
@@ -41,6 +44,13 @@ local CLIAdapter = Adapter.new({
   --- @return integer
   get_current_buffer = function(self)
     return 1 -- CLI only has one "buffer"
+  end,
+
+  --- Get buffer name/filename
+  --- @param bufnr number Buffer number (ignored in CLI)
+  --- @return string|nil The filename if available
+  get_buffer_name = function(self, bufnr)
+    return self._buffer_filename or nil
   end,
 
   --- Get buffer line count
@@ -75,8 +85,9 @@ local CLIAdapter = Adapter.new({
       end
       f:close()
 
-      -- Store in internal buffer for potential modifications
+      -- Store in internal buffer and filename for potential modifications
       self._buffer_lines = lines
+      self._buffer_filename = file
     elseif opts.stdin then
       -- Read from stdin if specified
       for line in io.stdin:lines() do

@@ -15,6 +15,10 @@ local NeovimAdapter = Adapter.new({
 		return vim.api.nvim_get_current_buf()
 	end,
 
+	get_buffer_name = function(self, bufnr)
+		return vim.api.nvim_buf_get_name(bufnr)
+	end,
+
 	buf_line_count = function(self, bufnr)
 		return vim.api.nvim_buf_line_count(bufnr)
 	end,

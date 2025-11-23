@@ -186,6 +186,13 @@ local function write_column(column)
 		table.insert(lines, "")
 	end
 
+	-- Header markdown (content between column header and first card)
+	if column.header_markdown and #column.header_markdown > 0 then
+		for _, line in ipairs(column.header_markdown) do
+			table.insert(lines, line)
+		end
+	end
+
 	-- cards
 	for _, task in ipairs(column.cards or {}) do
 		local task_output = write_task(task, column.name)
@@ -283,6 +290,13 @@ function WriterMixin:write_from_blocks()
 				-- Mark that we added a config-driven blank line, so we should skip
 				-- the next single-blank markdown block (it's a duplicate from a previous write)
 				skip_next_single_blank = true
+			end
+
+			-- Header markdown (content between column header and first card)
+			if column.header_markdown and #column.header_markdown > 0 then
+				for _, line in ipairs(column.header_markdown) do
+					table.insert(lines, line)
+				end
 			end
 
 			-- Cards

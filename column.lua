@@ -19,7 +19,8 @@ function Column:new(id, name)
     cards = {},
     config = TypeConverter:new({}),
     triggers = {},
-    trigger_order = {}
+    trigger_order = {},
+    header_markdown = nil  -- Lines between column header and first card
   }
   setmetatable(obj, Column)
 

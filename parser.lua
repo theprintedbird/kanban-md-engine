@@ -333,6 +333,7 @@ function ParserMixin:parse(content)
 	-- Multiline card tracking
 	local current_card = nil          -- Card being accumulated
 	local blank_line_seen = false     -- Track blank lines
+	local column_has_cards = false    -- Track if current column has any cards yet
 
 	if lines ~= nil then
 		for _, line in ipairs(lines) do
@@ -452,6 +453,9 @@ function ParserMixin:parse(content)
 				-- Add column block
 				add_structured_block(self, ContentBlock.column(current_column))
 				-- Note: Archive is stored separately in self.archive, not in self.columns
+
+				-- Reset card tracking for archive column
+				column_has_cards = false
 			-- Parse column headers
 			elseif line:match(patterns.column_header) then
 				add_to_markdown = false
@@ -483,6 +487,9 @@ function ParserMixin:parse(content)
 
 					-- Add column block
 					add_structured_block(self, ContentBlock.column(current_column))
+
+					-- Reset card tracking for new column
+					column_has_cards = false
 				end
 			-- Parse tasks with multi-line support
 			elseif current_column then
@@ -517,9 +524,16 @@ function ParserMixin:parse(content)
 						finalize_card(current_column, current_card)
 						current_card = nil
 					else
-						-- Flush markdown buffer before starting new card
-						flush_markdown_buffer(self, markdown_buffer)
-						markdown_buffer = {}
+						-- This is the first card in the column
+						if not column_has_cards and #markdown_buffer > 0 then
+							-- Store accumulated markdown as column header markdown
+							current_column.header_markdown = TblUtils.deepcopy(markdown_buffer)
+							markdown_buffer = {}
+						else
+							-- Flush markdown buffer before starting new card
+							flush_markdown_buffer(self, markdown_buffer)
+							markdown_buffer = {}
+						end
 					end
 
 					-- Start new card
@@ -528,6 +542,7 @@ function ParserMixin:parse(content)
 					current_card.column = current_column.name
 					blank_line_seen = false
 					add_to_markdown = false
+					column_has_cards = true  -- Mark that we've seen at least one card
 
 				-- Handle continuation lines
 				elseif current_card and is_continuation and not blank_line_seen then

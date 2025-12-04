@@ -697,7 +697,6 @@ function M.show_stats()
   -- Get formatted stats from stats module
   local stats_module = require("kanban-md.stats")
   local lines = stats_module.format_stats_display(board)
-
   -- Show in a new buffer or floating window
   -- Check if a stats buffer already exists
   local stats_buf_name = "Kanban Statistics"
@@ -968,6 +967,12 @@ function M.persist_card_ids()
   notify(msg, "info")
 end
 
+-- Command: Show plugin version
+function M.show_version()
+  local version = require('kanban-md.version')
+  vim.notify('kanban-md version ' .. version, vim.log.levels.INFO)
+end
+
 -- Setup function to register all commands
 function M.setup()
   local commands = {
@@ -982,6 +987,7 @@ function M.setup()
     KanbanStats = M.show_stats,
     KanbanAddDependency = M.add_dependency,
     KanbanPersistIds = M.persist_card_ids,
+    KanbanVersion = M.show_version,
   }
 
   for name, func in pairs(commands) do

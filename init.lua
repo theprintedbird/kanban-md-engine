@@ -12,6 +12,7 @@ local commands = require('kanban-md.commands')
 local core_setup = require('kanban-md.core.setup')
 
 local M = {
+  _VERSION = require('kanban-md.version'),
   Board = Board,
   Column = Column,
   Card = Card,

@@ -224,29 +224,15 @@ function WriterMixin:write_from_blocks()
 	local config = config_module.get()
 	local lines = {}
 	local ContentBlock = require("kanban-md.content_block")
-	local skip_next_single_blank = false
 
 	for i, block in ipairs(self.content_blocks) do
 		if block.type == ContentBlock.TYPES.MARKDOWN then
-			-- If we just added a config-driven blank line after a column header,
-			-- skip the first blank line of this markdown block if it starts with one
-			-- (prevents duplicate blank lines on round-trip)
-			if skip_next_single_blank and #block.lines > 0 and block.lines[1] == "" then
-				-- Skip the first blank line, but output the rest
-				for j = 2, #block.lines do
-					table.insert(lines, block.lines[j])
-				end
-				skip_next_single_blank = false
-			else
-				-- Preserve markdown verbatim
-				for _, line in ipairs(block.lines) do
-					table.insert(lines, line)
-				end
-				skip_next_single_blank = false
+			-- Preserve markdown verbatim
+			for _, line in ipairs(block.lines) do
+				table.insert(lines, line)
 			end
 
 		elseif block.type == ContentBlock.TYPES.TITLE then
-			skip_next_single_blank = false
 			-- Generate from current board title
 			table.insert(lines, "# " .. (self.title or "Untitled Board"))
 
@@ -264,7 +250,6 @@ function WriterMixin:write_from_blocks()
 			end
 
 		elseif block.type == ContentBlock.TYPES.COLUMN then
-			skip_next_single_blank = false
 			-- Generate from current column data
 			local column = block.ref
 
@@ -285,11 +270,17 @@ function WriterMixin:write_from_blocks()
 			end
 
 			-- Add blank line after header/config if configured and there are cards
-			if config.blank_line_after_column_header and column.cards and #column.cards > 0 then
-				table.insert(lines, "")
-				-- Mark that we added a config-driven blank line, so we should skip
-				-- the next single-blank markdown block (it's a duplicate from a previous write)
-				skip_next_single_blank = true
+			-- BUT only if header_markdown doesn't already start with a blank line
+			local should_add_blank = config.blank_line_after_column_header
+				and column.cards and #column.cards > 0
+			if should_add_blank then
+				-- Check if header_markdown already provides a blank line
+				local header_has_leading_blank = column.header_markdown
+					and #column.header_markdown > 0
+					and column.header_markdown[1] == ""
+				if not header_has_leading_blank then
+					table.insert(lines, "")
+				end
 			end
 
 			-- Header markdown (content between column header and first card)

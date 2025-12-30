@@ -355,6 +355,6 @@ Current coverage:
 - **Unit tests:** 19 files (456 tests)
 - **Integration tests:** 15 files (199 tests)
 - **E2E tests:** 2 files (20 tests)
-- **Total:** 36 standalone test files, 3 Neovim-only test files
+- **Total:** 36 standalone test files
 
 All core functionality (parser, writer, board, actions, stats, triggers) is tested in standalone Lua for maximum speed.

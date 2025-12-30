@@ -3,6 +3,7 @@
 
 local ulid = require('kanban-md.helpers.ulid')
 
+-- TODO check if this is needed since not Neovim-only library
 -- Set up proper time function for Neovim
 -- Neovim doesn't have socket.gettime, so we use os.time with millisecond emulation
 ulid.set_time_func(function()

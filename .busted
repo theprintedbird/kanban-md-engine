@@ -7,7 +7,6 @@ return {
   },
   default = {
     verbose = true,
-    exclude_tags = {"neovim-only"},
   },
   unit = {
     ROOT = {"tests/unit/"},

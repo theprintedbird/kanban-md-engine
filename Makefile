@@ -1,12 +1,12 @@
 # Makefile for Kanban plugin
 
-.PHONY: test test-standalone test-neovim test-unit test-integration test-e2e test-file clean check-deps help
+.PHONY: test test-standalone test-unit test-integration test-e2e test-file clean check-deps help
 
-# Default target: run all tests (standalone + Neovim)
+# Default target: run all tests (standalone)
 all: test
 
-# Run all tests (standalone Lua + Neovim headless)
-test: test-standalone test-neovim
+# Run all tests (standalone Lua)
+test: test-standalone
 
 # Run core tests with standalone Lua (fast)
 test-standalone:
@@ -16,12 +16,12 @@ test-standalone:
 # Run only unit tests
 test-unit:
 	@echo "Running unit tests..."
-	@busted tests/unit --exclude-tags=neovim-only
+	@busted tests/unit
 
 # Run only integration tests
 test-integration:
 	@echo "Running integration tests..."
-	@busted tests/integration --exclude-tags=neovim-only
+	@busted tests/integration
 
 # Run only E2E tests
 test-e2e:
@@ -58,19 +58,6 @@ check-deps:
 		echo "Install with: luarocks install busted"; \
 		exit 1; \
 	fi
-	@echo -n "Checking Neovim... "; \
-	if command -v nvim >/dev/null 2>&1; then \
-		echo "✓ found"; \
-	else \
-		echo "✗ not found"; \
-		echo "Install Neovim for Neovim-specific tests"; \
-	fi
-	@echo -n "Checking plenary.nvim... "; \
-	if [ -d "$$HOME/Library/Caches/kanban-md/plenary.nvim" ]; then \
-		echo "✓ found"; \
-	else \
-		echo "✗ not found (will be auto-installed when running Neovim tests)"; \
-	fi
 
 # Clean up any test artifacts
 clean:
@@ -81,7 +68,7 @@ clean:
 # Help
 help:
 	@echo "Available targets:"
-	@echo "  test              - Run all tests (standalone + Neovim)"
+	@echo "  test              - Run all tests (equivalent to standalone)"
 	@echo "  test-standalone   - Run standalone Lua tests only (fast)"
 	@echo "  test-unit         - Run unit tests only"
 	@echo "  test-integration  - Run integration tests only"

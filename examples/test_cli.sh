@@ -40,17 +40,6 @@ if [ "$MODE" = "lua" ]; then
   # Run the CLI example through standalone Lua
   "$LUA_EXECUTABLE" "$SCRIPT_DIR/cli_example.lua" 2>&1
 
-elif [ "$MODE" = "nvim" ]; then
-  echo "Testing CLI adapter in Neovim headless mode..."
-  echo "This uses Neovim's Lua runtime but only the CLI adapter (no Neovim APIs)"
-  echo ""
-
-  # Run the CLI example through Neovim headless mode
-  nvim --headless --noplugin \
-    --cmd "set rtp+=$PROJECT_ROOT" \
-    -c "lua dofile('$SCRIPT_DIR/cli_example.lua')" \
-    -c "quit" 2>&1
-
 else
   echo "Error: Invalid mode '$MODE'"
   echo "Usage: $0 [auto|lua|nvim]"

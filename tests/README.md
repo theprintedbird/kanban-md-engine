@@ -2,29 +2,88 @@
 
 ## Overview
 
-This test suite uses a dual-framework approach: **Busted** for standalone Lua tests and **Plenary.nvim** for Neovim-specific features.
+This test suite uses a dual-framework approach: **Busted** for standalone Lua tests.
 
 ## Structure
 
 ```
-tests/
-├── unit/                  # Unit tests for individual modules
-│   ├── parser_*.lua      # Parser functionality
-│   ├── writer_*.lua      # Writer functionality
-│   ├── stats_*.lua       # Statistics calculation
-│   ├── virtual_text_spec.lua  # Virtual text (Neovim-only)
-│   └── ...
-├── integration/           # Integration tests for workflows
-│   ├── board_spec.lua    # Board operations
-│   ├── cursor_positioning_spec.lua  # Cursor positioning (Neovim-only)
-│   ├── writer_neovim_adapter_spec.lua  # Neovim adapter (Neovim-only)
-│   └── ...
-├── e2e/                   # End-to-end scenario tests
-│   ├── realistic_scenarios_spec.lua
-│   └── triggers_spec.lua
-├── polyfills/             # Pure Lua implementations of Neovim utilities
-│   └── vim.lua           # vim.* function polyfills
-├── run_tests.lua         # Neovim test runner (finds #neovim-only tests)
+tests
+├── README.md
+├── e2e
+│   ├── realistic_scenarios_spec.lua
+│   └── triggers_spec.lua
+├── fixtures
+│   ├── boards
+│   │   ├── board_auto_move.md
+│   │   ├── board_complex.md
+│   │   ├── board_custom.md
+│   │   ├── board_edge.md
+│   │   ├── board_simple.md
+│   │   └── test_basic_config.md
+│   ├── boards.lua
+│   └── multiline_board.md
+├── helpers
+│   └── mocks.lua
+├── integration
+│   ├── auto_complexity_spec.lua
+│   ├── auto_timestamp_spec.lua
+│   ├── board_spec.lua
+│   ├── card_spec.lua
+│   ├── cli_usage_spec.lua
+│   ├── column_spec.lua
+│   ├── column_type_spec.lua
+│   ├── content_preservation_spec.lua
+│   ├── dependency_validation_spec.lua
+│   ├── force_complete_command_spec.lua
+│   ├── parser_column_header_markdown_spec.lua
+│   ├── selective_bypass_spec.lua
+│   ├── state_transitions_spec.lua
+│   ├── subtask_validation_spec.lua
+│   ├── timestamp_on_initial_placement_spec.lua
+│   └── writer_cli_adapter_spec.lua
+├── manual-tests
+│   ├── COMPLEXITY_IMPLEMENTATION_SUMMARY.md
+│   ├── complexity_demo.md
+│   ├── diagnose_cursor.lua
+│   ├── test_board.md
+│   ├── test_board_level_complexity.lua
+│   ├── test_commands.lua
+│   ├── test_complexity.lua
+│   ├── test_complexity_demo.lua
+│   ├── test_cursor_positioning.lua
+│   └── test_set_complexity_command.lua
+├── polyfills
+│   └── vim.lua
+├── run_tests.lua
+├── run_tests.sh
+├── run_tests_standalone.sh
+└── unit
+    ├── adapters
+    │   └── cli_adapter_spec.lua
+    ├── blank_line_preservation_spec.lua
+    ├── board_validate_dependencies_spec.lua
+    ├── card_spec.lua
+    ├── column_helpers_spec.lua
+    ├── column_type_resolver_spec.lua
+    ├── config_dependency_refactor_spec.lua
+    ├── config_triggers_spec.lua
+    ├── detection_strategy_spec.lua
+    ├── id_persistence_spec.lua
+    ├── parser_content_blocks_spec.lua
+    ├── parser_multiline_spec.lua
+    ├── parser_properties_spec.lua
+    ├── stats_formatting_spec.lua
+    ├── stats_metrics_spec.lua
+    ├── triggerable_spec.lua
+    ├── type_converter_spec.lua
+    ├── utils_string_spec.lua
+    ├── utils_table_spec.lua
+    ├── workflow_engine_spec.lua
+    ├── writer_content_blocks_spec.lua
+    ├── writer_mixin_spec.lua
+    └── writer_multiline_spec.lua
+
+10 directories, 65 files
 ```
 
 ## Test Categories
@@ -46,29 +105,19 @@ These tests use `tests/polyfills/vim.lua` to provide pure Lua implementations of
 
 ### Neovim-Only Tests
 
-Run with Plenary in Neovim headless mode.
-
-**Tagged:** `#neovim-only` (in describe block)
-**Files:**
-- `unit/virtual_text_spec.lua` - Virtual text display using Neovim APIs
-- `integration/cursor_positioning_spec.lua` - Cursor positioning using Neovim APIs
-- `integration/writer_neovim_adapter_spec.lua` - Neovim buffer adapter
-
-**Run:** `./tests/run_tests.sh` or `make test-neovim`
+Moved to the Neovim plugin that utilises this engine.
 
 ## Running Tests
 
 ### Quick Start
 
 ```bash
-# Run all tests (standalone + Neovim)
+# Run all tests (equivalent to standalone)
 make test
 
-# Run only standalone tests (fast)
+# Run only standalone tests
 make test-standalone
 
-# Run only Neovim tests
-make test-neovim
 ```
 
 ### By Category
@@ -139,19 +188,6 @@ describe("MyModule", function()
 end)
 ```
 
-### Neovim Tests
-
-Tag the describe block with `#neovim-only`:
-
-```lua
-describe("Virtual Text #neovim-only", function()
-  -- Use vim.api.* freely
-  it("displays virtual text", function()
-    vim.api.nvim_buf_set_virtual_text(...)
-  end)
-end)
-```
-
 ## Assertions
 
 Busted provides comprehensive assertions:
@@ -195,7 +231,6 @@ return {
   },
   default = {
     verbose = true,
-    exclude_tags = {"neovim-only"},
   },
   unit = {
     ROOT = {"tests/unit/"},
@@ -212,7 +247,6 @@ return {
 This configuration:
 - Sets Lua module paths (including polyfills)
 - Defines test file pattern (`*_spec.lua`)
-- Excludes `#neovim-only` tests by default
 - Provides named test suites
 
 ## Test Isolation
@@ -328,11 +362,6 @@ Solution: Check that .busted lpath includes lua/?.lua and tests/?.lua
 Solution: Add require('polyfills.vim') at top of test file
 ```
 
-**Issue: Test fails in standalone but passes in Neovim**
-```
-Solution: Check for hidden Neovim API usage - may need to tag as #neovim-only
-```
-
 **Issue: Assertion syntax error**
 ```
 Solution: Use Busted syntax (assert.are.equal) not Plenary syntax (assert.equals)
@@ -340,13 +369,7 @@ Solution: Use Busted syntax (assert.are.equal) not Plenary syntax (assert.equals
 
 ## Performance
 
-Test execution times (approximate):
-
-- **Standalone tests:** ~2-3 seconds (675 tests)
-- **Neovim tests:** ~5-10 seconds (3 test files)
-- **Total:** ~7-13 seconds
-
-The standalone Lua tests are significantly faster due to avoiding Neovim startup overhead.
+Test execution times ~2-3 seconds (675 tests)
 
 ## Test Coverage
 

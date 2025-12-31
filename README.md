@@ -378,57 +378,82 @@ The `.busted` file in the project root configures:
 
 ```
 tests
+├── README.md
 ├── e2e
-│   ├── realistic_scenarios_spec.lua
-│   └── triggers_spec.lua
+│   ├── realistic_scenarios_spec.lua
+│   └── triggers_spec.lua
 ├── fixtures
-│   ├── boards
-│   │   ├── board_auto_move.md
-│   │   ├── board_complex.md
-│   │   ├── board_custom.md
-│   │   ├── board_edge.md
-│   │   ├── board_simple.md
-│   │   └── test_basic_config.md
-│   └── boards.lua
+│   ├── boards
+│   │   ├── board_auto_move.md
+│   │   ├── board_complex.md
+│   │   ├── board_custom.md
+│   │   ├── board_edge.md
+│   │   ├── board_simple.md
+│   │   └── test_basic_config.md
+│   ├── boards.lua
+│   └── multiline_board.md
 ├── helpers
-│   └── mocks.lua
+│   └── mocks.lua
 ├── integration
-│   ├── auto_complexity_spec.lua
-│   ├── auto_timestamp_spec.lua
-│   ├── board_spec.lua
-│   ├── card_spec.lua
-│   ├── cli_usage_spec.lua
-│   ├── column_spec.lua
-│   ├── column_type_spec.lua
-│   ├── content_preservation_spec.lua
-│   ├── dependency_validation_spec.lua
-│   ├── force_complete_command_spec.lua
-│   ├── selective_bypass_spec.lua
-│   ├── state_transitions_spec.lua
-│   ├── subtask_validation_spec.lua
-│   ├── timestamp_on_initial_placement_spec.lua
-│   └── writer_adapters_spec.lua
+│   ├── auto_complexity_spec.lua
+│   ├── auto_timestamp_spec.lua
+│   ├── board_spec.lua
+│   ├── card_spec.lua
+│   ├── cli_usage_spec.lua
+│   ├── column_spec.lua
+│   ├── column_type_spec.lua
+│   ├── content_preservation_spec.lua
+│   ├── dependency_validation_spec.lua
+│   ├── force_complete_command_spec.lua
+│   ├── parser_column_header_markdown_spec.lua
+│   ├── selective_bypass_spec.lua
+│   ├── state_transitions_spec.lua
+│   ├── subtask_validation_spec.lua
+│   ├── timestamp_on_initial_placement_spec.lua
+│   └── writer_cli_adapter_spec.lua
+├── manual-tests
+│   ├── COMPLEXITY_IMPLEMENTATION_SUMMARY.md
+│   ├── complexity_demo.md
+│   ├── diagnose_cursor.lua
+│   ├── test_board.md
+│   ├── test_board_level_complexity.lua
+│   ├── test_commands.lua
+│   ├── test_complexity.lua
+│   ├── test_complexity_demo.lua
+│   ├── test_cursor_positioning.lua
+│   └── test_set_complexity_command.lua
+├── polyfills
+│   └── vim.lua
+├── run_tests.lua
+├── run_tests.sh
+├── run_tests_standalone.sh
 └── unit
     ├── adapters
-    │   └── cli_adapter_spec.lua
+    │   └── cli_adapter_spec.lua
+    ├── blank_line_preservation_spec.lua
     ├── board_validate_dependencies_spec.lua
     ├── card_spec.lua
     ├── column_helpers_spec.lua
     ├── column_type_resolver_spec.lua
     ├── config_dependency_refactor_spec.lua
     ├── config_triggers_spec.lua
+    ├── detection_strategy_spec.lua
     ├── id_persistence_spec.lua
     ├── parser_content_blocks_spec.lua
+    ├── parser_multiline_spec.lua
+    ├── parser_properties_spec.lua
     ├── stats_formatting_spec.lua
     ├── stats_metrics_spec.lua
     ├── triggerable_spec.lua
     ├── type_converter_spec.lua
     ├── utils_string_spec.lua
     ├── utils_table_spec.lua
-    ├── virtual_text_spec.lua
     ├── workflow_engine_spec.lua
     ├── writer_content_blocks_spec.lua
-    └── writer_mixin_spec.lua
+    ├── writer_mixin_spec.lua
+    └── writer_multiline_spec.lua
+
+10 directories, 65 files
 ```
 
 ### Test Coverage

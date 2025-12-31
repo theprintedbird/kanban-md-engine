@@ -1,7 +1,7 @@
 # Complexity Feature Implementation Summary
 
 ## Overview
-Implemented board-level configuration for the complexity property feature, allowing different kanban boards to have different complexity defaults.
+Implemented board-level configuration for the *complexity* property feature, allowing different kanban boards to have different complexity defaults.
 
 ## Implementation Approach
 

@@ -10,9 +10,9 @@ This directory contains examples demonstrating standalone usage of kanban-md wit
 
 ## Running the Example
 
-### Method 1: Using Neovim's Lua Runtime (Current Setup)
+### Method 1: Using Neovim's Lua Runtime
 
-Since the system doesn't have a standalone Lua interpreter, you can test using Neovim's Lua runtime in headless mode. This still demonstrates that the core engine works with the CLI adapter without any Neovim APIs:
+You can test using Neovim's Lua runtime in headless mode. This still demonstrates that the core engine works with the CLI adapter without any Neovim APIs:
 
 ```bash
 cd /Users/iainb/Projects/ThePrintedBird/nvim-plugins/kanban-md
@@ -21,7 +21,7 @@ cd /Users/iainb/Projects/ThePrintedBird/nvim-plugins/kanban-md
 
 Or manually:
 ```bash
-cd /Users/iainb/Projects/ThePrintedBird/nvim-plugins/kanban-md
+cd kanban-md-engine
 nvim --headless --noplugin \
   --cmd "set rtp+=$(pwd)" \
   -c "lua dofile('examples/cli_example.lua')" \
@@ -33,14 +33,37 @@ nvim --headless --noplugin \
 For true standalone testing without Neovim, install a Lua interpreter:
 
 #### Install Lua via Homebrew:
+
+via Macports:
+
+```
+port install lua
+# or lua5x, do
+port search lua5
+# to see all available interpreters
+```
+
+via Homebrew:
+
 ```bash
 brew install lua
 ```
 
 #### Install LuaJIT (faster, compatible):
+
+via Macports:
+
+```
+port install luajit
+```
+
+via Homebrew:
+
 ```bash
 brew install luajit
 ```
+
+or directly from [the LuaJIT website](https://luajit.org/download.html)
 
 #### Then run directly:
 ```bash
@@ -150,7 +173,7 @@ This pattern allows the same core engine to work across:
 
 ## Next Steps
 
-1. Install Lua or LuaJIT with Homebrew
+1. Install Lua or LuaJIT (see above for instructions)
 2. Run `lua examples/cli_example.lua`
 3. Examine `sample_board_modified.md` to see the changes
 4. Modify the example to test your own use cases

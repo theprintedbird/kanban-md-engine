@@ -152,18 +152,22 @@ describe("Round-trip fidelity: parse(write(parse(x))) == parse(x)", function()
     end)
 
     it("keeps the board config comment when the file has no H1 title (plan Task 6)", function()
-      pending("Plan Task 6: write_from_blocks() only emits the " ..
-        "kanban:config comment inside the TITLE block branch, so a " ..
-        "file with a config comment but no '# Title' loses that comment " ..
-        "on write even though board.config parsed correctly.")
-
       local x = "<!-- kanban:config wip_limit: 5 -->\n\n###### Todo\n\n- Task\n\n###### Done\n"
 
       local parsed1 = assert_round_trips(x)
 
-      -- Expected once Task 6 lands: wip_limit survives the round trip even
-      -- without a title block.
+      -- wip_limit survives the round trip even without a title block.
       assert.are.equal(5, parsed1.config.wip_limit)
+    end)
+
+    it("board config round-trips correctly when a title is present (plan Task 6)", function()
+      local x = "# Board Title\n<!-- kanban:config wip_limit: 5 -->\n\n###### Todo\n\n- Task\n\n###### Done\n"
+
+      local parsed1 = assert_round_trips(x)
+
+      -- Config should be preserved with title present
+      assert.are.equal(5, parsed1.config.wip_limit)
+      assert.are.equal("Board Title", parsed1.title)
     end)
   end)
 end)

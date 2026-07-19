@@ -280,6 +280,30 @@ function WriterMixin:write_from_blocks()
 	local lines = {}
 	local ContentBlock = require("kanban-md.content_block")
 
+	-- Check if there's a TITLE block in content_blocks
+	local has_title_block = false
+	for _, block in ipairs(self.content_blocks) do
+		if block.type == ContentBlock.TYPES.TITLE then
+			has_title_block = true
+			break
+		end
+	end
+
+	-- If there's no title block but we have board config, emit it at the top
+	if not has_title_block then
+		local plain_board_config = to_plain_table(self.config)
+		if plain_board_config and not TblUtils.isEmpty(plain_board_config) then
+			local config_comment = properties_to_comment(plain_board_config, "kanban:config", config)
+			if type(config_comment) == "table" then
+				for _, line in ipairs(config_comment) do
+					table.insert(lines, line)
+				end
+			else
+				table.insert(lines, config_comment)
+			end
+		end
+	end
+
 	for i, block in ipairs(self.content_blocks) do
 		if block.type == ContentBlock.TYPES.MARKDOWN then
 			-- Preserve markdown verbatim

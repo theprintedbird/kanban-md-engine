@@ -1,8 +1,88 @@
-# Kanban-md Engine
+# kanban-md-engine
+
+The platform-agnostic Lua engine behind kanban-md: parses Kanban boards out of Markdown files, lets you mutate them (move cards, add columns, archive, validate), and writes them back out with full round-trip fidelity. It has no dependency on Neovim or any other host — pure Lua in, pure Lua out.
+
+## The kanban-md project
+
+kanban-md used to be a single repository. It has since been split into three:
+
+- **[kanban-md](https://github.com/theprintedbird/kanban-md)** – defines the Markdown syntax/spec for kanban boards (columns, cards, properties, archive, configuration comments).
+- **kanban-md-engine** (this repo) – the platform-agnostic Lua engine: parsing, writing, the board/column/card model, triggers, statistics, validation, and dependency/subtask handling.
+- **[kanban-md.nvim](https://github.com/theprintedbird/kanban-md.nvim)** – the Neovim integration: user commands (`:KanbanNewCard`, `:KanbanMoveCard`, etc.), keymaps, buffer/cursor handling, and virtual text (WIP warnings, cycle time). It pulls this repo in as a git submodule and talks to it via the adapter interface below.
+
+If you're looking for Neovim commands, keymaps, or virtual text, they live in `kanban-md.nvim`, not here. This README only covers the engine.
+
+## What this repo provides
+
+- **Board / Column / Card model** (`board.lua`, `column.lua`, `card.lua`) — the core data structures.
+- **Parser** (`parser.lua`) — converts Markdown into the board data structure, building an ordered `content_blocks` array that preserves titles, columns, and arbitrary documentation prose.
+- **Writer** (`writer_mixin.lua`) — converts the data structure back into Markdown, using `content_blocks` for full round-trip fidelity (parse → modify → write preserves everything, including non-kanban markdown).
+- **Trigger system** (`triggerable.lua`, `triggers.lua`, `extras/`) — the extensibility mechanism used for timestamps, WIP limits, dependencies, subtasks, workflow rules, and capacity management.
+- **Statistics** (`stats.lua`) — WIP counts, lead time, cycle time, blocked time, complexity totals.
+- **Validation** — WIP limit checking (board and column level) and duplicate ID detection.
+- **Adapter interface** (`adapters/interface.lua`) — the strategy-pattern contract that lets the engine talk to a host environment without depending on it, plus a reference `adapters/cli.lua` implementation for standalone/CI usage. The Neovim adapter lives in `kanban-md.nvim`.
+
+## Installation
+
+This repo is a library, not a standalone application. It's typically consumed as a git submodule by a host project (e.g. `kanban-md.nvim` includes it at `lib/kanban-md`):
+
+```sh
+git submodule add https://github.com/theprintedbird/kanban-md-engine lib/kanban-md
+```
+
+Add `lua/` to your Lua module path (or `lib/kanban-md/lua/` if used as a submodule) so `require('kanban-md.*')` resolves.
+
+For pure command-line/CI usage with no host at all, see the CLI adapter below.
+
+## Adapter pattern
+
+The engine never touches `vim.*`, `io.*`, or any host API directly — all I/O and UI interaction goes through an adapter that implements the contract in `lua/kanban-md/adapters/interface.lua`:
+
+```
+┌─────────────────────────────────────────┐
+│   Host application                       │  Neovim, a CLI tool, Obsidian, a web app…
+├─────────────────────────────────────────┤
+│   Adapter Interface (Strategy Pattern)   │  lua/kanban-md/adapters/
+│   - notify() / read_buffer() / write_buffer()
+│   - prompt_input() / prompt_select()
+│   - cursor & (optional) virtual text
+├─────────────────────────────────────────┤
+│   kanban-md-engine (this repo)           │  Board / Column / Card, parser, writer,
+│                                           │  triggers, stats, config, validation
+└─────────────────────────────────────────┘
+```
+
+`lua/kanban-md/adapters/cli.lua` ships as a reference adapter using plain `io.*`/`print`, useful for CI automation, batch processing, or exercising the engine outside any editor. See `lua/kanban-md/adapters/README.md` for the full method reference and a guide to writing your own adapter (Obsidian, web, etc.).
+
+## Quick start (standalone Lua)
+
+```lua
+local kanban = require('kanban-md.cli')
+kanban.setup({ auto_id = true, auto_timestamp = true })
+
+local Board = require('kanban-md.board')
+local board = Board:new()
+
+local file = io.open("board.md", "r")
+board:parse(file:read("*all"))
+file:close()
+
+board:calculate_stats()
+print(string.format("%s: %d cards, %d WIP", board.title, board.stats.total_card_count, board.stats.total_wip))
+
+-- Mutate, then write back out
+local backlog = board:get_column_by_name("Backlog")
+local ready = board:get_column_by_name("Ready")
+board:move_card(backlog.cards[1], backlog, ready)
+
+local lines = board:write()
+```
+
+A fuller walkthrough (loading, inspecting, moving/adding cards, validating, archiving, writing) lives in `examples/cli_example.lua`, runnable with `lua examples/cli_example.lua` or via Neovim's headless Lua runtime — see `examples/README.md`.
 
 ## Markdown Syntax Reference
 
-kanban-md uses H6 headers (`######`) for column definitions, allowing you to include arbitrary markdown documentation in your boards.
+kanban-md uses H6 headers (`######`) for column definitions, allowing arbitrary Markdown documentation to coexist in the same file as the board.
 
 ### Basic Structure
 
@@ -32,7 +112,7 @@ cycle_time_unit: days
 <!-- archived tasks older than 30 days -->
 ```
 
-A board with non-kanban markdown sections:
+A board with non-kanban Markdown sections, all of which survive parse → write round-trips:
 
 ```md
 <!-- kanban-board -->
@@ -60,216 +140,119 @@ This board tracks our current sprint. Updated daily.
 - Old completed tasks
 ```
 
+Cards are plain unordered list items (`- Task name`) — the engine does **not** use checkbox syntax (`- [ ]`/`- [x]`). Completion is tracked by which column a card is in, not by checkbox state.
+
 ### Rationale
 
 - HTML comments are invisible in Obsidian's preview and won't break rendering
 - Timestamps in epoch format are unambiguous and easy to calculate with
-- Special sections use double underscores: __ARCHIVE__
-- Statistics are displayed via `:KanbanStats` command, not a markdown section
+- Special sections use double underscores: `__ARCHIVE__`
 - The `<!-- kanban-board -->` marker (enabled by default) prevents accidental parsing of documentation files
 
-#### Board Detection Strategies
+### Board Detection Strategies
 
-kanban-md offers flexible strategies for detecting which markdown files should be parsed as kanban boards:
+Detection of which Markdown files should be parsed as boards is controlled by the `detection_strategy` config option (enforced by the host, using the engine's config):
 
-**`detection_strategy` options:**
+- **`"marker"`** (default) — requires an explicit `<!-- kanban-board -->` comment in the first 10 lines. Invisible in rendered Markdown.
+- **`"extension"`** — only parses files with a `.kanban.md` extension.
+- **`"both"`** — accepts either the marker or the `.kanban.md` extension.
+- **`"auto"`** — legacy: detects any file containing H6 headers (`######`). May parse unintended files.
 
-- **`"marker"`** (default) - Requires explicit `<!-- kanban-board -->` marker in first 10 lines
-  - The marker is invisible in rendered markdown
-
-- **`"extension"`** - Only parse files with `.kanban.md` extension
-  - Clean separation: `project.kanban.md` vs `README.md`
-  - Works well with file organisation systems
-
-- **`"both"`** - Accept either marker OR `.kanban.md` extension
-  - Flexible: supports both naming conventions
-  - Recommended for teams with mixed preferences
-
-- **`"auto"`** - Auto-detect based on H6 headers (`######`)
-  - Legacy behaviour, may parse unintended files
-  - Use only if you're certain all markdown files are boards
-
-**Configuration examples:**
-
-```lua
--- Use file extension detection (recommended for new projects)
-require('kanban-md').setup({
-  detection_strategy = "extension",
-})
-
--- Use both marker and extension (maximum flexibility)
-require('kanban-md').setup({
-  detection_strategy = "both",
-})
-
--- Legacy auto-detection (not recommended)
-require('kanban-md').setup({
-  detection_strategy = "auto",
-})
-```
-
-#### Why H6?
+### Why H6?
 
 - **H1** (`#`) is reserved for the board title
-- **H2-H5** (`##` to `#####`) can be used for documentation sections
+- **H2–H5** (`##` to `#####`) can be used for documentation sections
 - **H6** (`######`) marks kanban columns and is rarely used elsewhere
 - If you accidentally use H6 for non-column headers, it will be obvious (tasks will appear underneath)
 
----
+## Data Structures & API
 
-## Data Structure Documentation
+### Content Blocks Architecture
 
-### About the parser.lua
+The parsed board includes a `content_blocks` array that preserves the order and content of:
 
-#### Key Features
+- `title` blocks: the board title (H1)
+- `column` blocks: references to column objects (H6)
+- `markdown` blocks: arbitrary Markdown content preserved verbatim
 
-##### Complete Markdown Parsing:
+This is what gives full round-trip fidelity — user prose and documentation sections survive card/column operations untouched.
 
-- Board title from # Title.
-- Column headers from ###### Column Name.
-- Task items being with `- `, they are just list items.
-- HTML comment blocks for configuration and properties.
+### Key Functions
 
-##### Property System:
+- `board:parse(content)` — parse Markdown into the board structure, building `content_blocks`
+- `board:write()` — serialise the board back to Markdown, using `content_blocks` for full preservation
+- `board:write_from_blocks()` / `board:write_legacy()` — lower-level writer entry points (the latter for programmatically-constructed boards without content blocks)
+- `board:add_new_column(name, config)` — add a column with correct content block insertion
+- `board:move_card(card, from_column, to_column)` / `board:move_card_with_bypass(card, from_column, to_column, bypass_categories)` — move a card, respecting (or selectively bypassing) trigger validations
+- `board:calculate_stats()` — compute WIP, lead/cycle/blocked time, complexity totals
+- `board:validate()` — WIP limit and structural validation (errors/warnings)
+- `board:find_task(task_id)` — card lookup by ID
+- `board:get_column_by_name(column_name)` — column lookup
 
-- Automatically detects property types (numbers, booleans, arrays, strings)
-- Supports both inline comments <!-- property: value --> and multi-line blocks
-- Generates unique IDs for tasks if not specified
+See `CLAUDE.md` for the full architectural notes (parser/writer conventions, ID generation, completion detection, semantic column states).
 
-##### Special Sections:
+### Completion Tracking
 
-- `__ARCHIVE__` section handling.
-- Board and column configuration through comments.
+Completion is **column-based**, not checkbox-based. A card is "complete" when it's in a completion column, detected via `helpers/column.lua:is_completion_column()`:
 
-##### Statistics Calculation:
+1. Explicit property: `<!-- column:config is_completion_state: true -->`
+2. Position-based fallback: the last regular column on the board
+3. No hardcoded name patterns — detection is always explicit or positional
 
-- WIP counts per column
-- Cycle time calculation
-- Task completion metrics
-- Complexity totals
+## Properties System
 
-##### Validation:
-
-- WIP limit checking (both board and column level)
-- Duplicate ID detection
-- Structure validation
-
-### Properties System
-
-Card properties are **completely arbitrary** - you can use any property names you want. Properties are stored in HTML comments and parsed as `key: value` pairs. The `type_converter.lua` module optionally converts specific property names to numbers, booleans, or arrays for convenience.
-
-#### How Properties Work
-
-**Any property name works:**
+Card properties are **completely arbitrary** — any property name works. Properties live in HTML comments and are parsed as `key: value` pairs; `type_converter.lua` optionally converts specific names to numbers, booleans, or arrays.
 
 ```markdown
 <!-- project: backend-api, story_points: 5, reviewer: bob, custom_field: whatever -->
 ```
 
-The parser extracts any `key: value` pairs without restrictions. Properties are stored as strings unless you register them for type conversion (see below).
-
-#### Commonly Used Properties
-
-These properties are used by built-in triggers and commands, but you're not required to use them:
+### Commonly Used Properties
 
 | Property | Type | Used By | Description |
 |----------|------|---------|-------------|
-| `id` | string | All triggers | Unique card identifier (auto-generated by default) |
-| `complexity` | number | Stats, triggers | Story points or estimation (see `:KanbanSetComplexity`) |
-| `parent` | string | Subtasks | Parent task ID (when using subtask feature) |
+| `id` | string | All triggers | Unique card identifier (auto-generated by default, via ULID) |
+| `complexity` | number | Stats, triggers | Story points or estimation |
+| `parent` | string | Subtasks | Parent task ID (when using the subtask feature) |
 | `position` | number | N/A | Position in column (for custom ordering) |
 | `tags` | array | N/A | Categories/labels (comma-separated) |
 
-**Timestamp Properties (epoch format):**
-- Column entry timestamps are auto-added when `auto_timestamp = true` (default)
-- Timestamp property names match column names (normalized to lowercase with underscores)
-- Example: Moving to "In Progress" sets `in_progress: 1735948800`
-- Special case: Archive column uses `archived` instead of `__archive__`
+**Timestamp properties (epoch format):** set automatically when `auto_timestamp = true` (default), via the trigger system — never set them manually in code. Property names match the column name, normalised to `snake_case` (e.g. moving to "In Progress" sets `in_progress: 1735948800`). The archive column uses `archived` instead of `__archive__`.
 
-**Optional Properties (require extra modules):**
-- `depends_on` (array): Task IDs this card depends on - requires `dependency_validation` enabled.
-- `subtasks` (array): Task IDs of subtasks - requires `subtask_validation` enabled.
-- `assignee` (string): Capacity triggers, who's working on the task - requires the `extras/capacity_triggers` module enabled.
-- `sla`, `sla_config`, `started`, `priority`, `estimated_value`, `approved_by` - used in the `extras/workflow_triggers`
+**Optional properties (require enabling the relevant extra):**
+- `depends_on` (array) — task IDs this card depends on, requires `dependency_validation` enabled
+- `subtasks` (array) — task IDs of subtasks, requires `subtask_validation` enabled
+- `assignee` (string) — requires `extras/capacity_triggers` enabled
+- `sla`, `sla_config`, `started`, `priority`, `estimated_value`, `approved_by` — used by `extras/workflow_triggers`
 
-#### Type Conversion Rules
+### Type Conversion Rules
 
-Properties are automatically converted based on their name:
+- **Numbers:** `complexity`, `wip_limit`, `max_points`, timestamps, `actual_time`, `blocked_time`, `position`
+- **Booleans:** `blocked`, `urgent`, `reviewed`, `auto`, `revalidated`, `changes_requested`
+- **Arrays:** `tags`, `authorized_approvers`, `depends_on` (when enabled), `subtasks` (when enabled)
 
-**Numbers:** `complexity`, `wip_limit`, `max_points`, timestamps, `actual_time`, `blocked_time`, `position`
-**Booleans:** `blocked`, `urgent`, `reviewed`, `auto`, `revalidated`, `changes_requested`
-**Arrays:** `tags`, `authorized_approvers`, `depends_on` (when enabled), `subtasks` (when enabled)
-
-#### Adding Custom Properties
-
-You can add any custom properties in HTML comments. They will be preserved as strings unless you register them:
+### Registering Custom Properties
 
 ```lua
--- In your config or custom module:
 local TypeConverter = require('kanban-md.type_converter')
 TypeConverter.register_numeric_property('story_points')
 TypeConverter.register_array_property('reviewers')
 TypeConverter.register_boolean_property('needs_documentation')
 ```
 
-#### Example Card with Properties
+## Trigger System
 
-```markdown
-- Implement authentication system <!--
-  id: auth-task-001,
-  complexity: 5,
-  assignee: alice,
-  tags: backend, security,
-  started: 1735948800,
-  depends_on: [api-task-003, db-task-012]
--->
-```
-
----
-
-## API Reference for Board, Column, Card Classes
-
-### Available Commands
-
-These commands provide the user-facing actions:
-
-- **KanbanNewBoard** - Create a new board with default columns
-- **KanbanNewCard** - Add a card to a column
-- **KanbanNewColumn** - Add a new column to the board
-- **KanbanMoveCard** - Move card to different column (respects all validations)
-- **KanbanCompleteCard** - Move card to completion column (respects all validations)
-- **KanbanForceCompleteCard** - Force complete (bypasses dependency/subtask checks only)
-- **KanbanSetComplexity** - Set or update card complexity
-- **KanbanArchive** - Move completed cards to archive
-- **KanbanStats** - Display board statistics
-- **KanbanAddDependency** - Create dependency relationships between cards
-- **KanbanPersistIds** - Enable persistent card IDs (required for dependencies)
-
-### Key Functions (from CLAUDE.md)
-
-- `board:parse(content)`: Main parsing function (instance method), builds content_blocks array
-- `board:write()`: Main writing function, uses content_blocks for full preservation
-- `board:write_from_blocks()`: Write from content blocks (preserves markdown)
-- `board:write_legacy()`: Fallback writer for programmatically created boards
-- `board:add_new_column(name, config)`: Add column with proper content block insertion
-- `board:calculate_stats()`: Statistics calculation
-- `board:validate()`: WIP limit and structure validation
-- `board:find_task(task_id)`: Card lookup
-- `board:get_column_by_name(column_name)`: Column lookup
+Triggers are the extensibility mechanism for the whole engine — timestamps, WIP limits, dependency/subtask validation, and workflow rules are all implemented as triggers, not special-cased core logic.
 
 ### Trigger Events
 
-- **on_create**: Fires when a board/column/card is created
-- **on_entry**: Fires when a card enters a column
-- **on_exit**: Fires when a card leaves a column
-- **on_stay**: Fires while a card remains in a column (not commonly used)
-- **on_checking**: Fires to validate before a transition occurs
+- **on_create** — fires when a board/column/card is created
+- **on_entry** — fires when a card enters a column
+- **on_exit** — fires when a card leaves a column
+- **on_stay** — fires while a card remains in a column (uncommon)
+- **on_checking** — fires to validate a transition before it happens (can block the move)
 
-### Writing Custom Triggers
-
-Triggers are functions that execute in response to events (entry, exit, stay, checking, create).
-
-#### Function Signature
+### Writing a Trigger
 
 ```lua
 function(self, context)
@@ -279,189 +262,57 @@ function(self, context)
 end
 ```
 
-#### Example: Timestamp Trigger
-
 ```lua
-local function create_timestamp_trigger()
-  return function(self, context)
-    local normalize_column_name = function(column_name)
-      if column_name == "__ARCHIVE__" then
-        return "archived"
-      end
-      return column_name:lower():gsub("[^%w_]", "_")
-    end
-
-    local timestamp_key = normalize_column_name(self.name or self.id)
-    context.card.properties[timestamp_key] = os.time()
-
-    return true
-  end
-end
-```
-
-#### Registering Triggers
-
-```lua
--- Register trigger on a column
-local trigger_fn = create_timestamp_trigger()
+-- Register on a column
 column:register_on_entry("timestamp", trigger_fn)
 
--- Register trigger on a board
-local trigger_fn = create_wip_limit_trigger(5)
+-- Register on a board
 board:register_on_checking("wip_limit", trigger_fn)
 ```
 
----
+### Bypassing Triggers Selectively
 
-## Testing Instructions (Busted)
+Triggers can be tagged with metadata for selective bypass:
 
-This project uses two test approaches:
-
-**Standalone Lua Tests (Primary):**
-- Framework: Busted
-- Runner: `busted` or `make test-standalone`
-- Coverage: All core functionality (parser, writer, board, actions, stats, triggers)
-- Files: `tests/unit/*`, `tests/integration/*`, `tests/e2e/*`
-- Speed: Fast (no Neovim overhead)
-- Polyfills: Uses `tests/polyfills/vim.lua` to provide pure Lua implementations of Neovim utility functions
-
-### Running Tests
-
-**All tests:**
-```bash
-make test
+```lua
+column:register_on_checking("dependencies", dep_fn, {
+  bypassable = true,
+  category = "dependency"
+})
 ```
 
-**Standalone tests only (fast):**
-```bash
-./tests/run_tests_standalone.sh
-# or
-make test-standalone
-```
+`board:move_card_with_bypass()` then lets a host skip specific trigger categories (e.g. a "force complete" command bypassing dependency/subtask checks) while preserving everything else, like WIP limits.
 
+### Optional Trigger Modules (`lua/kanban-md/extras/`)
 
-**Specific test categories:**
-```bash
-make test-unit          # Unit tests only
-make test-integration   # Integration tests only
-make test-e2e          # E2E tests only
-```
+- `subtasks_triggers.lua` — parent/subtask and dependency validation (`"off"` / `"strict"` / `"warn"` modes)
+- `workflow_triggers.lua` — SLA, business hours, approval workflows
+- `capacity_triggers.lua` — points, reviewers, skills-based capacity management
+- `id_triggers.lua` — ULID-based ID generation
 
-**Specific test file:**
+## Testing
+
+Tests run with [Busted](https://olivinelabs.com/busted/) against pure Lua — no Neovim dependency. `tests/polyfills/vim.lua` provides pure-Lua stand-ins for the handful of Neovim utility functions the engine still references.
+
 ```bash
+make test                # all tests
+make test-standalone     # same as above (explicit)
+make test-unit           # tests/unit only
+make test-integration    # tests/integration only
+make test-e2e            # tests/e2e only
 make test-file FILE=tests/unit/parser_content_blocks_spec.lua
-# or
-busted tests/unit/parser_content_blocks_spec.lua
+
+# or directly:
+busted
+busted tests/unit
+busted --list
 ```
 
-**Using busted directly:**
-```bash
-busted                    # Run all tests (uses .busted config)
-busted tests/unit         # Run unit tests
-busted tests/integration  # Run integration tests
-busted tests/e2e         # Run E2E tests
-busted --list            # List all available tests
-```
+**Requirements:** Lua and Busted (`luarocks install busted`).
 
-### Requirements
+Coverage includes parser/writer round-trip consistency, property parsing, WIP/duplicate-ID validation, statistics (lead time, cycle time, blocked time, complexity), and the trigger system (including the optional dependency/subtask/workflow/capacity extras).
 
-- Standalone tests: Lua (`/opt/local/bin/lua`), Busted (`luarocks install busted`)
+## Related Projects
 
-### Configuration
-
-The `.busted` file in the project root configures:
-- Lua module paths (including `tests/?.lua` for polyfills)
-- Test file patterns (`*_spec.lua`)
-- Test directories and verbosity
-
-### Test Structure
-
-```
-tests
-├── README.md
-├── e2e
-│   ├── realistic_scenarios_spec.lua
-│   └── triggers_spec.lua
-├── fixtures
-│   ├── boards
-│   │   ├── board_auto_move.md
-│   │   ├── board_complex.md
-│   │   ├── board_custom.md
-│   │   ├── board_edge.md
-│   │   ├── board_simple.md
-│   │   └── test_basic_config.md
-│   ├── boards.lua
-│   └── multiline_board.md
-├── helpers
-│   └── mocks.lua
-├── integration
-│   ├── auto_complexity_spec.lua
-│   ├── auto_timestamp_spec.lua
-│   ├── board_spec.lua
-│   ├── card_spec.lua
-│   ├── cli_usage_spec.lua
-│   ├── column_spec.lua
-│   ├── column_type_spec.lua
-│   ├── content_preservation_spec.lua
-│   ├── dependency_validation_spec.lua
-│   ├── force_complete_command_spec.lua
-│   ├── parser_column_header_markdown_spec.lua
-│   ├── selective_bypass_spec.lua
-│   ├── state_transitions_spec.lua
-│   ├── subtask_validation_spec.lua
-│   ├── timestamp_on_initial_placement_spec.lua
-│   └── writer_cli_adapter_spec.lua
-├── manual-tests
-│   ├── COMPLEXITY_IMPLEMENTATION_SUMMARY.md
-│   ├── complexity_demo.md
-│   ├── diagnose_cursor.lua
-│   ├── test_board.md
-│   ├── test_board_level_complexity.lua
-│   ├── test_commands.lua
-│   ├── test_complexity.lua
-│   ├── test_complexity_demo.lua
-│   ├── test_cursor_positioning.lua
-│   └── test_set_complexity_command.lua
-├── polyfills
-│   └── vim.lua
-├── run_tests.lua
-├── run_tests.sh
-├── run_tests_standalone.sh
-└── unit
-    ├── adapters
-    │   └── cli_adapter_spec.lua
-    ├── blank_line_preservation_spec.lua
-    ├── board_validate_dependencies_spec.lua
-    ├── card_spec.lua
-    ├── column_helpers_spec.lua
-    ├── column_type_resolver_spec.lua
-    ├── config_dependency_refactor_spec.lua
-    ├── config_triggers_spec.lua
-    ├── detection_strategy_spec.lua
-    ├── id_persistence_spec.lua
-    ├── parser_content_blocks_spec.lua
-    ├── parser_multiline_spec.lua
-    ├── parser_properties_spec.lua
-    ├── stats_formatting_spec.lua
-    ├── stats_metrics_spec.lua
-    ├── triggerable_spec.lua
-    ├── type_converter_spec.lua
-    ├── utils_string_spec.lua
-    ├── utils_table_spec.lua
-    ├── workflow_engine_spec.lua
-    ├── writer_content_blocks_spec.lua
-    ├── writer_mixin_spec.lua
-    └── writer_multiline_spec.lua
-
-10 directories, 65 files
-```
-
-### Test Coverage
-
-The tests cover:
-- **Parser functionality**: Board parsing, task extraction, property parsing, configuration handling
-- **Writer functionality**: Markdown generation, task manipulation, archiving, formatting
-- **Round-trip consistency**: Ensuring parse → write → parse maintains data integrity
-- **Edge cases**: Special characters, empty sections, malformed data
-- **Statistics**: WIP calculation, cycle times, complexity totals
-- **Validation**: WIP limits, duplicate IDs, structural validation
+- **[kanban-md](https://github.com/theprintedbird/kanban-md)** — the Markdown syntax specification
+- **[kanban-md.nvim](https://github.com/theprintedbird/kanban-md.nvim)** — the Neovim plugin built on this engine

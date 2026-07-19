@@ -18,6 +18,45 @@ end)
 -- Using a time-based seed with additional entropy
 math.randomseed(os.time() * math.random(1, 10000))
 
+-- Locate the owning board from the trigger context or the object itself, so
+-- config resolution can honour board-file overrides. Returns nil when no board
+-- is reachable (e.g. a card/column created standalone before being attached).
+local function resolve_board(obj, context)
+  if context then
+    if type(context.board) == "table" then
+      return context.board
+    end
+    if type(context.column) == "table" and type(context.column.board) == "table" then
+      return context.column.board
+    end
+    if type(context.card) == "table" and type(context.card.column) == "table"
+        and type(context.card.column.board) == "table" then
+      return context.card.column.board
+    end
+  end
+
+  if type(obj) == "table" then
+    if type(obj.get_config_value) == "function" then
+      return obj
+    end
+    if type(obj.board) == "table" then
+      return obj.board
+    end
+  end
+
+  return nil
+end
+
+-- Resolve a config value through the board (board file > plugin config) when a
+-- board is reachable, otherwise fall back to the global plugin config.
+local function resolve_config_value(obj, context, key)
+  local board = resolve_board(obj, context)
+  if board and type(board.get_config_value) == "function" then
+    return board:get_config_value(key)
+  end
+  return require('kanban-md.config').get_value(key)
+end
+
 -- Helper function to determine object type and generate appropriate prefix
 local function get_id_prefix(obj, context)
   if context and context.board and obj == context.board then
@@ -41,15 +80,15 @@ end
 -- Create ULID-based ID generation trigger
 local function create_ulid_id_trigger()
   return function(self, context)
-    local config = require('kanban-md.config')
+    -- Determine which object we're generating an ID for
+    local obj = context.board or context.column or context.card or self
 
-    -- Check if auto_id is enabled in config
-    if not config.get_value('auto_id') then
+    -- Check if auto_id is enabled (board file config wins when reachable)
+    if not resolve_config_value(obj, context, 'auto_id') then
       return true
     end
 
-    -- Determine which object we're generating an ID for
-    local obj = context.board or context.column or context.card or self
+    local persist = resolve_config_value(obj, context, 'persist_card_ids')
 
     -- Only generate if ID doesn't exist or is empty
     if not obj.id or obj.id == "" then
@@ -58,10 +97,10 @@ local function create_ulid_id_trigger()
       obj.id = generated_id
 
       -- If persist_card_ids is enabled, sync to properties for persistence
-      if config.get_value('persist_card_ids') and obj.properties then
+      if persist and obj.properties then
         obj.properties.id = generated_id
       end
-    elseif obj.id and config.get_value('persist_card_ids') and obj.properties then
+    elseif obj.id and persist and obj.properties then
       -- If ID already exists and persist_card_ids is enabled, ensure it's synced to properties
       obj.properties.id = obj.id
     end
@@ -75,12 +114,13 @@ end
 local function create_time_based_id_trigger()
   return function(self, context)
     local card = context.card or self
-    local config = require('kanban-md.config')
 
-    -- Check if auto_id is enabled in config
-    if not config.get_value('auto_id') then
+    -- Check if auto_id is enabled (board file config wins when reachable)
+    if not resolve_config_value(card, context, 'auto_id') then
       return true
     end
+
+    local persist = resolve_config_value(card, context, 'persist_card_ids')
 
     -- Only generate if ID doesn't exist
     if not card.id or card.id == "" then
@@ -93,10 +133,10 @@ local function create_time_based_id_trigger()
       card.id = generated_id
 
       -- If persist_card_ids is enabled, sync to properties for persistence
-      if config.get_value('persist_card_ids') and card.properties then
+      if persist and card.properties then
         card.properties.id = generated_id
       end
-    elseif card.id and config.get_value('persist_card_ids') and card.properties then
+    elseif card.id and persist and card.properties then
       -- If ID already exists and persist_card_ids is enabled, ensure it's synced to properties
       card.properties.id = card.id
     end

@@ -12,10 +12,12 @@ local adapter_registry = require("kanban-md.adapter_registry")
 local WriterMixin = {}
 
 -- Format a timestamp based on config
-local function format_timestamp(timestamp)
+-- @param timestamp number|nil
+-- @param config table|nil - effective config; falls back to global plugin config
+local function format_timestamp(timestamp, config)
 	if not timestamp then return nil end
 
-	local config = config_module.get()
+	config = config or config_module.get()
 	if config.timestamp_format == "iso" then
 		return os.date("!%Y-%m-%dT%H:%M:%SZ", timestamp)
 	elseif config.timestamp_format == "date" then
@@ -27,13 +29,15 @@ local function format_timestamp(timestamp)
 end
 
 -- Format a property value for output
-local function format_property_value(value)
+-- @param value any
+-- @param config table|nil - effective config; falls back to global plugin config
+local function format_property_value(value, config)
 	if type(value) == "boolean" then
 		return tostring(value)
 	elseif type(value) == "number" then
 		-- Check if it might be a timestamp (roughly after year 2000)
 		if value > 946684800 and value < 2147483647 then
-			return format_timestamp(value)
+			return format_timestamp(value, config)
 		else
 			return tostring(value)
 		end
@@ -59,7 +63,12 @@ local function to_plain_table(obj)
 end
 
 -- Convert properties to comment string
-local function properties_to_comment(properties, prefix)
+-- @param properties table
+-- @param prefix string|nil - e.g. "kanban:config" or "column:config"
+-- @param config table|nil - effective config; falls back to global plugin config
+local function properties_to_comment(properties, prefix, config)
+	config = config or config_module.get()
+
 	-- Ensure properties is a plain table, not a TypeConverter
 	properties = to_plain_table(properties)
 
@@ -82,14 +91,13 @@ local function properties_to_comment(properties, prefix)
 		-- Skip underscore-prefixed properties (ephemeral/internal)
 		if not key:match("^_") then
 			local value = properties[key]
-			local formatted = format_property_value(value)
+			local formatted = format_property_value(value, config)
 			if formatted then
 				table.insert(parts, string.format("%s: %s", key, formatted))
 			end
 		end
 	end
 
-	local config = config_module.get()
 	local content = table.concat(parts, config.property_separator)
 
 	-- Decide on single-line vs multi-line comment
@@ -109,18 +117,21 @@ local function properties_to_comment(properties, prefix)
 end
 
 -- Write a task line
-local function write_task(task, column_name)
-	local config = config_module.get()
+-- @param task table
+-- @param column_name string
+-- @param config table|nil - effective config; falls back to global plugin config
+local function write_task(task, column_name, config)
+	config = config or config_module.get()
 	local lines = {}
 
 	-- Get properties to write
 	local props_to_write = to_plain_table(task.properties or {})
-	if config_module.get_value('persist_card_ids') and task.id then
+	if config.persist_card_ids and task.id then
 		props_to_write.id = task.id
 	end
 
 	-- Build property comment
-	local comment = properties_to_comment(props_to_write)
+	local comment = properties_to_comment(props_to_write, nil, config)
 
 	-- Handle multi-line cards
 	if task.content_lines then
@@ -161,9 +172,11 @@ local function write_task(task, column_name)
 end
 
 -- Write a column section
-local function write_column(column)
+-- @param column table
+-- @param config table|nil - effective config; falls back to global plugin config
+local function write_column(column, config)
+	config = config or config_module.get()
 	local lines = {}
-	local config = config_module.get()
 
 	-- Column header
 	table.insert(lines, "###### " .. column.name)
@@ -171,7 +184,7 @@ local function write_column(column)
 	-- Column configuration comment if present
 	local plain_config = to_plain_table(column.config)
 	if plain_config and not TblUtils.isEmpty(plain_config) then
-		local config_comment = properties_to_comment(plain_config, "column:config")
+		local config_comment = properties_to_comment(plain_config, "column:config", config)
 		if type(config_comment) == "table" then
 			for _, line in ipairs(config_comment) do
 				table.insert(lines, line)
@@ -195,7 +208,7 @@ local function write_column(column)
 
 	-- cards
 	for _, task in ipairs(column.cards or {}) do
-		local task_output = write_task(task, column.name)
+		local task_output = write_task(task, column.name, config)
 		if type(task_output) == "table" then
 			for _, line in ipairs(task_output) do
 				table.insert(lines, line)
@@ -221,7 +234,7 @@ end
 
 -- Write from content blocks (preserves markdown)
 function WriterMixin:write_from_blocks()
-	local config = config_module.get()
+	local config = self:get_effective_config()
 	local lines = {}
 	local ContentBlock = require("kanban-md.content_block")
 
@@ -239,7 +252,7 @@ function WriterMixin:write_from_blocks()
 			-- Add board config if present (immediately after title)
 			local plain_board_config = to_plain_table(self.config)
 			if plain_board_config and not TblUtils.isEmpty(plain_board_config) then
-				local config_comment = properties_to_comment(plain_board_config, "kanban:config")
+				local config_comment = properties_to_comment(plain_board_config, "kanban:config", config)
 				if type(config_comment) == "table" then
 					for _, line in ipairs(config_comment) do
 						table.insert(lines, line)
@@ -259,7 +272,7 @@ function WriterMixin:write_from_blocks()
 			-- Column configuration comment if present
 			local plain_config = to_plain_table(column.config)
 			if plain_config and not TblUtils.isEmpty(plain_config) then
-				local config_comment = properties_to_comment(plain_config, "column:config")
+				local config_comment = properties_to_comment(plain_config, "column:config", config)
 				if type(config_comment) == "table" then
 					for _, line in ipairs(config_comment) do
 						table.insert(lines, line)
@@ -292,7 +305,7 @@ function WriterMixin:write_from_blocks()
 
 			-- Cards
 			for _, task in ipairs(column.cards or {}) do
-				local task_output = write_task(task, column.name)
+				local task_output = write_task(task, column.name, config)
 				if type(task_output) == "table" then
 					for _, line in ipairs(task_output) do
 						table.insert(lines, line)
@@ -309,7 +322,7 @@ end
 
 -- Legacy write (for backwards compatibility, programmatically created boards without content blocks)
 function WriterMixin:write_legacy()
-	local config = config_module.get()
+	local config = self:get_effective_config()
 	local lines = {}
 
 	-- Board title
@@ -322,7 +335,7 @@ function WriterMixin:write_legacy()
 	-- Board configuration
 	local plain_board_config = to_plain_table(self.config)
 	if plain_board_config and not TblUtils.isEmpty(plain_board_config) then
-		local config_comment = properties_to_comment(plain_board_config, "kanban:config")
+		local config_comment = properties_to_comment(plain_board_config, "kanban:config", config)
 		if type(config_comment) == "table" then
 			for _, line in ipairs(config_comment) do
 				table.insert(lines, line)
@@ -347,7 +360,7 @@ function WriterMixin:write_legacy()
 			table.insert(lines, "")
 		end
 
-		local column_lines = write_column(column)
+		local column_lines = write_column(column, config)
 		for _, line in ipairs(column_lines) do
 			table.insert(lines, line)
 		end
@@ -359,7 +372,7 @@ function WriterMixin:write_legacy()
 			table.insert(lines, "")
 		end
 
-		local archive_lines = write_column(self.archive)
+		local archive_lines = write_column(self.archive, config)
 		for _, line in ipairs(archive_lines) do
 			table.insert(lines, line)
 		end
@@ -421,7 +434,7 @@ function WriterMixin:update_task_in_buffer(task_id, bufnr)
 	end
 
 	-- Generate the updated task line
-	local updated_line = write_task(task, column.name)
+	local updated_line = write_task(task, column.name, self:get_effective_config())
 
 	if type(updated_line) == "table" then
 		-- Multi-line (shouldn't happen often for cards)

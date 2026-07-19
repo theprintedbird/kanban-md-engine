@@ -261,6 +261,62 @@ function Board:get_column_by_name(name)
   return nil
 end
 
+-- Resolve a single configuration value using the precedence:
+--   board file config (self.config, parsed from `<!-- kanban:config ... -->`)
+--   > plugin config (require('kanban-md.config').get_value(key))
+--
+-- Presence in the board file is determined by whether the key is *stored*, not
+-- by whether the stored value is truthy. This means an explicit `false` in the
+-- board file correctly overrides a `true` plugin default.
+--
+-- self.config may be a plain table (freshly created via Board:new) or a
+-- TypeConverter (installed by the parser). Both are handled.
+-- @param key string - The configuration key to resolve
+-- @return any - The resolved configuration value
+function Board:get_config_value(key)
+  local TypeConverter = require('kanban-md.type_converter')
+  local plugin_config = require('kanban-md.config')
+  local board_config = self.config
+
+  if getmetatable(board_config) == TypeConverter then
+    -- TypeConverter: use :has() so an explicit `false` counts as present
+    if board_config:has(key) then
+      return board_config[key]
+    end
+  elseif type(board_config) == "table" then
+    -- Plain table: presence is a non-nil raw value (so `false` still wins)
+    if rawget(board_config, key) ~= nil then
+      return board_config[key]
+    end
+  end
+
+  return plugin_config.get_value(key)
+end
+
+-- Build a plain-table snapshot of the effective configuration: the global
+-- plugin config overlaid with any keys authored in the board file. Used to
+-- thread board-file-overridable options (timestamp_format, task_indent,
+-- property_separator, blank_line_*, persist_card_ids, ...) into the writer.
+-- @return table - Plain table of resolved config values
+function Board:get_effective_config()
+  local TypeConverter = require('kanban-md.type_converter')
+  local plugin_config = require('kanban-md.config')
+  local snapshot = TblUtils.deepcopy(plugin_config.get())
+  local board_config = self.config
+
+  if getmetatable(board_config) == TypeConverter then
+    for _, key in ipairs(board_config:keys()) do
+      snapshot[key] = board_config[key]
+    end
+  elseif type(board_config) == "table" then
+    for key, _ in pairs(board_config) do
+      snapshot[key] = board_config[key]
+    end
+  end
+
+  return snapshot
+end
+
 -- Validate all dependencies in the board
 -- Checks for missing dependencies, circular dependencies, and consistency issues
 -- @return ValidationResult - Result with errors and warnings
@@ -392,21 +448,10 @@ function Board:auto_register_triggers()
   -- Register optional subtasks/dependencies triggers if enabled
   local plugin_config = require('kanban-md.config')
 
-  -- Get dependency mode (board config overrides plugin config)
-  local dependency_mode = self.config.dependency_validation
-  if dependency_mode == nil then
-    dependency_mode = plugin_config.get_dependency_mode()
-  else
-    dependency_mode = plugin_config.normalize_dependency_mode(dependency_mode)
-  end
-
-  -- Get subtask mode (board config overrides plugin config)
-  local subtask_mode = self.config.subtask_validation
-  if subtask_mode == nil then
-    subtask_mode = plugin_config.get_subtask_mode()
-  else
-    subtask_mode = plugin_config.normalize_dependency_mode(subtask_mode)
-  end
+  -- Get dependency/subtask modes (board file config overrides plugin config,
+  -- resolved via get_config_value then normalised to the canonical mode string)
+  local dependency_mode = plugin_config.normalize_dependency_mode(self:get_config_value('dependency_validation'))
+  local subtask_mode = plugin_config.normalize_dependency_mode(self:get_config_value('subtask_validation'))
 
   if dependency_mode or subtask_mode then
     local subtasks_module = require('kanban-md.extras.subtasks_triggers')
@@ -505,13 +550,10 @@ function Board:register_basic_triggers(column)
   -- Load basic trigger functions
   local triggers = require('kanban-md.triggers')
   local capacity_triggers = require('kanban-md.extras.capacity_triggers')
-  local plugin_config = require('kanban-md.config')
 
   -- Register timestamp trigger if auto_timestamp is enabled (default: true)
-  local auto_timestamp = self.config.auto_timestamp
-  if auto_timestamp == nil then
-    auto_timestamp = plugin_config.get_value('auto_timestamp')
-  end
+  -- Board file config wins over the plugin default (explicit false disables it)
+  local auto_timestamp = self:get_config_value('auto_timestamp')
 
   if auto_timestamp ~= false then
     local timestamp_fn = triggers.timestamp()
@@ -519,26 +561,17 @@ function Board:register_basic_triggers(column)
   end
 
   -- Register default complexity trigger if use_complexity is enabled
-  local use_complexity = self.config.use_complexity
-  if use_complexity == nil then
-    use_complexity = plugin_config.get_value('use_complexity')
-  end
+  local use_complexity = self:get_config_value('use_complexity')
 
   if use_complexity then
-    local default_complexity = self.config.default_complexity
-    if default_complexity == nil then
-      default_complexity = plugin_config.get_value('default_complexity')
-    end
+    local default_complexity = self:get_config_value('default_complexity')
 
     local complexity_fn = triggers.default_complexity(default_complexity)
     column:register_on_entry("add_default_complexity", complexity_fn)
   end
 
   -- Register cursor positioning trigger if enabled
-  local enable_cursor_positioning = self.config.enable_cursor_positioning
-  if enable_cursor_positioning == nil then
-    enable_cursor_positioning = plugin_config.get_value('enable_cursor_positioning')
-  end
+  local enable_cursor_positioning = self:get_config_value('enable_cursor_positioning')
 
   if enable_cursor_positioning then
     local cursor_triggers = require('kanban-md.extras.cursor_triggers')

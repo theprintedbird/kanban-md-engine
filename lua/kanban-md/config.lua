@@ -9,6 +9,24 @@
 local M = {}
 local TblUtils = require("kanban-md.utils.table")
 
+-- BOARD-FILE OVERRIDES
+-- ---------------------
+-- Any key below can also be authored in the board markdown itself via
+-- `<!-- kanban:config key: value -->`. At resolution time the board file value
+-- takes precedence over the plugin default (see Board:get_config_value and
+-- Board:get_effective_config in board.lua). Presence is decided by whether the
+-- key is written in the board file, not by truthiness, so an explicit
+-- `false` in the board file overrides a `true` plugin default.
+--
+-- Options currently consulted through this resolution (marked
+-- "[BOARD-OVERRIDABLE]" on their entries below) include the writer/formatting
+-- options (timestamp_format, task_indent, property_separator, blank_line_*,
+-- blank_lines_between_sections, use_multiline_comments, multiline_threshold,
+-- wrap_properties_at, persist_card_ids), the automation options
+-- (auto_timestamp, auto_id, use_complexity, default_complexity,
+-- enable_cursor_positioning) and the optional-feature toggles
+-- (dependency_validation, subtask_validation).
+
 -- Default configuration
 local default_config = {
   ----------------------------
@@ -137,7 +155,7 @@ local default_config = {
   -- This option is ignored if detection_strategy is explicitly set
   require_kanban_marker = nil,
 
-  -- auto_timestamp (boolean) [CORE FEATURE]
+  -- auto_timestamp (boolean) [CORE FEATURE] [BOARD-OVERRIDABLE]
   -- Automatically set timestamp properties when cards enter columns
   -- When enabled: Moving a card to "In Progress" sets card.properties.in_progress = os.time()
   -- Timestamps use Unix epoch format (seconds since 1970-01-01)
@@ -148,7 +166,7 @@ local default_config = {
   --   - commands.lua - manual command handling
   auto_timestamp = true,
 
-  -- auto_id (boolean) [CORE FEATURE]
+  -- auto_id (boolean) [CORE FEATURE] [BOARD-OVERRIDABLE]
   -- Automatically generate unique IDs for boards, columns, and cards on creation
   -- When enabled: Registers on_create triggers that generate ULID-based IDs
   -- ID format:
@@ -161,7 +179,7 @@ local default_config = {
   --   - board.lua - fallback ID generation if triggers fail
   auto_id = true,
 
-  -- persist_card_ids (boolean)
+  -- persist_card_ids (boolean) [BOARD-OVERRIDABLE]
   -- Whether to write card IDs to markdown files or keep them ephemeral
   -- false (default): IDs are generated on parse, not saved to markdown
   -- true: IDs are written to card property comments in markdown
@@ -172,13 +190,13 @@ local default_config = {
   -- COMPLEXITY TRACKING
   ----------------------------
 
-  -- use_complexity (boolean)
+  -- use_complexity (boolean) [BOARD-OVERRIDABLE]
   -- Enable complexity/story points tracking for cards
   -- When enabled: Automatically adds complexity property to new cards
   -- Used by: Card creation commands, statistics calculations
   use_complexity = false,
 
-  -- default_complexity (number)
+  -- default_complexity (number) [BOARD-OVERRIDABLE]
   -- Default complexity value for new cards when use_complexity = true
   -- Used by: New card creation commands
   default_complexity = 1,
@@ -187,7 +205,7 @@ local default_config = {
   -- OPTIONAL FEATURES (Disabled by Default)
   ----------------------------
 
-  -- dependency_validation (string | boolean) [OPTIONAL TRIGGER-BASED FEATURE]
+  -- dependency_validation (string | boolean) [OPTIONAL TRIGGER-BASED FEATURE] [BOARD-OVERRIDABLE]
   -- Validates that all dependencies are complete before allowing card completion
   -- This is an OPTIONAL feature implemented via the trigger system.
   --
@@ -216,7 +234,7 @@ local default_config = {
   --   - board.lua:validate_dependencies() - full validation with circular dependency detection
   dependency_validation = false,
 
-  -- subtask_validation (string | boolean) [OPTIONAL TRIGGER-BASED FEATURE]
+  -- subtask_validation (string | boolean) [OPTIONAL TRIGGER-BASED FEATURE] [BOARD-OVERRIDABLE]
   -- Validates that all subtasks are complete before allowing parent card completion
   -- This is an OPTIONAL feature implemented via the trigger system.
   --
@@ -245,7 +263,7 @@ local default_config = {
   -- USER EXPERIENCE
   ----------------------------
 
-  -- enable_cursor_positioning (boolean)
+  -- enable_cursor_positioning (boolean) [BOARD-OVERRIDABLE]
   -- Automatically move cursor to newly created cards after creation
   -- Used by: Card/column creation commands
   enable_cursor_positioning = false,
@@ -297,52 +315,52 @@ local default_config = {
   -- WRITER/FORMATTING
   ----------------------------
 
-  -- task_indent (string)
+  -- task_indent (string) [BOARD-OVERRIDABLE]
   -- Indentation string for task items (card list items)
   -- Default: "" (no indentation)
   -- Example: "  " for 2-space indent
   -- Used by: writer_mixin.lua when writing cards
   task_indent = "",
 
-  -- blank_lines_between_sections (boolean)
+  -- blank_lines_between_sections (boolean) [BOARD-OVERRIDABLE]
   -- Add blank lines between markdown sections (H2-H5 documentation headers)
   -- Used by: writer_mixin.lua for content block spacing
   blank_lines_between_sections = true,
 
-  -- blank_line_after_title (boolean)
+  -- blank_line_after_title (boolean) [BOARD-OVERRIDABLE]
   -- Add blank line after board title (H1)
   -- Used by: writer_mixin.lua when writing title block
   blank_line_after_title = true,
 
-  -- blank_line_after_config (boolean)
+  -- blank_line_after_config (boolean) [BOARD-OVERRIDABLE]
   -- Add blank line after board config comment
   -- Used by: writer_mixin.lua when writing config block
   blank_line_after_config = false,
 
-  -- blank_line_after_column_header (boolean)
+  -- blank_line_after_column_header (boolean) [BOARD-OVERRIDABLE]
   -- Add blank line after column header (H6)
   -- Used by: writer_mixin.lua when writing column headers
   blank_line_after_column_header = true,
 
-  -- property_separator (string)
+  -- property_separator (string) [BOARD-OVERRIDABLE]
   -- Separator between properties in HTML comments
   -- Default: ", " produces: <!-- id: 123, backlog: 1709567890 -->
   -- Used by: writer_mixin.lua when serializing card properties
   property_separator = ", ",
 
-  -- wrap_properties_at (number)
+  -- wrap_properties_at (number) [BOARD-OVERRIDABLE]
   -- Maximum line length before wrapping property comments to multiple lines
   -- Used by: writer_mixin.lua for multiline comment formatting
   wrap_properties_at = 80,
 
-  -- timestamp_format (string: "epoch" | "iso")
+  -- timestamp_format (string: "epoch" | "iso") [BOARD-OVERRIDABLE]
   -- Format for writing timestamps to markdown
   -- epoch: Unix timestamp (1709567890)
   -- iso: ISO 8601 format (2024-03-04T12:34:50Z)
   -- Used by: writer_mixin.lua when writing card properties
   timestamp_format = "epoch",
 
-  -- use_multiline_comments (boolean)
+  -- use_multiline_comments (boolean) [BOARD-OVERRIDABLE]
   -- Use multiline HTML comment format for long property lists
   -- false: <!-- property: value, property2: value2 -->
   -- true:  <!--
@@ -352,7 +370,7 @@ local default_config = {
   -- Used by: writer_mixin.lua based on wrap_properties_at threshold
   use_multiline_comments = false,
 
-  -- multiline_threshold (number)
+  -- multiline_threshold (number) [BOARD-OVERRIDABLE]
   -- Character count threshold for switching to multiline comments
   -- Used by: writer_mixin.lua when use_multiline_comments is enabled
   multiline_threshold = 100,

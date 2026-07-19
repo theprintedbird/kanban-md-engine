@@ -213,6 +213,43 @@ describe("WriterMixin serialization", function()
       local result = write_task(task, "Todo")
       assert.is_true(result:match("id: converted") ~= nil)
     end)
+
+    -- PLAN-config-fixes.md Task 2: write_task is the single source of truth
+    -- for persisted card ids.
+    it("preserves a user-authored id verbatim when persist_card_ids is false (regression)", function()
+      config_module.setup({ task_indent = "", persist_card_ids = false })
+      local task = {
+        id = "card_generated_in_memory",
+        text = "Task",
+        properties = { id = "user-authored-id" }
+      }
+      local result = write_task(task, "Todo")
+      assert.is_true(result:match("id: user%-authored%-id") ~= nil)
+      assert.is_nil(result:match("card_generated_in_memory"), "in-memory task.id must not be written when persist_card_ids is false")
+    end)
+
+    it("writes task.id when persist_card_ids is true and there is no authored properties.id", function()
+      config_module.setup({ task_indent = "", persist_card_ids = true })
+      local task = {
+        id = "card_generated_id",
+        text = "Task",
+        properties = {}
+      }
+      local result = write_task(task, "Todo")
+      assert.is_true(result:match("id: card_generated_id") ~= nil)
+    end)
+
+    it("prefers the authored properties.id over task.id when persist_card_ids is true (properties.id is canonical)", function()
+      config_module.setup({ task_indent = "", persist_card_ids = true })
+      local task = {
+        id = "stale-in-memory-id",
+        text = "Task",
+        properties = { id = "authored-canonical-id" }
+      }
+      local result = write_task(task, "Todo")
+      assert.is_true(result:match("id: authored%-canonical%-id") ~= nil)
+      assert.is_nil(result:match("stale%-in%-memory%-id"), "properties.id must win over a diverging task.id")
+    end)
   end)
 
   describe("write_column", function()

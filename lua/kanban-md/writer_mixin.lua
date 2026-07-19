@@ -126,9 +126,18 @@ local function write_task(task, column_name, config)
 
 	-- Get properties to write
 	local props_to_write = to_plain_table(task.properties or {})
-	if config.persist_card_ids and task.id then
-		props_to_write.id = task.id
+	if config.persist_card_ids then
+		-- write_task is the single source of truth for persisted card ids
+		-- (PLAN-config-fixes.md Task 2): an id the user authored in the
+		-- markdown (task.properties.id) is the canonical persisted identity
+		-- and always wins over the in-memory task.id, so a trigger-synced or
+		-- freshly generated task.id can never clobber an authored id.
+		local authored_id = task.properties and task.properties.id
+		props_to_write.id = authored_id or task.id
 	end
+	-- When persist_card_ids is false, props_to_write already carries whatever
+	-- the user authored in task.properties.id (if anything) verbatim, via
+	-- to_plain_table(task.properties) above -- no extra handling needed.
 
 	-- Build property comment
 	local comment = properties_to_comment(props_to_write, nil, config)

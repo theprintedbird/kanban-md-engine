@@ -42,15 +42,19 @@ describe("kanban-md as a pure library (setup() never called)", function()
     assert.are.equal(1, #board.columns[2].cards)
     assert.are.equal("Finished task", board.columns[2].cards[1].text)
 
-    -- Cards parsed without setup() have no id: there is no class-level
-    -- on_create trigger to generate one (Card, unlike Board/Column, has no
-    -- fallback id generation of its own). This is current expected
-    -- behaviour for the pure-library path, not a bug under test here --
-    -- callers who want ids opt in via require('helpers.setup').setup()
-    -- (or register their own on_create trigger).
-    assert.is_nil(board.columns[1].cards[1].id)
-    assert.is_nil(board.columns[1].cards[2].id)
-    assert.is_nil(board.columns[2].cards[1].id)
+    -- Cards parsed without setup() still get an id: Card:new() now has its
+    -- own parse-time fallback id generator (mirroring the fallbacks
+    -- Board:new/Column:new already had), so pure-library consumers never see
+    -- card.id == nil even though there is no class-level ULID/hash
+    -- on_create trigger registered (see PLAN-config-fixes.md Task 2). The
+    -- fallback ids are not ULIDs and are not persisted to markdown unless
+    -- persist_card_ids is enabled -- they only guarantee obj.id is populated.
+    assert.is_not_nil(board.columns[1].cards[1].id)
+    assert.is_not_nil(board.columns[1].cards[2].id)
+    assert.is_not_nil(board.columns[2].cards[1].id)
+    -- Fallback ids must be distinct even when generated within the same
+    -- os.time() second (a bare "card_" .. os.time() fallback would collide).
+    assert.are_not.equal(board.columns[1].cards[1].id, board.columns[1].cards[2].id)
 
     local written = table.concat(board:write(), "\n")
     assert.is_true(written:find("Pure Library Board", 1, true) ~= nil)

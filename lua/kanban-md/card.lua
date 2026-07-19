@@ -10,6 +10,14 @@ setmetatable(Card, { __index = Triggerable })
 Card.triggers = {}
 Card.trigger_order = {}
 
+-- Monotonic counter used only by the fallback id below. Cards are created far
+-- more frequently than Boards/Columns within a single os.time() second (e.g.
+-- parsing a file with many cards, or bulk creation in a loop), so a bare
+-- "card_" .. os.time() fallback (mirroring Board:new/Column:new) would collide
+-- across cards created in the same second. The counter guarantees uniqueness
+-- without pulling in any dependency.
+local fallback_id_counter = 0
+
 function Card:new(id, text, properties)
   -- If properties is already a TypeConverter, use it directly to avoid double-wrapping
   local props = properties
@@ -51,6 +59,15 @@ function Card:new(id, text, properties)
 
   -- Then execute instance-level triggers
   obj:execute_triggers("on_create", context)
+
+  -- Fallback: if ID is still nil after triggers, generate a simple one
+  -- (mirrors Board:new/Column:new). Without setup() there is no class-level
+  -- ULID/hash on_create trigger, so pure-library consumers previously ended
+  -- up with obj.id == nil forever -- see PLAN-config-fixes.md Task 2.
+  if not obj.id then
+    fallback_id_counter = fallback_id_counter + 1
+    obj.id = "card_" .. os.time() .. "_" .. fallback_id_counter
+  end
 
   return obj
 end

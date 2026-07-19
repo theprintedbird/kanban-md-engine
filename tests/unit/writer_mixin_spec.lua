@@ -127,8 +127,8 @@ describe("WriterMixin serialization", function()
 
     it("should add prefix when provided", function()
       local props = { wip_limit = 5 }
-      -- Prefix is added as first part, then separator, then properties
-      assert.are.equals("<!-- kanban:config, wip_limit: 5 -->",
+      -- Prefix is joined with a space, then properties are added with property_separator
+      assert.are.equals("<!-- kanban:config wip_limit: 5 -->",
         properties_to_comment(props, "kanban:config"))
     end)
 

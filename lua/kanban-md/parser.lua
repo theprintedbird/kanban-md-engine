@@ -26,9 +26,6 @@ local patterns = {
 	comment_block_end = "^(.-)%-%->%s*$",
 	comment_single = "<!%-%-%s*(.-)%s*%-%->",
 
-	-- Property patterns within comments
-	property = "([%w_]+):%s*([^,]*%[[^%]]*%]|[^,]+)",
-
 	-- Non-kanban sections (H2-H5 headers) - these are preserved as markdown
 	section_header = "^##[^#]",
 
@@ -126,7 +123,10 @@ local function parse_properties(comment_text)
 		-- Extract and clean the value
 		local value = comment_text:sub(value_start, value_end - 1):gsub("^%s+", ""):gsub("%s+$", "")
 
-		key = key:lower()
+		-- Preserve authored case of keys; they are used as-is
+		-- (Config keys like wip_limit, is_completion_state and timestamp keys
+		-- are authored in lowercase by convention; custom keys preserve whatever
+		-- case the user writes -- see PLAN-config-fixes.md Task 5)
 
 		-- Type conversion
 		if value:match("^%d+$") then
@@ -284,10 +284,14 @@ local function finalize_card(column, card_data)
 	local text = first_line:match(patterns.task_item)
 
 	-- Check for inline properties on first line
+	-- Note: parse_task has already extracted inline properties, but we need to
+	-- clean the text and update content_lines. We merge (not replace) so that
+	-- pending_config and inline properties can coexist -- see PLAN-config-fixes.md Task 6
 	local task_text, comment = text:match("^(.-)%s*<!%-%-%s*(.-)%s*%-%->%s*$")
 	if task_text and comment then
 		card_data.text = task_text:gsub("^%s+", ""):gsub("%s+$", "")
-		card_data.properties = TypeConverter:new(parse_properties(comment))
+		-- Merge inline comment properties into existing properties (don't replace)
+		card_data.properties:merge(parse_properties(comment))
 
 		-- Update first line in content_lines to remove properties
 		card_data.content_lines[1] = "- " .. card_data.text
@@ -363,7 +367,8 @@ function ParserMixin:parse(content)
 					if config_type == "board" and comment_buffer:match("kanban:config") then
 						local config_content = comment_buffer:match("^%s*kanban:config%s*,?%s*(.*)")
 						if config_content and config_content ~= "" then
-							self.config = TypeConverter:new(parse_properties(config_content))
+							-- Merge into existing config (later comments override earlier keys)
+							self.config:merge(parse_properties(config_content))
 						end
 						pending_config = nil
 					-- e.g. <!-- column:config wip_limit: 3 --> or <!-- config type: wip -->
@@ -400,7 +405,8 @@ function ParserMixin:parse(content)
 					if comment_content:match("kanban:config") then
 						local config_content = comment_content:match("^%s*kanban:config%s*,?%s*(.*)")
 						if config_content and config_content ~= "" then
-							self.config = TypeConverter:new(parse_properties(config_content))
+							-- Merge into existing config (later comments override earlier keys)
+							self.config:merge(parse_properties(config_content))
 						end
 					elseif current_column and (comment_content:match("column:config") or comment_content:match("^%s*config%s")) then
 						-- Handle both "column:config" and simplified "config" syntax
@@ -490,6 +496,11 @@ function ParserMixin:parse(content)
 						finalize_card(current_column, current_card)
 						current_card = nil
 						blank_line_seen = false
+					else
+						-- No open current_card: if there's pending_config, it
+						-- belonged to nothing (orphaned property comment between
+						-- columns) and should be dropped per PLAN-config-fixes.md Task 10
+						pending_config = nil
 					end
 
 					-- Flush markdown buffer before column
@@ -528,6 +539,11 @@ function ParserMixin:parse(content)
 						finalize_card(current_column, current_card)
 						current_card = nil
 						blank_line_seen = false
+					else
+						-- No open current_card: if there's pending_config, it
+						-- belonged to nothing (orphaned property comment between
+						-- columns) and should be dropped per PLAN-config-fixes.md Task 10
+						pending_config = nil
 					end
 
 					-- Stop attributing following list items/content to the

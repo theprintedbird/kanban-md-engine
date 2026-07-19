@@ -37,11 +37,12 @@ for k, v in pairs(WriterMixin) do
 end
 
 function Board:new()
+  local TypeConverter = require("kanban-md.type_converter")
   local obj = {
     id = nil,  -- Will be set by on_create trigger if auto_id is enabled
     columns = {},
 		-- Note: Archive is stored separately in self.archive, not in self.columns
-    config = {},
+    config = TypeConverter:new({}),
     triggers = {},
     trigger_order = {},
     -- Content blocks for preserving markdown when parsing/writing

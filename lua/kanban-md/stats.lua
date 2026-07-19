@@ -129,18 +129,42 @@ local function find_earliest_timestamp_for_columns(task_properties, board, predi
 	return earliest_timestamp, earliest_column
 end
 
--- Helper: find completion timestamp
+-- Helper: find latest timestamp from columns matching a predicate
+-- @param task_properties table: Task properties containing timestamp fields
+-- @param board table: Board object
+-- @param predicate function: Predicate function to filter columns
+-- @return number|nil, string|nil: Latest timestamp and column name, or nil
+local function find_latest_timestamp_for_columns(task_properties, board, predicate)
+	local latest_timestamp = nil
+	local latest_column = nil
+
+	for _, column in ipairs(board.columns) do
+		if predicate(column, board) then
+			local timestamp_key = normalize_column_name(column.name)
+			local timestamp = task_properties[timestamp_key]
+
+			if timestamp and (not latest_timestamp or timestamp > latest_timestamp) then
+				latest_timestamp = timestamp
+				latest_column = column.name
+			end
+		end
+	end
+
+	return latest_timestamp, latest_column
+end
+
+-- Helper: find completion timestamp (uses latest entry into any completion column)
 -- @param task_properties table: Task properties containing timestamp fields
 -- @param board table: Board object
 -- @return number|nil, string|nil: Completion timestamp and column name, or nil
 local function find_completion_timestamp(task_properties, board)
-	-- First check archive
+	-- First check archive (archived wins over completion columns)
 	if task_properties.archived then
 		return task_properties.archived, "__ARCHIVE__"
 	end
 
-	-- Find latest timestamp from completion columns
-	return find_earliest_timestamp_for_columns(task_properties, board, column_helpers.is_completion_column)
+	-- Find latest timestamp from completion columns (semantic: latest entry into completion)
+	return find_latest_timestamp_for_columns(task_properties, board, column_helpers.is_completion_column)
 end
 
 -- Helper: find backlog timestamp (earliest backlog state)
@@ -555,6 +579,8 @@ if _G._TEST then
 		calculate_lead_time = calculate_lead_time,
 		calculate_cycle_time = calculate_cycle_time,
 		calculate_blocked_time = calculate_blocked_time,
+		find_earliest_timestamp_for_columns = find_earliest_timestamp_for_columns,
+		find_latest_timestamp_for_columns = find_latest_timestamp_for_columns,
 		find_backlog_timestamp = find_backlog_timestamp,
 		find_start_state_timestamp = find_start_state_timestamp,
 		find_completion_timestamp = find_completion_timestamp,

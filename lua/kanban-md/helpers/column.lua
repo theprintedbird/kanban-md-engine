@@ -131,9 +131,10 @@ function M.is_backlog_column(column, board)
     end
   end
 
-  -- 3. Position-based fallback: first column is backlog (only if multiple regular columns exist)
-  if board.columns and #board.columns > 1 then
-    if board.columns[1] == column then
+  -- 3. Position-based fallback: first regular column is backlog (only if multiple regular columns exist)
+  local regular_columns = get_regular_columns(board)
+  if #regular_columns > 1 then
+    if regular_columns[1] == column then
       return true
     end
   end

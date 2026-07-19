@@ -15,8 +15,8 @@ ulid.set_time_func(function()
 end)
 
 -- Seed the random generator once on module load
--- Using a time-based seed with additional entropy
-math.randomseed(os.time() * math.random(1, 10000))
+-- Using a time-based seed with additional entropy from os.clock
+math.randomseed(os.time() + math.floor((os.clock() % 1) * 1e6))
 
 -- Locate the owning board from the trigger context or the object itself, so
 -- config resolution can honour board-file overrides. Returns nil when no board

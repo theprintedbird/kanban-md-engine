@@ -55,17 +55,12 @@ _G.vim = {
   }
 }
 
--- Initialize CLI adapter for standalone tests
--- This ensures tests use CLIAdapter instead of NeovimAdapter
--- We need to temporarily unset vim global to bypass the safety check in cli.lua
-local vim_backup = _G.vim
-_G.vim = nil
-
-local kanban_cli = require('kanban-md.cli')
-kanban_cli.setup()
-
--- Restore vim global for test use
-_G.vim = vim_backup
+-- NOTE: this polyfill deliberately does NOT call
+-- require('kanban-md.cli').setup() any more. Specs that need the CLI
+-- adapter registered, class-level ULID id triggers on Board/Column/Card,
+-- or plugin config initialised must opt in explicitly via
+-- require('helpers.setup').setup() (see tests/helpers/setup.lua). This
+-- keeps the "pure library, no setup()" path exercised by the test suite
+-- instead of every spec silently depending on global setup side effects.
 
 return _G.vim
-

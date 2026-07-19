@@ -188,10 +188,22 @@ end
 function Column:remove_card(card, context)
 	local card_index = nil
 
+	-- First pass: prefer identity match (exact object reference)
 	for i, c in ipairs(self.cards) do
-		if c.id == card.id or c == card then
+		if c == card then
 			card_index = i
 			break
+		end
+	end
+
+	-- Second pass: fall back to id match only if no identity match
+	-- Guard against nil ids matching other nil ids
+	if not card_index and card.id then
+		for i, c in ipairs(self.cards) do
+			if c.id == card.id then
+				card_index = i
+				break
+			end
 		end
 	end
 

@@ -365,20 +365,26 @@ function ParserMixin:parse(content)
 						if config_content and config_content ~= "" then
 							self.config = TypeConverter:new(parse_properties(config_content))
 						end
+						pending_config = nil
 					-- e.g. <!-- column:config wip_limit: 3 --> or <!-- config type: wip -->
 					elseif config_type == "column" then
 						-- Handle both "column:config" and simplified "config" syntax
 						local config_content = comment_buffer:match("^%s*column:config%s*,?%s*(.*)")
 							or comment_buffer:match("^%s*config%s*,?%s*(.*)")
 						apply_column_config(current_column, config_content)
-					elseif current_column and pending_config then
-						-- This is task properties
-						pending_config.properties = parse_properties(comment_buffer)
+						pending_config = nil
+					elseif config_type == "task" and current_column then
+						-- Task properties (multi-line comment following a card).
+						-- Mirror the single-line path (see the comment_single
+						-- branch below): stash as pending_config so the
+						-- existing flush logic (task/column/archive/EOF
+						-- branches) applies it to current_card. See
+						-- PLAN-config-fixes.md Task 4.
+						pending_config = { properties = parse_properties(comment_buffer) }
 					end
 
 					comment_buffer = ""
 					config_type = nil
-					pending_config = nil
 				else
 					comment_buffer = comment_buffer .. " " .. line
 				end

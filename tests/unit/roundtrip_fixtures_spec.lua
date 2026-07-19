@@ -102,11 +102,6 @@ describe("Round-trip fidelity: parse(write(parse(x))) == parse(x)", function()
     end)
 
     it("keeps multiline task property comments (plan Task 4)", function()
-      pending("Plan Task 4: parser.lua's multiline comment completion " ..
-        "branch only fires when pending_config was already set by the " ..
-        "single-line path, so a multiline <!-- ... --> comment after a " ..
-        "card is silently discarded along with its properties.")
-
       local x = table.concat({
         "# B4",
         "",

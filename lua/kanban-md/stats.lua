@@ -3,6 +3,7 @@
 
 local column_helpers = require("kanban-md.helpers.column")
 local config = require("kanban-md.config")
+local normalize_column_name = column_helpers.normalize_column_name
 
 -- Stats mixin that can be applied to Board instances
 local StatsMixin = {}
@@ -92,11 +93,6 @@ local function format_duration(seconds, format, unit)
 			end
 		end
 	end
-end
-
--- Helper: normalize column name to timestamp key format
-local function normalize_column_name(column_name)
-	return column_name:lower():gsub("[^%w_]", "_")
 end
 
 -- Helper: find column by name

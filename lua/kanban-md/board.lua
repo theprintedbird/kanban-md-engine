@@ -678,13 +678,8 @@ function Board:archive_done_cards(older_than_days)
       if is_completed then
         if older_than_days > 0 then
           -- Check if old enough
-          local completion_column_name
-          for _, col in ipairs(self.columns) do
-            if column_helpers.is_completion_column(col, self) then
-              completion_column_name = col.name:lower()
-              break
-            end
-          end
+          -- Use the card's own column (not searching for first completion column)
+          local completion_column_name = column_helpers.normalize_column_name(column.name)
           local done_time = task.properties[completion_column_name] or 0
           if done_time < cutoff_time then
             should_archive = true

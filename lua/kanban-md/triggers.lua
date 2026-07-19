@@ -1,19 +1,13 @@
 -- Example trigger implementations
 
 local Triggerable = require('kanban-md.triggerable')
+local column_helpers = require('kanban-md.helpers.column')
 
 -- Timestamp trigger
 local function create_timestamp_trigger()
-  local normalize_column_name = function(column_name)
-    if column_name == "__ARCHIVE__" then
-      return "archived"
-    end
-    return column_name:lower():gsub("[^%w_]", "_")
-  end
-
   return function(self, context)
     local card = context.card
-    local timestamp_key = normalize_column_name(self.name or self.id)
+    local timestamp_key = column_helpers.normalize_column_name(self.name or self.id)
     card.properties[timestamp_key] = os.time()
     return true
   end

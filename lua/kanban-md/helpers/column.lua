@@ -3,6 +3,18 @@
 
 local M = {}
 
+-- Normalize column name to timestamp key format
+-- Handles the special case "__ARCHIVE__" → "archived", and converts
+-- other names to lowercase with non-word characters replaced by underscores
+-- @param column_name string: The column name to normalize
+-- @return string: The normalized name suitable for use as a property key
+function M.normalize_column_name(column_name)
+	if column_name == "__ARCHIVE__" then
+		return "archived"
+	end
+	return column_name:lower():gsub("[^%w_]", "_")
+end
+
 function M.is_completion_column(column, board)
   if not column or not column.name then
     return false

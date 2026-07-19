@@ -171,6 +171,39 @@ local function write_task(task, column_name, config)
 	return line
 end
 
+-- Select which column config layer to serialise back to markdown.
+--
+-- By default only the *authored* layer (column.markdown_config) is written, so
+-- implicit/type-resolved properties (from column_config types, definitions or
+-- patterns) are never injected into the user's file -- honouring the
+-- "Markdown always wins" contract and write_full_config_to_markdown = false
+-- (see PLAN-config-fixes.md Task 3, features/CONFIG_PLAN.md).
+--
+-- When the effective write_full_config_to_markdown is true, the fully resolved
+-- column.config is written instead.
+--
+-- Programmatically built columns (via Board:add_column / direct column.config
+-- assignment) never go through the parser's type resolution, so column.type is
+-- nil and there is no authored markdown_config; those fall back to
+-- column.config so write_legacy keeps serialising them as before.
+-- @param column table
+-- @param config table - effective config
+-- @return table|nil - the config layer to serialise, or nil to write nothing
+local function select_column_config(column, config)
+	if config.write_full_config_to_markdown then
+		return column.config
+	end
+	if column.markdown_config ~= nil then
+		return column.markdown_config
+	end
+	if column.type == nil then
+		-- No parser type resolution occurred: treat direct config as authored.
+		return column.config
+	end
+	-- Type-resolved column with no authored config: write nothing.
+	return nil
+end
+
 -- Write a column section
 -- @param column table
 -- @param config table|nil - effective config; falls back to global plugin config
@@ -181,8 +214,8 @@ local function write_column(column, config)
 	-- Column header
 	table.insert(lines, "###### " .. column.name)
 
-	-- Column configuration comment if present
-	local plain_config = to_plain_table(column.config)
+	-- Column configuration comment if present (authored layer by default)
+	local plain_config = to_plain_table(select_column_config(column, config))
 	if plain_config and not TblUtils.isEmpty(plain_config) then
 		local config_comment = properties_to_comment(plain_config, "column:config", config)
 		if type(config_comment) == "table" then
@@ -269,8 +302,8 @@ function WriterMixin:write_from_blocks()
 			-- Column header (H6)
 			table.insert(lines, "###### " .. column.name)
 
-			-- Column configuration comment if present
-			local plain_config = to_plain_table(column.config)
+			-- Column configuration comment if present (authored layer by default)
+			local plain_config = to_plain_table(select_column_config(column, config))
 			if plain_config and not TblUtils.isEmpty(plain_config) then
 				local config_comment = properties_to_comment(plain_config, "column:config", config)
 				if type(config_comment) == "table" then

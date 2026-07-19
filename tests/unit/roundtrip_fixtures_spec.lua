@@ -80,11 +80,6 @@ describe("Round-trip fidelity: parse(write(parse(x))) == parse(x)", function()
 
   describe("known round-trip defects (pending until their fix task lands)", function()
     it("does not inject resolved column-type config into markdown (plan Task 3)", function()
-      pending("Plan Task 3: parser/writer merge resolved column_config type " ..
-        "properties into column.config, and the writer serialises that " ..
-        "merged layer, so a pattern-matched type injects an unauthored " ..
-        "'<!-- column:config, is_completion_state: true -->' comment on write.")
-
       test_setup.with_config({
         column_config = {
           types = {

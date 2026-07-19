@@ -410,7 +410,13 @@ function Board:add_new_column(name, config)
   local column = Column:new(nil, name)
 
   if config then
+    -- Programmatic config counts as authored: set both the resolved layer
+    -- (column.config, consulted by triggers/helpers/stats) and the authored
+    -- layer (column.markdown_config, serialised by the writer) so a
+    -- programmatically added column round-trips through write() as well as
+    -- write_legacy(). See PLAN-config-fixes.md Task 3.
     column.config = TypeConverter:new(config)
+    column.markdown_config = TypeConverter:new(config)
   end
 
   table.insert(self.columns, column)

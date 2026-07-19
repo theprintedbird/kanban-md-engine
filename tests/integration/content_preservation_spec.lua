@@ -416,8 +416,13 @@ describe("Content preservation integration", function()
         "Check limits weekly."
       })
 
-      -- Modify WIP limit
+      -- Modify WIP limit. Since PLAN-config-fixes.md Task 3, the writer
+      -- serialises the *authored* layer (column.markdown_config) by default and
+      -- never the resolved column.config, so to change what is persisted we
+      -- update the authored layer (mirroring it into column.config keeps the
+      -- resolved layer that triggers/stats consult in sync).
       local in_progress = board:get_column_by_name("In Progress")
+      in_progress.markdown_config.wip_limit = 5
       in_progress.config.wip_limit = 5
 
       local output = board:write()

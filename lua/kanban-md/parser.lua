@@ -205,8 +205,17 @@ local function apply_column_config(column, config_content)
 		global_config
 	)
 
-	-- Set column type and config
+	-- Set column type and config.
+	--
+	-- Two layers are kept on the column (see PLAN-config-fixes.md Task 3):
+	--   * column.markdown_config -- exactly the properties the user authored in
+	--     the markdown comment. This is the layer the writer serialises back by
+	--     default, so implicit/type-resolved properties are never injected into
+	--     the user's file.
+	--   * column.config -- the merged/resolved config (type defaults < definition
+	--     < markdown) that triggers, helpers, stats and validation consult.
 	column.type = column_type
+	column.markdown_config = TypeConverter:new(markdown_props)
 	column.config = TypeConverter:new(final_config)
 end
 

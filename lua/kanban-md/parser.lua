@@ -473,10 +473,11 @@ function ParserMixin:parse(content)
 				column_has_cards = false
 			-- Parse column headers
 			elseif line:match(patterns.column_header) then
-				add_to_markdown = false
 				local column_name = line:match(patterns.column_header)
 
 				if not column_name:match("^__") then  -- Regular column
+					add_to_markdown = false
+
 					-- Flush current card if any
 					if current_card then
 						-- Apply pending config if any
@@ -504,6 +505,39 @@ function ParserMixin:parse(content)
 					add_structured_block(self, ContentBlock.column(current_column))
 
 					-- Reset card tracking for new column
+					column_has_cards = false
+				else
+					-- Unknown "__X__" special section (anything other than
+					-- __ARCHIVE__, which is handled above). There is no
+					-- recognised structure for it, so preserve it verbatim as
+					-- markdown rather than destroying it, and stop routing
+					-- subsequent content to the *previous* column (see
+					-- PLAN-config-fixes.md Task 5).
+
+					-- Flush current card if any, mirroring the regular
+					-- column-header branch above, so the previous column's
+					-- last card isn't left dangling.
+					if current_card then
+						-- Apply pending config if any
+						if pending_config then
+							for k, v in pairs(pending_config.properties) do
+								current_card.properties[k] = v
+							end
+							pending_config = nil
+						end
+						finalize_card(current_column, current_card)
+						current_card = nil
+						blank_line_seen = false
+					end
+
+					-- Stop attributing following list items/content to the
+					-- previous column. With current_column nil, the
+					-- task/blank/continuation handling below is skipped
+					-- entirely, so this header line and everything that
+					-- follows falls through to the generic markdown-buffer
+					-- path (add_to_markdown stays true) until the next
+					-- H6/H1/archive header flushes it as one markdown block.
+					current_column = nil
 					column_has_cards = false
 				end
 			-- Parse tasks with multi-line support

@@ -127,11 +127,6 @@ describe("Round-trip fidelity: parse(write(parse(x))) == parse(x)", function()
     end)
 
     it("preserves unknown __SPECIAL__ sections without leaking their cards (plan Task 5)", function()
-      pending("Plan Task 5: parser.lua treats any H6 matching '^__' that " ..
-        "isn't __ARCHIVE__ as neither a column nor markdown -- the header " ..
-        "line is dropped on write, and because current_column isn't reset " ..
-        "its cards are appended to the previous column instead.")
-
       local x = table.concat({
         "# B5",
         "",

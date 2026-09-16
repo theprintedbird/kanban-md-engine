@@ -232,7 +232,7 @@ busted --list            # List all available tests
 ```
 
 **Requirements:**
-- Lua (`/opt/local/bin/lua`)
+- Lua 5.1+ or LuaJIT on `PATH` (set `LUA` to pick a specific interpreter)
 - Busted (`luarocks install busted`)
 
 **Configuration:**

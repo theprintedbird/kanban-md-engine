@@ -41,12 +41,12 @@
 
 ###### Ready
 
-- Remove hardcoded /opt/local/bin/lua from examples/test_cli.sh and CLAUDE.md <!-- backlog: 1789543830, id: card_01M2MHZN4K4C1PJF217YSG4Q63, ready: 1789556001, tags: [phase1] -->
 - Quarantine or promote tests/manual-tests/ <!-- backlog: 1789543830, id: card_01M2MHZN1S6JQPSNMWWQ24YQ9B, ready: 1789556004, tags: [phase1] -->
 
 
 
 ###### In Progress
+
 
 
 
@@ -82,3 +82,4 @@
 - Add a rockspec declaring busted, luacov, luacheck and the Lua version <!-- backlog: 1789543830, done: 1789551581, id: card_01M2MHZMR8J95CSX9F9HSTDT84, in_progress: 1789551335, ready: 1789548245, tags: [phase1] -->
 - Fix tests/run_tests_standalone.sh: add shebang and set -e <!-- backlog: 1789543830, done: 1789556527, id: card_01M2MHZMJH15FW5CJ5EBFQWR95, in_progress: 1789556487, ready: 1789555998, tags: [phase1] -->
 - Delete plenary leftovers tests/run_tests.sh and tests/run_tests.lua <!-- backlog: 1789543830, done: 1789556558, id: card_01M2MHZNCKPYVZE4G7YX262587, in_progress: 1789556535, ready: 1789556000, tags: [phase1] -->
+- Remove hardcoded /opt/local/bin/lua from examples/test_cli.sh and CLAUDE.md <!-- backlog: 1789543830, done: 1789556652, id: card_01M2MHZN4K4C1PJF217YSG4Q63, in_progress: 1789556587, ready: 1789556001, tags: [phase1] -->

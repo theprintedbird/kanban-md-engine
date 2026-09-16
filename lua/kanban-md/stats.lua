@@ -95,16 +95,6 @@ local function format_duration(seconds, format, unit)
 	end
 end
 
--- Helper: find column by name
-local function find_column_by_name(board, column_name)
-	for _, column in ipairs(board.columns) do
-		if column.name == column_name then
-			return column
-		end
-	end
-	return nil
-end
-
 -- Helper: find earliest timestamp from columns matching a predicate
 -- @param task_properties table: Task properties containing timestamp fields
 -- @param board table: Board object

@@ -5,7 +5,6 @@ local M = {}
 function M.split(inputstr, sep)
 	sep = sep or "%s"  -- default to whitespace
 	local t = {}
-	local pattern = "([^" .. sep .. "]*)" .. sep .. "?"
 
 	-- Special handling for newline separator to preserve blank lines
 	if sep == "\n" then

@@ -6,8 +6,6 @@
 -- local workflow_engine = WorkflowEngine:new(board)
 -- workflow_engine:setup_triggers() -- Registers workflow rules as on_checking triggers
 
-local ValidationResult = require('kanban-md.validation_result')
-local Triggerable = require("kanban-md.triggerable")
 
 -- Static helper function to evaluate conditions (used by workflow validation)
 -- Format: "property == value" or "property != value"

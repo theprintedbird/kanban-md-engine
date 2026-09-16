@@ -32,10 +32,10 @@ function Column:new(id, name)
 
   -- Execute class-level triggers first (if any)
   if Column.triggers and Column.triggers["on_create"] then
-    for name, trigger_fn in pairs(Column.triggers["on_create"]) do
+    for trigger_name, trigger_fn in pairs(Column.triggers["on_create"]) do
       local success, result = pcall(trigger_fn, obj, context)
       if not success then
-        error(string.format("Error in on_create trigger '%s': %s", name, result))
+        error(string.format("Error in on_create trigger '%s': %s", trigger_name, result))
       end
     end
   end
@@ -157,7 +157,7 @@ function Column:add_card(card, context)
 	card_copy.column = self.id
 
 	-- Execute entry triggers on the copy
-	local success, results, errors = processingStuff("entry", self, final_context)
+	local success, _, errors = processingStuff("entry", self, final_context)
 
 	if not success then
 		-- Discard the copy - remove from column
@@ -230,7 +230,7 @@ function Column:remove_card(card, context)
 	local final_context = build_context_and_checking("exit", self, card_copy, context)
 
 	-- Execute exit triggers on the copy
-	local success, results, errors = processingStuff("exit", self, final_context)
+	local success, _, errors = processingStuff("exit", self, final_context)
 
 	if not success then
 		-- Discard the copy, keep original unchanged in column

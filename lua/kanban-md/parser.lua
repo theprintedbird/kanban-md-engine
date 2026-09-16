@@ -175,11 +175,6 @@ local function is_continuation_line(line)
 	return line:match("^  +") or line:match("^\t+")  -- 2+ spaces or 1+ tabs at start
 end
 
--- Detect if a line has a list marker
-local function has_list_marker(line)
-	return line:match("^%s*%-%s+")
-end
-
 -- Apply column configuration with type resolution and property merging
 -- Handles both "column:config" and simplified "config" syntax
 local function apply_column_config(column, config_content)
@@ -273,7 +268,6 @@ end
 
 -- Helper: Add a structured block reference
 local function add_structured_block(board, block)
-	local ContentBlock = require("kanban-md.content_block")
 	table.insert(board.content_blocks, block)
 end
 
@@ -595,8 +589,8 @@ function ParserMixin:parse(content)
 							-- Trim trailing blank lines ONLY if there's non-blank content
 							local trimmed_buffer = TblUtils.deepcopy(markdown_buffer)
 							local has_non_blank = false
-							for _, line in ipairs(trimmed_buffer) do
-								if not line:match("^%s*$") then
+							for _, buffered_line in ipairs(trimmed_buffer) do
+								if not buffered_line:match("^%s*$") then
 									has_non_blank = true
 									break
 								end

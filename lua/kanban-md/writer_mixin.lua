@@ -3,7 +3,6 @@
 
 -- Dependencies
 local config_module = require("kanban-md.config")
-local triggers_module = require("kanban-md.triggers")
 local column_helpers = require("kanban-md.helpers.column")
 local TblUtils = require("kanban-md.utils.table")
 local adapter_registry = require("kanban-md.adapter_registry")

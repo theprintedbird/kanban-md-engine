@@ -1,0 +1,44 @@
+# Alpine test image for the kanban-md engine.
+#
+# LUA_VERSION selects the interpreter: 5.1, 5.3, 5.4 or jit.
+#
+#   podman build -f docker/Dockerfile.alpine -t kanban-md-engine-test .
+#   podman run --rm kanban-md-engine-test
+#
+# The build installs the test toolchain (busted, luacheck, luacov) so the
+# image can run the suite with no network access.
+FROM alpine:3.20
+
+ARG LUA_VERSION=5.4
+
+RUN set -eux; \
+    apk add --no-cache build-base curl git unzip readline-dev openssl-dev; \
+    if [ "$LUA_VERSION" = "jit" ]; then \
+        apk add --no-cache luajit luajit-dev lua5.1 lua5.1-dev luarocks5.1; \
+        ln -sf /usr/bin/luajit /usr/local/bin/lua; \
+        ln -sf /usr/bin/luarocks-5.1 /usr/local/bin/luarocks; \
+        rocks_version=5.1; \
+        incdir=/usr/include/luajit-2.1; \
+    else \
+        apk add --no-cache "lua$LUA_VERSION" "lua$LUA_VERSION-dev" "luarocks$LUA_VERSION"; \
+        ln -sf "/usr/bin/lua$LUA_VERSION" /usr/local/bin/lua; \
+        ln -sf "/usr/bin/luarocks-$LUA_VERSION" /usr/local/bin/luarocks; \
+        rocks_version=$LUA_VERSION; \
+        incdir="/usr/include/lua$LUA_VERSION"; \
+        # lua5.1-dev drops its headers straight into /usr/include, while the
+        # later versions use a versioned directory.
+        [ -f "$incdir/lua.h" ] || incdir=/usr/include; \
+    fi; \
+    [ -f "$incdir/lua.h" ] || { echo "lua.h not found under $incdir"; exit 1; }; \
+    # luarocks does not search Alpine's header locations, so point it at the
+    # right one before building any C rock.
+    luarocks --lua-version="$rocks_version" config variables.LUA_INCDIR "$incdir"
+
+RUN luarocks install busted \
+ && luarocks install luacheck \
+ && luarocks install luacov
+
+WORKDIR /engine
+COPY . /engine
+
+CMD ["busted"]

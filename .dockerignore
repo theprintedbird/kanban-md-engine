@@ -1,0 +1,6 @@
+.git
+.jj
+*.tmp
+test_*.md
+luacov.stats.out
+luacov.report.out

@@ -78,8 +78,7 @@ When working with parser/writer:
    converted on parse. How they are *written back* depends on `timestamp_format`: `epoch`
    (default), `iso` (`YYYY-MM-DDTHH:MM:SSZ`, UTC) or `date` (`YYYY-MM-DD`, local time). Only keys
    known to be timestamps are formatted - `archived` plus the normalised name of every column -
-   so an ordinary number property stays a number. Note that `config.lua`'s own comment on
-   `timestamp_format` lists only `epoch` and `iso`; `date` is implemented in `writer_mixin.lua`.
+   so an ordinary number property stays a number.
 5. Special sections use double underscore naming and H6: `###### __ARCHIVE__`
 6. HTML comments are used for configuration to maintain Obsidian compatibility
 7. WIP limit validation occurs at both board and column levels

@@ -347,10 +347,15 @@ local default_config = {
   -- Used by: writer_mixin.lua for multiline comment formatting
   wrap_properties_at = 80,
 
-  -- timestamp_format (string: "epoch" | "iso") [BOARD-OVERRIDABLE]
+  -- timestamp_format (string: "epoch" | "iso" | "date") [BOARD-OVERRIDABLE]
   -- Format for writing timestamps to markdown
   -- epoch: Unix timestamp (1709567890)
-  -- iso: ISO 8601 format (2024-03-04T12:34:50Z)
+  -- iso: ISO 8601 format, UTC (2024-03-04T12:34:50Z)
+  -- date: Date only, local time (2024-03-04)
+  -- Any other value is treated as epoch
+  -- Applies only to keys known to be timestamps: "archived" plus the normalised
+  -- name of every column on the board, so an ordinary number property is left
+  -- as a number
   -- Used by: writer_mixin.lua when writing card properties
   timestamp_format = "epoch",
 

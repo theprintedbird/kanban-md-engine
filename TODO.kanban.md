@@ -45,7 +45,6 @@
 
 ###### Ready
 
-- Run busted --shuffle in CI <!-- backlog: 1789543830, id: card_01M2MHZNEEP7A0KN22XGPV27KA, ready: 1789548227, tags: [phase1] -->
 - Wire TAP output into CI and run_tests_standalone.sh <!-- backlog: 1789543830, id: card_01M2MHZN1Q5MRWV6C840ZFVZ53, ready: 1789548230, tags: [phase1] -->
 - Add luacov; report coverage without a threshold <!-- backlog: 1789543830, id: card_01M2MHZMS86PZ9RWTFQXPB79HW, ready: 1789548233, tags: [phase1] -->
 - Add luacheck and .luacheckrc declaring vim and _TEST globals <!-- backlog: 1789543830, id: card_01M2MHZMH3DQ8S0CT0WNZ2S98G, ready: 1789548242, tags: [phase1] -->
@@ -53,6 +52,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -74,3 +74,4 @@
 - Add local GitHub Actions testing setup (act) <!-- backlog: 1789545044, done: 1789549710, id: card_01M2MK4PDNRH70E767YD3CNHPQ, in_progress: 1789549515, ready: 1789548220, tags: [phase1] -->
 - Add GitHub Actions workflow running busted, luacheck and coverage <!-- backlog: 1789543830, done: 1789549917, id: card_01M2MHZMRRD78BCAABA1F8EMXJ, in_progress: 1789549750, ready: 1789548224, tags: [phase1] -->
 - Add Lua 5.1 and LuaJIT to the CI matrix <!-- backlog: 1789543830, done: 1789550325, id: card_01M2MHZMZGR7BJA5P6EFDXMPAV, in_progress: 1789549946, ready: 1789548226, tags: [phase1] -->
+- Run busted --shuffle in CI <!-- backlog: 1789543830, done: 1789550398, id: card_01M2MHZNEEP7A0KN22XGPV27KA, in_progress: 1789550338, ready: 1789548227, tags: [phase1] -->

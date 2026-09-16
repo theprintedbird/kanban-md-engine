@@ -49,7 +49,13 @@ jobs:
           luarocks install luacov
 
       - name: Run tests
-        run: busted --coverage
+        # Shuffled so order dependencies between specs show up. The seed is
+        # echoed so a red run can be reproduced with
+        # `busted --shuffle --seed=<seed>`.
+        run: |
+          seed="${SEED:-$(date +%s)}"
+          echo "Running with --shuffle --seed=$seed"
+          busted --coverage --shuffle --seed="$seed"
 
       - name: Coverage report
         # One report is enough; 5.4 is the development version.

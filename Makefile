@@ -1,7 +1,8 @@
 # Makefile for Kanban plugin
 
 .PHONY: test test-standalone test-unit test-integration test-e2e test-file \
-	test-container container-build ci-local ci-local-list clean check-deps help
+	test-container container-build ci-local ci-local-list test-shuffle \
+	clean check-deps help
 
 # Container engine used by the test-container targets. Podman is preferred;
 # set CONTAINER_ENGINE=docker to override.
@@ -30,6 +31,13 @@ test: test-standalone
 test-standalone:
 	@echo "Running standalone Lua tests (busted)..."
 	@busted
+
+# Run the suite in a random order to surface order dependencies between specs.
+# SEED=<n> reproduces a particular ordering.
+test-shuffle:
+	@seed=$${SEED:-$$(date +%s)}; \
+	echo "Running with --shuffle --seed=$$seed"; \
+	busted --shuffle --seed="$$seed"
 
 # Run only unit tests
 test-unit:
@@ -123,6 +131,7 @@ help:
 	@echo "  test-unit         - Run unit tests only"
 	@echo "  test-integration  - Run integration tests only"
 	@echo "  test-e2e          - Run E2E tests only"
+	@echo "  test-shuffle      - Run all tests in a random order (SEED=<n> to repeat one)"
 	@echo "  test-file FILE=<path> - Run a specific test file"
 	@echo "  container-build   - Build the Alpine test image (LUA_VERSION=5.1|5.3|5.4|jit)"
 	@echo "  test-container    - Run the full suite inside the Alpine test image"

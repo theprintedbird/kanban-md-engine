@@ -301,6 +301,7 @@ make test-unit           # tests/unit only
 make test-integration    # tests/integration only
 make test-e2e            # tests/e2e only
 make test-file FILE=tests/unit/parser_content_blocks_spec.lua
+make test-shuffle        # random order; SEED=<n> reproduces one
 
 # or directly:
 busted

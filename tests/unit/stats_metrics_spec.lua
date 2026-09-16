@@ -380,3 +380,20 @@ describe("Stats - Lead Time and Cycle Time Calculations", function()
 		end)
 	end)
 end)
+
+describe("Stats - non-numeric complexity", function()
+  it("counts a complexity that is not a number as zero", function()
+    local board = Board:new()
+    board:parse(table.concat({
+      "# Odd Board",
+      "",
+      "###### To Do",
+      "- Numeric <!-- complexity: 3 -->",
+      "- Nonsense <!-- complexity: not a number -->",
+      "",
+    }, "\n"))
+
+    assert.are.equal(3, board.stats.total_complexity)
+    assert.are.equal(2, board.stats.total_tasks)
+  end)
+end)

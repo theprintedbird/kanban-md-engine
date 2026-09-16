@@ -301,8 +301,10 @@ function StatsMixin:calculate_stats()
 		for _, task in ipairs(tasks) do
 			stats.total_tasks = stats.total_tasks + 1
 
-			-- Get task complexity
-			local task_complexity = task.properties.complexity or 0
+			-- Get task complexity. A hand-written board can carry anything
+			-- here, so a value that is not a number counts as 0 rather than
+			-- breaking every statistic on the board.
+			local task_complexity = tonumber(task.properties.complexity) or 0
 
 			if not is_completion then
 				wip_count = wip_count + 1

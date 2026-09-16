@@ -2,7 +2,8 @@
 -- Promoted from the old tests/manual-tests/test_complexity_demo.lua, which
 -- nothing ever ran. Exercises tests/fixtures/boards/complexity_demo.md: a
 -- board that mixes H6 kanban columns with an H2 documentation section and
--- carries explicit complexity properties.
+-- carries explicit complexity properties, including fenced markdown examples
+-- that look like kanban syntax but are not (see parser_code_fence_spec).
 require('polyfills.vim')
 
 local Board = require('kanban-md.board')
@@ -36,6 +37,16 @@ describe("complexity_demo.md fixture", function()
 
     assert.are.equal("Complex task", todo.cards[3].text)
     assert.are.equal(5, todo.cards[3].properties.complexity)
+  end)
+
+  it("ignores the kanban syntax inside the documentation's code fences", function()
+    local board = Board:new()
+    board:parse(content)
+
+    assert.are.equal(3, #board.columns)
+    assert.are.equal("To Do", board.columns[1].name)
+    assert.are.equal("In Progress", board.columns[2].name)
+    assert.are.equal("Done", board.columns[3].name)
   end)
 
   it("preserves complexity through a write/parse cycle", function()

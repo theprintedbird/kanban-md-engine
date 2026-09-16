@@ -38,7 +38,6 @@
 - Fix kanban-md.nvim test_helper.lua path: lib/kanban-md -> lib/kanban-md-engine <!-- backlog: 1789543830, id: card_01M2MHZMHY1BHC38DTWKPA97GN, tags: [phase5] -->
 - Add engine spec: underscore-prefixed properties are never serialised <!-- backlog: 1789543830, id: card_01M2MHZN3289SY22KFAP25Y579, tags: [phase5] -->
 - Add engine spec: board config enabling a default-off boolean registers its trigger <!-- backlog: 1789543830, id: card_01M2MHZN53KDY18VMY5Y6NMTYX, tags: [phase5] -->
-- Parser treats list items and H6 headers inside fenced code blocks as cards/columns; stats then errors on non-numeric complexity <!-- backlog: 1789556873, id: card_01M2MYDPKYSCF7QNB3XA9H7BS0 -->
 
 ###### Ready
 
@@ -46,6 +45,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -85,3 +85,4 @@
 - Delete plenary leftovers tests/run_tests.sh and tests/run_tests.lua <!-- backlog: 1789543830, done: 1789556558, id: card_01M2MHZNCKPYVZE4G7YX262587, in_progress: 1789556535, ready: 1789556000, tags: [phase1] -->
 - Remove hardcoded /opt/local/bin/lua from examples/test_cli.sh and CLAUDE.md <!-- backlog: 1789543830, done: 1789556652, id: card_01M2MHZN4K4C1PJF217YSG4Q63, in_progress: 1789556587, ready: 1789556001, tags: [phase1] -->
 - Quarantine or promote tests/manual-tests/ <!-- backlog: 1789543830, done: 1789556862, id: card_01M2MHZN1S6JQPSNMWWQ24YQ9B, in_progress: 1789556666, ready: 1789556004, tags: [phase1] -->
+- Parser treats list items and H6 headers inside fenced code blocks as cards/columns; stats then errors on non-numeric complexity <!-- backlog: 1789556873, done: 1789557390, id: card_01M2MYDPKYSCF7QNB3XA9H7BS0, in_progress: 1789557159 -->

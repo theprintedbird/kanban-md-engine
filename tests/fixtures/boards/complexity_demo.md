@@ -32,3 +32,31 @@ require('kanban-md').setup({
 ```
 
 With this enabled, when you create new cards via `:KanbanNewCard`, they will automatically receive the default complexity value.
+
+### Board-Level Configuration
+You can set complexity defaults per board in the markdown itself:
+
+```markdown
+# My Board
+<!-- kanban:config use_complexity: true, default_complexity: 3 -->
+
+###### To Do
+- New task  <!-- This will automatically get complexity: 3 -->
+```
+
+**Priority Chain:**
+1. Existing card complexity (never overridden)
+2. Board-level config (`board.config.use_complexity` and `board.config.default_complexity`)
+3. Global plugin config (`use_complexity` and `default_complexity`)
+
+**Example:**
+```markdown
+# Sprint Board
+<!-- kanban:config use_complexity: true, default_complexity: 5 -->
+
+###### To Do
+- High complexity task  <!-- Will get complexity: 5 automatically -->
+- Already estimated task <!-- complexity: 2 -->  <!-- Keeps its value -->
+```
+
+Board-level config overrides the global plugin config, allowing different boards to have different complexity defaults.

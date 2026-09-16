@@ -175,6 +175,26 @@ local function is_continuation_line(line)
 	return line:match("^  +") or line:match("^\t+")  -- 2+ spaces or 1+ tabs at start
 end
 
+-- Opening delimiter of a fenced code block (three or more backticks or
+-- tildes), or nil. Everything between an opening fence and its matching close
+-- is literal markdown, not kanban syntax.
+local function match_fence(line)
+	return line:match("^%s*(```+)") or line:match("^%s*(~~~+)")
+end
+
+-- A fence closes only on a line of the same character, at least as long as
+-- the opening delimiter, with nothing after it but whitespace. So a `~~~`
+-- inside a ``` fence is just code, as is a ``` with an info string.
+local function fence_closes(open_marker, line)
+	local marker, rest = line:match("^%s*([`~]+)(.*)$")
+	if not marker then
+		return false
+	end
+	return marker:sub(1, 1) == open_marker:sub(1, 1)
+		and #marker >= #open_marker
+		and rest:match("^%s*$") ~= nil
+end
+
 -- Apply column configuration with type resolution and property merging
 -- Handles both "column:config" and simplified "config" syntax
 local function apply_column_config(column, config_content)
@@ -342,6 +362,10 @@ function ParserMixin:parse(content)
 	local blank_line_seen = false     -- Track blank lines
 	local column_has_cards = false    -- Track if current column has any cards yet
 
+	-- Fenced code block tracking
+	local fence_marker = nil          -- Open fence's delimiter, nil when outside a fence
+	local fence_card = nil            -- Card the open fence belongs to, if any
+
 	if lines ~= nil then
 		for _, line in ipairs(lines) do
 			line_number = line_number + 1
@@ -349,8 +373,41 @@ function ParserMixin:parse(content)
 			-- Track whether this line should be added to markdown buffer
 			local add_to_markdown = true
 
+			-- A fence can only be opened by a line the branches below do not
+			-- consume as kanban syntax, so remember the comment state now:
+			-- the branches may clear it before the fence check at the bottom
+			-- of the loop.
+			local was_in_comment_block = in_comment_block
+
+			-- Whether the fence branch below consumed this line, so that a
+			-- closing delimiter is not mistaken for a new opening one.
+			local in_fence = false
+
+			-- Handle fenced code blocks. Nothing between the fences is kanban
+			-- syntax, however much it looks like a column, a card or a
+			-- property comment, so route the line straight to wherever the
+			-- surrounding content is going and skip the parsing branches.
+			if fence_marker then
+				add_to_markdown = false
+				in_fence = true
+
+				if fence_closes(fence_marker, line) then
+					fence_marker = nil
+				end
+
+				if fence_card then
+					-- A fence opened inside a card's continuation lines; the
+					-- whole block, blank lines included, stays with the card.
+					table.insert(fence_card.content_lines, line)
+				else
+					table.insert(markdown_buffer, line)
+				end
+
+				if not fence_marker then
+					fence_card = nil
+				end
 			-- Handle multi-line comment blocks
-			if in_comment_block then
+			elseif in_comment_block then
 				add_to_markdown = false
 				local ending = line:match(patterns.comment_block_end)
 				if ending then
@@ -652,6 +709,19 @@ function ParserMixin:parse(content)
 			-- Add line to markdown buffer if it's not a structured element
 			if add_to_markdown then
 				table.insert(markdown_buffer, line)
+			end
+
+			-- Open a fence, now that the line above has been routed normally.
+			-- If it went into a card's continuation lines, the rest of the
+			-- block belongs to that card too.
+			if not fence_marker and not in_fence and not was_in_comment_block then
+				local opening = match_fence(line)
+				if opening then
+					fence_marker = opening
+					if current_card and is_continuation_line(line) then
+						fence_card = current_card
+					end
+				end
 			end
 		end
 

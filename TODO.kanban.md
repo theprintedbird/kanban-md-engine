@@ -5,11 +5,6 @@
 ###### Backlog
 
 - Add per-operation performance regression tests with timing bounds <!-- backlog: 1789543830, id: card_01M2MHZN8C0X92YG1R15G792EV, tags: [phase2] -->
-- Create SPEC.md <!-- backlog: 1789543830, id: card_01M2MHZN8S5NFSJBGMGFCTT5TR, tags: [phase2] -->
-- SPEC.md: document the Adapter interface contract and opts shapes <!-- backlog: 1789543830, id: card_01M2MHZMY3XQZYG0408D3P9WVY, tags: [phase2] -->
-- SPEC.md: document notify() levels and the stdout/stderr split <!-- backlog: 1789543830, id: card_01M2MHZMVRNGR649PG3HPY95V1, tags: [phase2] -->
-- SPEC.md: document the markdown syntax contract <!-- backlog: 1789543830, id: card_01M2MHZMM8SH5YHEBM5MH0KYP4, tags: [phase2] -->
-- SPEC.md: document config-resolution layering and board-overridable keys <!-- backlog: 1789543830, id: card_01M2MHZN5FX9ZKS34G1DNXETQ0, tags: [phase2] -->
 - Refresh tests/README.md; drop stale counts and the hand-maintained tree <!-- backlog: 1789543830, id: card_01M2MHZMFTNHE16KPQM9NADC8P, tags: [phase2] -->
 - Test adapters/interface.lua: Adapter.validate() and Adapter.new() <!-- backlog: 1789543830, id: card_01M2MHZMV6VGFZ1HDQFWH6WJVD, tags: [phase3] -->
 - Extend virtual_text_spec: cycle time, blocked breakdown, units, archive, disabled <!-- backlog: 1789543830, id: card_01M2MHZMG4XKMKB8W1KADV1SPJ, tags: [phase3] -->
@@ -40,6 +35,12 @@
 - Add engine spec: board config enabling a default-off boolean registers its trigger <!-- backlog: 1789543830, id: card_01M2MHZN53KDY18VMY5Y6NMTYX, tags: [phase5] -->
 
 ###### Ready
+
+- Create SPEC.md <!-- backlog: 1789543830, id: card_01M2MHZN8S5NFSJBGMGFCTT5TR, ready: 1789565171, tags: [phase2] -->
+- SPEC.md: document the Adapter interface contract and opts shapes <!-- backlog: 1789543830, id: card_01M2MHZMY3XQZYG0408D3P9WVY, ready: 1789565174, tags: [phase2] -->
+- SPEC.md: document notify() levels and the stdout/stderr split <!-- backlog: 1789543830, id: card_01M2MHZMVRNGR649PG3HPY95V1, ready: 1789565176, tags: [phase2] -->
+- SPEC.md: document the markdown syntax contract <!-- backlog: 1789543830, id: card_01M2MHZMM8SH5YHEBM5MH0KYP4, ready: 1789565178, tags: [phase2] -->
+- SPEC.md: document config-resolution layering and board-overridable keys <!-- backlog: 1789543830, id: card_01M2MHZN5FX9ZKS34G1DNXETQ0, ready: 1789565180, tags: [phase2] -->
 
 
 

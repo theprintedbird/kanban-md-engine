@@ -288,7 +288,158 @@ the trigger-maintained timestamps that produced them. Durations are formatted ac
 
 ## 8. The adapter contract
 
-*To be specified.*
+The engine never calls `vim.*`, `io.*` or any other host API directly. Every piece of I/O and
+user interaction goes through an adapter registered in `kanban-md.adapter_registry`. The contract
+is `lua/kanban-md/adapters/interface.lua`; `lua/kanban-md/adapters/cli.lua` is the reference
+implementation.
+
+### 8.1 Constructing and validating an adapter
+
+```lua
+local Adapter = require('kanban-md.adapters.interface')
+local MyAdapter = Adapter.new({
+  name = "MyAdapter",
+  notify = function(self, message, level) … end,
+  -- … the rest of the required methods
+})
+```
+
+- `Adapter.new(implementation)` sets `Adapter` as the implementation's metatable and then
+  validates it. An incomplete implementation **MUST** raise; `Adapter.new` never returns a
+  half-formed adapter.
+- `Adapter.validate(adapter)` returns `(true, nil)` for a conforming adapter and
+  `(false, "Adapter missing required method: <name>")` for the first missing one. Validation
+  checks only that each required key is a function; it does not check arity or behaviour.
+- The required set is exactly these seven:
+
+  `notify`, `read_buffer`, `write_buffer`, `get_cursor`, `set_cursor`, `prompt_input`,
+  `prompt_select`.
+
+- Any required method left to the base class raises
+  `"Abstract method '<name>' must be implemented by adapter…"`, identifying the adapter by its
+  `name` field, its `_type` field, or its metatable's `__name`, in that order. An adapter
+  **SHOULD** therefore set `name`.
+- `adapter_registry.get_adapter()` **MUST** raise when no adapter has been registered;
+  `has_adapter()` is the non-raising check.
+
+### 8.2 Index conventions
+
+The interface follows Neovim's conventions, and every adapter **MUST** honour them regardless of
+what its host prefers natively:
+
+| Value | Convention |
+|---|---|
+| Buffer line ranges (`opts.start`, `opts._end`) | 0-indexed, end-exclusive-by-count, `-1` meaning "to the end" |
+| Cursor line | 1-indexed |
+| Cursor column | 0-indexed |
+| Virtual-text `line` and `col` | 0-indexed |
+
+`_end` carries the leading underscore because `end` is a Lua keyword.
+
+### 8.3 Required methods
+
+#### `notify(message, level)`
+
+Display a message to the user. Specified in full in §9.
+
+#### `read_buffer(bufnr, opts) -> lines`
+
+Returns an array of strings, one per line, with no trailing newlines.
+
+`opts` (all optional):
+
+| Key | Type | Meaning |
+|---|---|---|
+| `start` | number | First line to return, 0-indexed. Default `0`. |
+| `_end` | number | Last line to return, or `-1` for "to the end". Default `-1`. |
+| `file` | string | Read from this path instead of the current buffer. |
+| `stdin` | boolean | Read from standard input instead of the current buffer. |
+
+Source precedence is `file`, then `stdin`, then the adapter's current buffer. Range selection is
+applied *after* the source is read, so `{ file = "board.md", start = 10, _end = 20 }` is well
+defined.
+
+Conversion: a request for `start = 0, _end = -1` returns every line; internally `start + 1` is
+the first 1-indexed Lua line and `_end == -1` resolves to the line count. Lines requested beyond
+the end of the source **MUST** be returned as empty strings rather than `nil`, so the result is a
+dense array.
+
+A read failure **MUST NOT** raise: the adapter notifies at `"error"` level and returns an empty
+array. The caller distinguishes "empty file" from "unreadable file" by the notification, not by
+the return value.
+
+The CLI adapter additionally caches what it read: `_buffer_lines`, and for the `file` case
+`_buffer_filename`, so a subsequent `write_buffer` with no `file` updates the same content
+in memory.
+
+#### `write_buffer(lines, opts)`
+
+Writes an array of strings. Each element is one line; the adapter supplies line endings.
+
+`opts` (all optional):
+
+| Key | Type | Meaning |
+|---|---|---|
+| `bufnr` | number | Target buffer. Default: current. |
+| `start` | number | First line to replace, 0-indexed. Default `0`. |
+| `_end` | number | Last line to replace, or `-1` for "to the end". Default `-1`. |
+| `file` | string | Write to this path. |
+| `stdout` | boolean | Write to standard output. |
+
+Destination precedence is `stdout`, then `file`, then the current buffer. `start`/`_end` apply to
+the buffer case only: the range is removed and the new lines spliced in at `start`, so a
+whole-buffer rewrite is the default and a partial replacement is opt-in.
+
+A successful file write **SHOULD** notify at `"info"` level; a failed one **MUST** notify at
+`"error"` level and return without raising.
+
+#### `get_cursor() -> line, col`
+
+Returns two values: a 1-indexed line and a 0-indexed column. An adapter with no real cursor
+**MUST** still return a coherent pair (the CLI adapter tracks one in memory, starting at `1, 0`).
+
+#### `set_cursor(line, col)`
+
+Stores the position. No bounds checking is specified; a host **MAY** clamp.
+
+#### `prompt_input(prompt, default, callback)`
+
+Asks for a line of text and calls `callback(input)`. When the user supplies nothing, `default`
+**MUST** be passed to the callback — including when `default` is nil, in which case the callback
+receives nil. The prompt itself is user feedback and goes to stderr, never stdout (§9).
+
+#### `prompt_select(items, opts, callback)`
+
+Asks the user to choose from `items` and calls `callback(item, index)`.
+
+`opts` (all optional): `prompt` (string, the heading) and `format_item` (function, item → string;
+defaults to `tostring`).
+
+Cancellation and invalid input **MUST** call `callback(nil, nil)` rather than raising or
+silently doing nothing, so callers have one code path for "no selection". In the CLI adapter the
+menu is 1-indexed and `0` cancels.
+
+Both prompts are callback-style rather than return-style because a host's UI may be asynchronous.
+An adapter **MAY** call the callback synchronously; a caller **MUST NOT** assume it will.
+
+### 8.4 Optional methods
+
+These have working defaults on the interface, so an adapter omits them unless its host supports
+them. They are not checked by `Adapter.validate()`.
+
+| Method | Default | Contract |
+|---|---|---|
+| `supports_virtual_text()` | `false` | Callers **MUST** consult this before using the rest of this table |
+| `create_namespace(name)` | `nil` | Returns a host-specific namespace handle |
+| `set_extmark(bufnr, ns, line, col, opts)` | `nil` | 0-indexed `line`/`col`; returns a mark id |
+| `clear_namespace(bufnr, ns)` | no-op | Removes every mark in the namespace |
+| `get_current_buffer()` | `false` | Current buffer handle |
+| `buf_line_count(bufnr)` | `false` | Line count of a buffer |
+
+`get_current_buffer` and `buf_line_count` return `false` rather than raising, marking them as
+"not implemented" without making them mandatory. An adapter that cannot support virtual text
+**MUST** return `false` from `supports_virtual_text()` rather than implementing the remaining
+methods as approximations; `virtual_text.lua` degrades to doing nothing in that case.
 
 ## 9. User feedback: `notify()`
 

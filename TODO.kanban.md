@@ -4,10 +4,6 @@
 
 ###### Backlog
 
-- Fix tests/run_tests_standalone.sh: add shebang and set -e <!-- backlog: 1789543830, id: card_01M2MHZMJH15FW5CJ5EBFQWR95, tags: [phase1] -->
-- Delete plenary leftovers tests/run_tests.sh and tests/run_tests.lua <!-- backlog: 1789543830, id: card_01M2MHZNCKPYVZE4G7YX262587, tags: [phase1] -->
-- Remove hardcoded /opt/local/bin/lua from examples/test_cli.sh and CLAUDE.md <!-- backlog: 1789543830, id: card_01M2MHZN4K4C1PJF217YSG4Q63, tags: [phase1] -->
-- Quarantine or promote tests/manual-tests/ <!-- backlog: 1789543830, id: card_01M2MHZN1S6JQPSNMWWQ24YQ9B, tags: [phase1] -->
 - Add per-operation performance regression tests with timing bounds <!-- backlog: 1789543830, id: card_01M2MHZN8C0X92YG1R15G792EV, tags: [phase2] -->
 - Create SPEC.md <!-- backlog: 1789543830, id: card_01M2MHZN8S5NFSJBGMGFCTT5TR, tags: [phase2] -->
 - SPEC.md: document the Adapter interface contract and opts shapes <!-- backlog: 1789543830, id: card_01M2MHZMY3XQZYG0408D3P9WVY, tags: [phase2] -->
@@ -44,6 +40,11 @@
 - Add engine spec: board config enabling a default-off boolean registers its trigger <!-- backlog: 1789543830, id: card_01M2MHZN53KDY18VMY5Y6NMTYX, tags: [phase5] -->
 
 ###### Ready
+
+- Fix tests/run_tests_standalone.sh: add shebang and set -e <!-- backlog: 1789543830, id: card_01M2MHZMJH15FW5CJ5EBFQWR95, ready: 1789555998, tags: [phase1] -->
+- Delete plenary leftovers tests/run_tests.sh and tests/run_tests.lua <!-- backlog: 1789543830, id: card_01M2MHZNCKPYVZE4G7YX262587, ready: 1789556000, tags: [phase1] -->
+- Remove hardcoded /opt/local/bin/lua from examples/test_cli.sh and CLAUDE.md <!-- backlog: 1789543830, id: card_01M2MHZN4K4C1PJF217YSG4Q63, ready: 1789556001, tags: [phase1] -->
+- Quarantine or promote tests/manual-tests/ <!-- backlog: 1789543830, id: card_01M2MHZN1S6JQPSNMWWQ24YQ9B, ready: 1789556004, tags: [phase1] -->
 
 
 

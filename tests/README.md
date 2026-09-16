@@ -54,8 +54,6 @@ tests
 │   └── test_set_complexity_command.lua
 ├── polyfills
 │   └── vim.lua
-├── run_tests.lua
-├── run_tests.sh
 ├── run_tests_standalone.sh
 └── unit
     ├── adapters

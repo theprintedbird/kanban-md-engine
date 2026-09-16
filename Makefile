@@ -1,7 +1,7 @@
 # Makefile for Kanban plugin
 
 .PHONY: test test-standalone test-unit test-integration test-e2e test-file \
-	test-container container-build ci-local ci-local-list test-shuffle test-tap coverage \
+	test-container container-build ci-local ci-local-list test-shuffle test-tap coverage lint lint-container \
 	clean check-deps help
 
 # Container engine used by the test-container targets. Podman is preferred;
@@ -51,6 +51,21 @@ coverage:
 	@busted --coverage
 	@luacov
 	@sed -n '/^Summary/,$$p' luacov.report.out
+
+# Lint with luacheck. A clean run is the baseline: .luacheckrc documents the
+# warning families that are deliberately muted.
+lint:
+	@if ! command -v luacheck >/dev/null 2>&1; then \
+		echo "Error: luacheck not found (luarocks install luacheck,"; \
+		echo "       or run 'make lint-container' to use the Alpine image)"; \
+		exit 1; \
+	fi
+	@luacheck lua tests
+
+# Lint inside the Alpine test image, which already carries luacheck. Useful
+# when the host toolchain cannot build luacheck's C dependencies.
+lint-container: container-build
+	@$(CONTAINER_ENGINE) run --rm -v "$(CURDIR)":/src:ro -w /src $(CONTAINER_IMAGE) luacheck lua tests
 
 # Run only unit tests
 test-unit:
@@ -148,6 +163,8 @@ help:
 	@echo "  test-shuffle      - Run all tests in a random order (SEED=<n> to repeat one)"
 	@echo "  test-tap          - Run all tests with TAP output (TAP_FILE=<path> to save)"
 	@echo "  coverage          - Run tests under luacov and print the summary"
+	@echo "  lint              - Run luacheck"
+	@echo "  lint-container    - Run luacheck inside the Alpine test image"
 	@echo "  test-file FILE=<path> - Run a specific test file"
 	@echo "  container-build   - Build the Alpine test image (LUA_VERSION=5.1|5.3|5.4|jit)"
 	@echo "  test-container    - Run the full suite inside the Alpine test image"

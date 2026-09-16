@@ -304,6 +304,7 @@ make test-file FILE=tests/unit/parser_content_blocks_spec.lua
 make test-shuffle        # random order; SEED=<n> reproduces one
 make test-tap            # TAP output; TAP_FILE=<path> also saves it
 make coverage            # luacov summary (no threshold)
+make lint                # luacheck (make lint-container if it isn't installed)
 
 # or directly:
 busted

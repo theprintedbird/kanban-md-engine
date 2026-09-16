@@ -36,12 +36,12 @@
 
 ###### Ready
 
-- SPEC.md: document config-resolution layering and board-overridable keys <!-- backlog: 1789543830, id: card_01M2MHZN5FX9ZKS34G1DNXETQ0, ready: 1789565180, tags: [phase2] -->
 
 
 
 
 ###### In Progress
+
 
 
 
@@ -91,3 +91,4 @@
 - SPEC.md: document the Adapter interface contract and opts shapes <!-- backlog: 1789543830, done: 1789566551, id: card_01M2MHZMY3XQZYG0408D3P9WVY, in_progress: 1789566390, ready: 1789565174, tags: [phase2] -->
 - SPEC.md: document notify() levels and the stdout/stderr split <!-- backlog: 1789543830, done: 1789566678, id: card_01M2MHZMVRNGR649PG3HPY95V1, in_progress: 1789566552, ready: 1789565176, tags: [phase2] -->
 - SPEC.md: document the markdown syntax contract <!-- backlog: 1789543830, done: 1789566819, id: card_01M2MHZMM8SH5YHEBM5MH0KYP4, in_progress: 1789566679, ready: 1789565178, tags: [phase2] -->
+- SPEC.md: document config-resolution layering and board-overridable keys <!-- backlog: 1789543830, done: 1789566879, id: card_01M2MHZN5FX9ZKS34G1DNXETQ0, in_progress: 1789566820, ready: 1789565180, tags: [phase2] -->

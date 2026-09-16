@@ -694,4 +694,133 @@ not.
 
 ## 10. Configuration resolution
 
-*To be specified.*
+Configuration arrives from four places. They form a strict precedence, most specific last:
+
+```
+hard defaults (config.lua)
+  → host configuration (config.setup(user_config))
+    → board file (<!-- kanban:config … -->)
+      → column configuration (<!-- column:config … -->, and column types)
+```
+
+### 10.1 Plugin layer
+
+`kanban-md.config` holds one module-level table:
+
+| Function | Behaviour |
+|---|---|
+| `config.get()` | The current table, live |
+| `config.get_value(key)` | One current value |
+| `config.setup(user_config)` | Deep-merges `user_config` over the current table and returns it |
+| `config.reset()` | Restores a deep copy of the hard defaults |
+| `config.get_defaults()` | A deep copy of the hard defaults |
+
+`setup()` merges recursively: nested tables such as `column_config.types` are merged key by key
+rather than replaced wholesale. It is also cumulative — two calls layer on one another; only
+`reset()` returns to defaults.
+
+Because this table is a module singleton shared by everything in a process, a test that mutates
+it **MUST** restore it afterwards, and a test asserting a *default* value **MUST NOT** depend on
+having run before anything that changes it.
+
+### 10.2 Board layer
+
+`board:get_config_value(key)` resolves one key: the board file's value if the board file
+authored that key, otherwise the plugin value.
+
+Presence, not truth, decides. A key written in the board file counts as present even when its
+value is `false`, so `<!-- kanban:config auto_timestamp: false -->` **MUST** override a plugin
+default of `true`. `board.config` may be a `TypeConverter` (after a parse) or a plain table (from
+`Board:new()`); both are handled, using `:has()` and `rawget` respectively so that a stored
+`false` is never mistaken for an absent key.
+
+`board:get_effective_config()` returns a plain-table snapshot: a deep copy of the plugin config
+with every key authored in the board file overlaid. This is what the writer is given, so a
+board-file formatting option applies to that board's output without touching global state.
+
+### 10.3 Board-overridable keys
+
+Any key *may* be written in a board file, and `get_config_value` will resolve it. The keys the
+engine actually consults through that resolution — i.e. the ones where writing them in a board
+file changes behaviour — are these:
+
+**Writer and formatting**
+
+`timestamp_format`, `task_indent`, `property_separator`, `blank_line_after_title`,
+`blank_line_after_config`, `blank_line_after_column_header`, `blank_lines_between_sections`,
+`use_multiline_comments`, `multiline_threshold`, `wrap_properties_at`, `persist_card_ids`
+
+**Automation**
+
+`auto_timestamp`, `auto_id`, `use_complexity`, `default_complexity`
+
+**Optional features**
+
+`dependency_validation`, `subtask_validation`
+
+Plus the structural keys read directly off `board.config` rather than through the resolver:
+`wip_limit` (board-level WIP validation, §6.4), `workflow` and `triggers` (trigger
+auto-registration, §6.2).
+
+New code that reads configuration **SHOULD** go through `board:get_config_value()` rather than
+`config.get_value()`, so the board file keeps its say; a key added to this list needs no other
+change.
+
+### 10.4 Mode-valued keys
+
+`dependency_validation` and `subtask_validation` accept a boolean or a string and normalise
+through `config.normalize_dependency_mode()`:
+
+| Written | Normalises to | Effect |
+|---|---|---|
+| `true`, `"on"`, `"strict"` | `"strict"` | Block the move to completion |
+| `"warn"` | `"warn"` | Warn, allow the move |
+| `false`, `"off"`, absent, anything else | `false` | No validation, no trigger registered |
+
+Normalisation is deliberately total: an unrecognised value is off, not an error. The triggers are
+only registered when the mode is truthy (§6.2), so the default costs nothing.
+
+### 10.5 Column layer
+
+A column's configuration is resolved when it is parsed, from three sources:
+
+**Type resolution**, in priority order:
+
+1. An explicit `type` in the column's own config comment.
+2. A named definition: `column_config.definitions[column_name].type`.
+3. A pattern: the column name matched against each `column_config.types[*].patterns`. Where more
+   than one pattern matches, the longest — most specific — wins.
+4. No match: the column is untyped.
+
+**Property merging**, lowest to highest precedence:
+
+```
+type properties  <  named definition properties  <  authored markdown properties
+```
+
+The result is `column.config`. The authored layer alone is kept as `column.markdown_config`,
+which is what the writer serialises (§7.8) — so type-derived properties change behaviour without
+rewriting the user's file.
+
+There are no built-in column types: `column_config.types` is empty by default, and the engine
+contains no hardcoded name patterns. A board with no `column_config` is resolved entirely by
+explicit properties and the positional fallbacks in §6.3.
+
+**Requirement validation.** A type may declare `requires_wip_limit = true`. When a column of that
+type has no `wip_limit`, `missing_property_requirement` decides what happens: `"none"` is silent,
+`"warning"` (the default) emits a warning, `"error"` raises.
+
+### 10.6 Host-owned keys
+
+Some defaults in `config.lua` are consumed by hosts rather than by the engine — `use_telescope`,
+`dependency_marking_hl`, `confirm_destructive`, `use_input`, `detection_strategy`. The engine
+carries them so a host has a single place to configure, and passes them through unexamined.
+
+The display options (`show_stats_virtual_text`, `show_lead_time`, `show_cycle_time`,
+`cycle_time_unit`, `stats_time_format`) are read by engine code — `stats.lua` and
+`virtual_text.lua` — but only have a visible effect on a host whose adapter supports virtual text
+(§8.4).
+
+The engine **MUST NOT** load host code on the strength of a configuration value (§6.2). A key
+that only a host understands is a key the engine stores and hands back, never one that makes the
+engine `require` something it does not ship.

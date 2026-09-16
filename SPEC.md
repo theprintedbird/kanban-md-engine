@@ -443,7 +443,66 @@ methods as approximations; `virtual_text.lua` degrades to doing nothing in that 
 
 ## 9. User feedback: `notify()`
 
-*To be specified.*
+`adapter:notify(message, level)` is the engine's only channel for telling a user something. It is
+a required adapter method (§8.3) and carries a contract of its own, because the engine's callers
+rely on the severity to decide whether a result is usable.
+
+### 9.1 Levels
+
+`level` is one of three strings, and defaults to `"info"` when omitted or nil:
+
+| Level | Meaning | Caller expectation |
+|---|---|---|
+| `"info"` | Something succeeded or is worth reporting | The operation completed |
+| `"warn"` | The operation completed, but not cleanly | Result is usable; a limit or rule was breached |
+| `"error"` | The operation did not complete | Result is not usable |
+
+These are the only defined levels. An adapter **MUST** accept an unrecognised level without
+raising; it **SHOULD** treat it as `"info"`.
+
+`"error"` is a report, not a raise. Engine code that notifies at `"error"` level **MUST** also
+return a value that reflects the failure — an empty array from `read_buffer`, an early return
+from `write_buffer` — because the host never learns about the failure from the control flow.
+Conversely, a WIP limit being exceeded is a `"warn"` (§6.4), never an `"error"`: the board is
+still written.
+
+### 9.2 The stdout/stderr split
+
+This is the contract that makes the engine usable in a pipeline:
+
+> **Data goes to stdout. Everything else goes to stderr.**
+
+For the CLI adapter specifically:
+
+- `notify()` at every level writes to **stderr**, and flushes.
+- `prompt_input()` and `prompt_select()` write their prompts, defaults and menus to **stderr**,
+  and read the reply from stdin.
+- The only thing that reaches **stdout** is board content, and only via
+  `write_buffer(lines, { stdout = true })`.
+
+So `lua script.lua > board.md` produces a clean board file even when the run emits warnings, and
+`2>/dev/null` silences the commentary without touching the data. An adapter whose host has no
+such split (an editor, say) satisfies this clause by routing notifications to its own message
+area and board content to its own buffer; the requirement is the separation, not the file
+descriptors.
+
+### 9.3 Prefixes
+
+The CLI adapter emits `<prefix><space><message><newline>`:
+
+| Level | Prefix | Codepoints |
+|---|---|---|
+| `"info"` | ℹ️ | U+2139 U+FE0F |
+| `"warn"` | ⚠️ | U+26A0 U+FE0F |
+| `"error"` | ❌ | U+274C |
+
+An unrecognised level yields an empty prefix, so the line begins with the separating space.
+
+The prefixes are part of the CLI adapter's observable output and **SHOULD** be asserted by tests
+on the emitted string rather than by "the call did not error" — these bytes have been corrupted
+before, and a test that only checks for absence of an error cannot see it. Other adapters are
+free to present severity however their host does; the *levels* are the contract, the emoji are
+not.
 
 ## 10. Configuration resolution
 

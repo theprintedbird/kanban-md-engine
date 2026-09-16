@@ -4,15 +4,6 @@
 
 ###### Backlog
 
-- Add Alpine Docker image for tests; verify under Podman <!-- backlog: 1789543830, id: card_01M2MHZMMRN3VTNVS2T4W8S6F4, tags: [phase1] -->
-- Add local GitHub Actions testing setup (act) <!-- backlog: 1789545044, id: card_01M2MK4PDNRH70E767YD3CNHPQ, ready: 1789545088, tags: [phase1] -->
-- Add GitHub Actions workflow running busted, luacheck and coverage <!-- backlog: 1789543830, id: card_01M2MHZMRRD78BCAABA1F8EMXJ, tags: [phase1] -->
-- Add Lua 5.1 and LuaJIT to the CI matrix <!-- backlog: 1789543830, id: card_01M2MHZMZGR7BJA5P6EFDXMPAV, tags: [phase1] -->
-- Run busted --shuffle in CI <!-- backlog: 1789543830, id: card_01M2MHZNEEP7A0KN22XGPV27KA, tags: [phase1] -->
-- Wire TAP output into CI and run_tests_standalone.sh <!-- backlog: 1789543830, id: card_01M2MHZN1Q5MRWV6C840ZFVZ53, tags: [phase1] -->
-- Add luacov; report coverage without a threshold <!-- backlog: 1789543830, id: card_01M2MHZMS86PZ9RWTFQXPB79HW, tags: [phase1] -->
-- Add luacheck and .luacheckrc declaring vim and _TEST globals <!-- backlog: 1789543830, id: card_01M2MHZMH3DQ8S0CT0WNZ2S98G, tags: [phase1] -->
-- Add a rockspec declaring busted, luacov, luacheck and the Lua version <!-- backlog: 1789543830, id: card_01M2MHZMR8J95CSX9F9HSTDT84, tags: [phase1] -->
 - Fix tests/run_tests_standalone.sh: add shebang and set -e <!-- backlog: 1789543830, id: card_01M2MHZMJH15FW5CJ5EBFQWR95, tags: [phase1] -->
 - Delete plenary leftovers tests/run_tests.sh and tests/run_tests.lua <!-- backlog: 1789543830, id: card_01M2MHZNCKPYVZE4G7YX262587, tags: [phase1] -->
 - Remove hardcoded /opt/local/bin/lua from examples/test_cli.sh and CLAUDE.md <!-- backlog: 1789543830, id: card_01M2MHZN4K4C1PJF217YSG4Q63, tags: [phase1] -->
@@ -53,6 +44,16 @@
 - Add engine spec: board config enabling a default-off boolean registers its trigger <!-- backlog: 1789543830, id: card_01M2MHZN53KDY18VMY5Y6NMTYX, tags: [phase5] -->
 
 ###### Ready
+
+- Add Alpine Docker image for tests; verify under Podman <!-- backlog: 1789543830, id: card_01M2MHZMMRN3VTNVS2T4W8S6F4, ready: 1789548217, tags: [phase1] -->
+- Add local GitHub Actions testing setup (act) <!-- backlog: 1789545044, id: card_01M2MK4PDNRH70E767YD3CNHPQ, ready: 1789548220, tags: [phase1] -->
+- Add GitHub Actions workflow running busted, luacheck and coverage <!-- backlog: 1789543830, id: card_01M2MHZMRRD78BCAABA1F8EMXJ, ready: 1789548224, tags: [phase1] -->
+- Add Lua 5.1 and LuaJIT to the CI matrix <!-- backlog: 1789543830, id: card_01M2MHZMZGR7BJA5P6EFDXMPAV, ready: 1789548226, tags: [phase1] -->
+- Run busted --shuffle in CI <!-- backlog: 1789543830, id: card_01M2MHZNEEP7A0KN22XGPV27KA, ready: 1789548227, tags: [phase1] -->
+- Wire TAP output into CI and run_tests_standalone.sh <!-- backlog: 1789543830, id: card_01M2MHZN1Q5MRWV6C840ZFVZ53, ready: 1789548230, tags: [phase1] -->
+- Add luacov; report coverage without a threshold <!-- backlog: 1789543830, id: card_01M2MHZMS86PZ9RWTFQXPB79HW, ready: 1789548233, tags: [phase1] -->
+- Add luacheck and .luacheckrc declaring vim and _TEST globals <!-- backlog: 1789543830, id: card_01M2MHZMH3DQ8S0CT0WNZ2S98G, ready: 1789548242, tags: [phase1] -->
+- Add a rockspec declaring busted, luacov, luacheck and the Lua version <!-- backlog: 1789543830, id: card_01M2MHZMR8J95CSX9F9HSTDT84, ready: 1789548245, tags: [phase1] -->
 
 
 ###### In Progress

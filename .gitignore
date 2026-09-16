@@ -3,3 +3,8 @@ examples/sample_board_modified.md
 busted-tap*.txt
 luacov.stats.out
 luacov.report.out
+
+# luarocks build artefacts
+*.rock
+lua_modules/
+.luarocks/

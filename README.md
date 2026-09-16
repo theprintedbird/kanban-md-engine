@@ -312,7 +312,14 @@ busted tests/unit
 busted --list
 ```
 
-**Requirements:** Lua and Busted (`luarocks install busted`).
+**Requirements:** Lua (5.1-5.4 or LuaJIT) and Busted. The rockspec declares the
+whole toolchain, so the quickest way to get it is:
+
+```bash
+luarocks test --prepare   # installs busted, luacov and luacheck
+luarocks make             # install the engine itself
+luarocks test             # run the suite through luarocks
+```
 
 Coverage includes parser/writer round-trip consistency, property parsing, WIP/duplicate-ID validation, statistics (lead time, cycle time, blocked time, complexity), and the trigger system (including the optional dependency/subtask/workflow/capacity extras).
 

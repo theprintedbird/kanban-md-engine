@@ -19,8 +19,10 @@ jobs:
 
       - uses: leafo/gh-actions-luarocks@v4
 
-      - name: Install luacheck
-        run: luarocks install luacheck
+      - name: Install the test toolchain
+        # The rockspec's test_dependencies are the single declaration of the
+        # dev toolchain; --prepare installs them without running the suite.
+        run: luarocks test --prepare
 
       - name: Lint
         run: luacheck lua tests
@@ -43,10 +45,10 @@ jobs:
 
       - uses: leafo/gh-actions-luarocks@v4
 
-      - name: Install test dependencies
-        run: |
-          luarocks install busted
-          luarocks install luacov
+      - name: Install the test toolchain
+        # busted, luacov and luacheck all come from the rockspec's
+        # test_dependencies, so the versions are declared in one place.
+        run: luarocks test --prepare
 
       - name: Run tests
         # Shuffled so order dependencies between specs show up. The seed is

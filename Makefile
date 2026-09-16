@@ -1,7 +1,7 @@
 # Makefile for Kanban plugin
 
 .PHONY: test test-standalone test-unit test-integration test-e2e test-file \
-	test-container container-build ci-local ci-local-list test-shuffle test-tap \
+	test-container container-build ci-local ci-local-list test-shuffle test-tap coverage \
 	clean check-deps help
 
 # Container engine used by the test-container targets. Podman is preferred;
@@ -43,6 +43,14 @@ test-shuffle:
 # TAP_FILE=<path> also writes the output to a file.
 test-tap:
 	@TAP=1 tests/run_tests_standalone.sh
+
+# Run the suite under luacov and print the summary. There is deliberately no
+# threshold: the number is there to be looked at, not to fail the build.
+coverage:
+	@echo "Running tests with coverage..."
+	@busted --coverage
+	@luacov
+	@sed -n '/^Summary/,$$p' luacov.report.out
 
 # Run only unit tests
 test-unit:
@@ -126,6 +134,7 @@ check-deps:
 clean:
 	@echo "Cleaning up test artifacts..."
 	@rm -f *.tmp test_*.md
+	@rm -f luacov.stats.out luacov.report.out busted-tap*.txt
 	@rm -rf /tmp/lua_*
 
 # Help
@@ -138,6 +147,7 @@ help:
 	@echo "  test-e2e          - Run E2E tests only"
 	@echo "  test-shuffle      - Run all tests in a random order (SEED=<n> to repeat one)"
 	@echo "  test-tap          - Run all tests with TAP output (TAP_FILE=<path> to save)"
+	@echo "  coverage          - Run tests under luacov and print the summary"
 	@echo "  test-file FILE=<path> - Run a specific test file"
 	@echo "  container-build   - Build the Alpine test image (LUA_VERSION=5.1|5.3|5.4|jit)"
 	@echo "  test-container    - Run the full suite inside the Alpine test image"

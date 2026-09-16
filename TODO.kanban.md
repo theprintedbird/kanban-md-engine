@@ -45,12 +45,12 @@
 
 ###### Ready
 
-- Add luacov; report coverage without a threshold <!-- backlog: 1789543830, id: card_01M2MHZMS86PZ9RWTFQXPB79HW, ready: 1789548233, tags: [phase1] -->
 - Add luacheck and .luacheckrc declaring vim and _TEST globals <!-- backlog: 1789543830, id: card_01M2MHZMH3DQ8S0CT0WNZ2S98G, ready: 1789548242, tags: [phase1] -->
 - Add a rockspec declaring busted, luacov, luacheck and the Lua version <!-- backlog: 1789543830, id: card_01M2MHZMR8J95CSX9F9HSTDT84, ready: 1789548245, tags: [phase1] -->
 
 
 ###### In Progress
+
 
 
 
@@ -76,3 +76,4 @@
 - Add Lua 5.1 and LuaJIT to the CI matrix <!-- backlog: 1789543830, done: 1789550325, id: card_01M2MHZMZGR7BJA5P6EFDXMPAV, in_progress: 1789549946, ready: 1789548226, tags: [phase1] -->
 - Run busted --shuffle in CI <!-- backlog: 1789543830, done: 1789550398, id: card_01M2MHZNEEP7A0KN22XGPV27KA, in_progress: 1789550338, ready: 1789548227, tags: [phase1] -->
 - Wire TAP output into CI and run_tests_standalone.sh <!-- backlog: 1789543830, done: 1789550462, id: card_01M2MHZN1Q5MRWV6C840ZFVZ53, in_progress: 1789550398, ready: 1789548230, tags: [phase1] -->
+- Add luacov; report coverage without a threshold <!-- backlog: 1789543830, done: 1789550536, id: card_01M2MHZMS86PZ9RWTFQXPB79HW, in_progress: 1789550462, ready: 1789548233, tags: [phase1] -->

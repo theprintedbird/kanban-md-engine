@@ -1,3 +1,5 @@
 examples/sample_board_modified.md
 .act-event.json
 busted-tap*.txt
+luacov.stats.out
+luacov.report.out

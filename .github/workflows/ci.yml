@@ -51,11 +51,23 @@ jobs:
       - name: Run tests
         # Shuffled so order dependencies between specs show up. The seed is
         # echoed so a red run can be reproduced with
-        # `busted --shuffle --seed=<seed>`.
+        # `busted --shuffle --seed=<seed>`. TAP output is kept as an artifact
+        # for anything that wants to parse the results.
+        shell: bash
         run: |
+          set -o pipefail
           seed="${SEED:-$(date +%s)}"
           echo "Running with --shuffle --seed=$seed"
-          busted --coverage --shuffle --seed="$seed"
+          busted --coverage --shuffle --seed="$seed" --output=TAP \
+            | tee "busted-tap-${{ matrix.lua }}.txt"
+
+      - name: Upload TAP results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tap-lua-${{ matrix.lua }}
+          path: busted-tap-${{ matrix.lua }}.txt
+          if-no-files-found: warn
 
       - name: Coverage report
         # One report is enough; 5.4 is the development version.

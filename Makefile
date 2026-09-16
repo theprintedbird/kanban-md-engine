@@ -1,7 +1,7 @@
 # Makefile for Kanban plugin
 
 .PHONY: test test-standalone test-unit test-integration test-e2e test-file \
-	test-container container-build ci-local ci-local-list test-shuffle \
+	test-container container-build ci-local ci-local-list test-shuffle test-tap \
 	clean check-deps help
 
 # Container engine used by the test-container targets. Podman is preferred;
@@ -38,6 +38,11 @@ test-shuffle:
 	@seed=$${SEED:-$$(date +%s)}; \
 	echo "Running with --shuffle --seed=$$seed"; \
 	busted --shuffle --seed="$$seed"
+
+# Run the suite with TAP output, for tooling that consumes test results.
+# TAP_FILE=<path> also writes the output to a file.
+test-tap:
+	@TAP=1 tests/run_tests_standalone.sh
 
 # Run only unit tests
 test-unit:
@@ -132,6 +137,7 @@ help:
 	@echo "  test-integration  - Run integration tests only"
 	@echo "  test-e2e          - Run E2E tests only"
 	@echo "  test-shuffle      - Run all tests in a random order (SEED=<n> to repeat one)"
+	@echo "  test-tap          - Run all tests with TAP output (TAP_FILE=<path> to save)"
 	@echo "  test-file FILE=<path> - Run a specific test file"
 	@echo "  container-build   - Build the Alpine test image (LUA_VERSION=5.1|5.3|5.4|jit)"
 	@echo "  test-container    - Run the full suite inside the Alpine test image"

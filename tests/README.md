@@ -19,6 +19,7 @@ tests
 │   │   ├── board_custom.md
 │   │   ├── board_edge.md
 │   │   ├── board_simple.md
+│   │   ├── complexity_demo.md
 │   │   └── test_basic_config.md
 │   ├── boards.lua
 │   └── multiline_board.md
@@ -41,17 +42,6 @@ tests
 │   ├── subtask_validation_spec.lua
 │   ├── timestamp_on_initial_placement_spec.lua
 │   └── writer_cli_adapter_spec.lua
-├── manual-tests
-│   ├── COMPLEXITY_IMPLEMENTATION_SUMMARY.md
-│   ├── complexity_demo.md
-│   ├── diagnose_cursor.lua
-│   ├── test_board.md
-│   ├── test_board_level_complexity.lua
-│   ├── test_commands.lua
-│   ├── test_complexity.lua
-│   ├── test_complexity_demo.lua
-│   ├── test_cursor_positioning.lua
-│   └── test_set_complexity_command.lua
 ├── polyfills
 │   └── vim.lua
 ├── run_tests_standalone.sh
@@ -64,6 +54,7 @@ tests
     ├── column_helpers_spec.lua
     ├── column_type_resolver_spec.lua
     ├── config_dependency_refactor_spec.lua
+    ├── complexity_demo_fixture_spec.lua
     ├── config_triggers_spec.lua
     ├── detection_strategy_spec.lua
     ├── id_persistence_spec.lua

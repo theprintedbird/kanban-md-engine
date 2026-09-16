@@ -10,6 +10,17 @@ describe("Auto-complexity behavior", function()
     config.reset()
   end)
 
+  describe("cards created outside any board", function()
+    it("should NOT get auto-complexity even when use_complexity is enabled", function()
+      config.setup({ use_complexity = true, default_complexity = 3 })
+
+      local card = Card:new(nil, "Standalone card", {})
+
+      assert.is_nil(card.properties.complexity,
+        "A card with no board context should not get auto-complexity")
+    end)
+  end)
+
   describe("with default config (use_complexity = false)", function()
     it("should NOT add complexity when disabled (default)", function()
       local board = Board:new()

@@ -157,6 +157,22 @@ column:register_on_checking("dependencies", dep_fn, {
 
 The `board:move_card_with_bypass()` method allows bypassing specific trigger categories while preserving other validations. This enables override commands like `:KanbanForceCompleteCard` to skip dependency/subtask checks while maintaining WIP limits and other validations.
 
+## Working with TODO.kanban.md
+
+`TODO.kanban.md` is a kanban-md board. **Always change it through the kanban-md
+skill**, not by editing the Markdown by hand:
+
+```bash
+K=~/.claude/skills/kanban-md/scripts/kanban.lua
+lua $K show TODO.kanban.md
+lua $K move TODO.kanban.md --card "<substring>" --to "In Progress"
+```
+
+The skill drives the engine, so triggers set the column timestamps and WIP
+limits are enforced. Hand-editing skips all of that and silently produces a
+board the engine would not have written. Every change command takes
+`--dry-run`; preview the diff before the first change in a session.
+
 ## Testing
 
 ### Test Framework

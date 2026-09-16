@@ -4,12 +4,8 @@
 
 ###### Backlog
 
-- Drop cursor_triggers require from board.lua and remove enable_cursor_positioning <!-- backlog: 1789543830, id: card_01M2MHZMFRPHJGZ27A9Z33986Y, tags: [phase0] -->
-- Mark templates.lua as unimplemented (file is empty) <!-- backlog: 1789543830, id: card_01M2MHZN7ZVSAZWWS1NET8SVZB, tags: [phase0] -->
-- Fix mojibake in CLIAdapter:notify() prefixes <!-- backlog: 1789543830, id: card_01M2MHZMWBFAFQNRQRW012ZTYS, tags: [phase0] -->
-- Assert notify() prefix and level routing in tests <!-- backlog: 1789543830, id: card_01M2MHZMMEXN1QQP5HZZCYATEN, tags: [phase0] -->
-- Update CLAUDE.md: register_on_entry not on_entering; parser.lua not parser_mixin.lua <!-- backlog: 1789543830, id: card_01M2MHZMS66A2X3ZY41YYZQ3XC, tags: [phase0] -->
 - Add Alpine Docker image for tests; verify under Podman <!-- backlog: 1789543830, id: card_01M2MHZMMRN3VTNVS2T4W8S6F4, tags: [phase1] -->
+- Add local GitHub Actions testing setup (act) <!-- backlog: 1789545044, id: card_01M2MK4PDNRH70E767YD3CNHPQ, ready: 1789545088, tags: [phase1] -->
 - Add GitHub Actions workflow running busted, luacheck and coverage <!-- backlog: 1789543830, id: card_01M2MHZMRRD78BCAABA1F8EMXJ, tags: [phase1] -->
 - Add Lua 5.1 and LuaJIT to the CI matrix <!-- backlog: 1789543830, id: card_01M2MHZMZGR7BJA5P6EFDXMPAV, tags: [phase1] -->
 - Run busted --shuffle in CI <!-- backlog: 1789543830, id: card_01M2MHZNEEP7A0KN22XGPV27KA, tags: [phase1] -->
@@ -57,6 +53,12 @@
 - Add engine spec: board config enabling a default-off boolean registers its trigger <!-- backlog: 1789543830, id: card_01M2MHZN53KDY18VMY5Y6NMTYX, tags: [phase5] -->
 
 ###### Ready
+
+- Drop cursor_triggers require from board.lua and remove enable_cursor_positioning <!-- backlog: 1789543830, id: card_01M2MHZMFRPHJGZ27A9Z33986Y, ready: 1789544697, tags: [phase0] -->
+- Mark templates.lua as unimplemented (file is empty) <!-- backlog: 1789543830, id: card_01M2MHZN7ZVSAZWWS1NET8SVZB, ready: 1789544699, tags: [phase0] -->
+- Fix mojibake in CLIAdapter:notify() prefixes <!-- backlog: 1789543830, id: card_01M2MHZMWBFAFQNRQRW012ZTYS, ready: 1789544701, tags: [phase0] -->
+- Assert notify() prefix and level routing in tests <!-- backlog: 1789543830, id: card_01M2MHZMMEXN1QQP5HZZCYATEN, ready: 1789544703, tags: [phase0] -->
+- Update CLAUDE.md: register_on_entry not on_entering; parser.lua not parser_mixin.lua <!-- backlog: 1789543830, id: card_01M2MHZMS66A2X3ZY41YYZQ3XC, ready: 1789545313, tags: [phase0] -->
 
 ###### In Progress
 

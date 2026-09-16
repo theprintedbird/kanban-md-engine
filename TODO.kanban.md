@@ -54,9 +54,9 @@
 
 ###### Ready
 
-- Update CLAUDE.md: register_on_entry not on_entering; parser.lua not parser_mixin.lua <!-- backlog: 1789543830, id: card_01M2MHZMS66A2X3ZY41YYZQ3XC, ready: 1789545313, tags: [phase0] -->
 
 ###### In Progress
+
 
 
 
@@ -68,3 +68,4 @@
 - Mark templates.lua as unimplemented (file is empty) <!-- backlog: 1789543830, done: 1789547223, id: card_01M2MHZN7ZVSAZWWS1NET8SVZB, in_progress: 1789547162, ready: 1789544699, tags: [phase0] -->
 - Fix mojibake in CLIAdapter:notify() prefixes <!-- backlog: 1789543830, done: 1789547314, id: card_01M2MHZMWBFAFQNRQRW012ZTYS, in_progress: 1789547224, ready: 1789544701, tags: [phase0] -->
 - Assert notify() prefix and level routing in tests <!-- backlog: 1789543830, done: 1789547652, id: card_01M2MHZMMEXN1QQP5HZZCYATEN, in_progress: 1789547314, ready: 1789544703, tags: [phase0] -->
+- Update CLAUDE.md: register_on_entry not on_entering; parser.lua not parser_mixin.lua <!-- backlog: 1789543830, done: 1789547748, id: card_01M2MHZMS66A2X3ZY41YYZQ3XC, in_progress: 1789547652, ready: 1789545313, tags: [phase0] -->

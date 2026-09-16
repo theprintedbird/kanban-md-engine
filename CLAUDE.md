@@ -11,7 +11,7 @@ This is a Kanban board engine for managing Markdown files, designed for compatib
 ## Core Modules
 
 - **board.lua**: Board class with parser and writer mixins, core data structure
-- **parser_mixin.lua**: Core parsing engine that converts Markdown to Lua data structures. Handles board titles, columns, cards, properties, HTML comment configurations, and content blocks
+- **parser.lua**: Core parsing engine (the `ParserMixin` mixed into Board) that converts Markdown to Lua data structures. Handles board titles, columns, cards, properties, HTML comment configurations, and content blocks
 - **writer_mixin.lua**: Converts Lua data structures back to Markdown format with full content preservation
 - **content_block.lua**: Type definitions and utilities for content blocks (title, column, markdown)
 - **column.lua**: Column class with card management
@@ -66,7 +66,7 @@ The parser/writer architecture preserves all markdown content in the board file,
 ### Implementation Notes
 
 When working with parser/writer:
-1. The parser_mixin.lua and writer_mixin.lua are the most mature components - reference them for patterns and conventions
+1. parser.lua and writer_mixin.lua are the most mature components - reference them for patterns and conventions
 2. Columns use H6 headers (`######`), not H2 (`##`)
 3. Content blocks architecture preserves all markdown - the board.content_blocks array tracks structured and unstructured content
 4. Card properties use epoch timestamps for consistency
@@ -118,16 +118,23 @@ The plugin uses a trigger-based architecture for extensibility and optional feat
 
 ### Trigger Types
 
-Columns support multiple trigger points:
-- **on_entering**: Called when a card is about to enter a column (validation and transformation)
-- **on_checking**: Called when validating a card move (can block the move)
-- **on_exiting**: Called when a card is about to leave a column
+All trigger points come from `triggerable.lua`, which Board, Column and Card
+mix in. The registration methods are the names to use in code:
+
+- **`register_on_checking`**: Called when validating a card move (can block the move)
+- **`register_on_entry`**: Called when a card is about to enter a column (validation and transformation)
+- **`register_on_exit`**: Called when a card is about to leave a column
+- **`register_on_stay`**: Called when a card stays put during an attempted move
+- **`register_on_create`**: Called when an object is created (used for ID generation)
+
+There is no `on_entering` or `on_exiting` method; the points are `on_entry` and
+`on_exit`.
 
 ### Auto-Register Triggers
 
 The `board:auto_register_triggers()` method automatically registers core triggers based on configuration:
 - **Timestamp triggers**: When `auto_timestamp = true`, automatically sets `card.properties[column_name] = os.time()` when a card enters any column
-- Registered on all columns via `on_entering` trigger point
+- Registered on all columns via the `on_entry` trigger point
 
 ### Optional Feature Triggers
 
@@ -137,7 +144,7 @@ Advanced features are implemented entirely via triggers with no special core mec
 - Validates task relationships during column transitions
 - Prevents parent tasks from moving to completion until all subtasks complete
 - Prevents tasks from moving to completion until all dependencies complete
-- Implemented via `on_checking` triggers registered on all columns
+- Implemented via `register_on_checking` triggers registered on all columns
 - Configurable validation modes: "off", "strict", "warn"
 
 **Other Trigger Modules** (see `lua/kanban-md/extras/`):

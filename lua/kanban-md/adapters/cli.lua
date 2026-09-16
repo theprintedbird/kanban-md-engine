@@ -28,14 +28,14 @@ local CLIAdapter = Adapter.new({
 
     -- Select emoji prefix based on level
     if level == "info" then
-      prefix = "9 "
+      prefix = "ℹ️"
     elseif level == "warn" then
-      prefix = "� "
+      prefix = "⚠️"
     elseif level == "error" then
-      prefix = "L"
+      prefix = "❌"
     end
 
-    -- Print to stderr for better separation from data output
+    -- Notifications go to stderr so they stay out of the data on stdout
     io.stderr:write(prefix .. " " .. message .. "\n")
     io.stderr:flush()
   end,

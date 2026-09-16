@@ -1,11 +1,20 @@
 # Makefile for Kanban plugin
 
 .PHONY: test test-standalone test-unit test-integration test-e2e test-file \
-	test-container container-build clean check-deps help
+	test-container container-build ci-local ci-local-list clean check-deps help
 
 # Container engine used by the test-container targets. Podman is preferred;
 # set CONTAINER_ENGINE=docker to override.
 CONTAINER_ENGINE ?= $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null)
+
+# Socket act should talk to. Podman exposes a Docker-compatible API on the
+# machine's socket; an existing DOCKER_HOST always wins.
+ACT_DOCKER_HOST = $(shell \
+	if [ -n "$$DOCKER_HOST" ]; then echo "$$DOCKER_HOST"; \
+	elif command -v podman >/dev/null 2>&1; then \
+		sock=$$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}' 2>/dev/null | tail -1); \
+		[ -n "$$sock" ] && echo "unix://$$sock"; \
+	fi)
 
 # Lua version baked into the test image: 5.1, 5.3, 5.4 or jit.
 LUA_VERSION ?= 5.4
@@ -53,6 +62,21 @@ container-build:
 test-container: container-build
 	@echo "Running tests in $(CONTAINER_IMAGE)..."
 	@$(CONTAINER_ENGINE) run --rm $(CONTAINER_IMAGE)
+
+# Run the GitHub Actions workflows locally with act.
+# Under Podman, act talks to the machine's API socket; DOCKER_HOST is derived
+# automatically unless it is already set.
+ci-local:
+	@if ! command -v act >/dev/null 2>&1; then \
+		echo "Error: act not found on PATH (see https://github.com/nektos/act)"; \
+		exit 1; \
+	fi
+	@echo "Running workflows with act..."
+	@DOCKER_HOST="$(ACT_DOCKER_HOST)" act $(ACT_ARGS)
+
+# List the jobs act can see, without running them
+ci-local-list:
+	@DOCKER_HOST="$(ACT_DOCKER_HOST)" act --list
 
 # Run a specific test file
 # Usage: make test-file FILE=tests/unit/parser_content_blocks_spec.lua
@@ -102,6 +126,10 @@ help:
 	@echo "  test-file FILE=<path> - Run a specific test file"
 	@echo "  container-build   - Build the Alpine test image (LUA_VERSION=5.1|5.3|5.4|jit)"
 	@echo "  test-container    - Run the full suite inside the Alpine test image"
+	@echo "  ci-local          - Run the GitHub Actions workflows locally with act"
+	@echo "  ci-local-list     - List the jobs act can see"
+	@echo "  ci-local          - Run the GitHub Actions workflows locally with act"
+	@echo "  ci-local-list     - List the jobs act can see"
 	@echo "  check-deps        - Check if required dependencies are installed"
 	@echo "  clean             - Clean up test artifacts"
 	@echo "  help              - Show this help"

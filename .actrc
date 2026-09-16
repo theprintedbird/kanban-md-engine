@@ -1,0 +1,14 @@
+# Default options for `act` (https://github.com/nektos/act), which runs the
+# GitHub Actions workflows in .github/workflows locally.
+#
+# catthehacker/ubuntu:act-latest is the medium-sized runner image; it carries
+# enough of the real ubuntu-latest tooling to install Lua and luarocks.
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+
+# Keep act's own artifact/cache traffic out of the working tree.
+--artifact-server-path /tmp/act-artifacts
+
+# Don't bind-mount the container daemon's socket into the job container. The
+# jobs never need nested containers, and under Podman on macOS the socket
+# lives on the host rather than in the VM, so the mount fails outright.
+--container-daemon-socket -

@@ -312,6 +312,31 @@ busted --list
 
 Coverage includes parser/writer round-trip consistency, property parsing, WIP/duplicate-ID validation, statistics (lead time, cycle time, blocked time, complexity), and the trigger system (including the optional dependency/subtask/workflow/capacity extras).
 
+### Containers and local CI
+
+The suite also runs inside a small Alpine image, which is handy for checking a
+Lua version you don't have installed locally. Podman is used if it is present,
+otherwise Docker:
+
+```bash
+make test-container                  # build the image and run the suite
+make test-container LUA_VERSION=5.1  # 5.1, 5.3, 5.4 or jit
+make container-build                 # build only
+```
+
+The GitHub Actions workflows can be run locally with
+[act](https://github.com/nektos/act):
+
+```bash
+make ci-local-list                   # list the jobs act can see
+make ci-local                        # run them
+make ci-local ACT_ARGS="-j test"     # run one job
+```
+
+Shared options live in `.actrc`. Under Podman the Makefile points act at the
+machine's API socket automatically; an existing `DOCKER_HOST` is left alone.
+The podman machine has to be running (`podman machine start`).
+
 ## Related Projects
 
 - **[kanban-md](https://github.com/theprintedbird/kanban-md)** — the Markdown syntax specification

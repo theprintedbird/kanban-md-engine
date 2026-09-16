@@ -41,7 +41,6 @@
 
 ###### Ready
 
-- Fix tests/run_tests_standalone.sh: add shebang and set -e <!-- backlog: 1789543830, id: card_01M2MHZMJH15FW5CJ5EBFQWR95, ready: 1789555998, tags: [phase1] -->
 - Delete plenary leftovers tests/run_tests.sh and tests/run_tests.lua <!-- backlog: 1789543830, id: card_01M2MHZNCKPYVZE4G7YX262587, ready: 1789556000, tags: [phase1] -->
 - Remove hardcoded /opt/local/bin/lua from examples/test_cli.sh and CLAUDE.md <!-- backlog: 1789543830, id: card_01M2MHZN4K4C1PJF217YSG4Q63, ready: 1789556001, tags: [phase1] -->
 - Quarantine or promote tests/manual-tests/ <!-- backlog: 1789543830, id: card_01M2MHZN1S6JQPSNMWWQ24YQ9B, ready: 1789556004, tags: [phase1] -->
@@ -49,6 +48,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -80,3 +80,4 @@
 - Add luacov; report coverage without a threshold <!-- backlog: 1789543830, done: 1789550536, id: card_01M2MHZMS86PZ9RWTFQXPB79HW, in_progress: 1789550462, ready: 1789548233, tags: [phase1] -->
 - Add luacheck and .luacheckrc declaring vim and _TEST globals <!-- backlog: 1789543830, done: 1789551335, id: card_01M2MHZMH3DQ8S0CT0WNZ2S98G, in_progress: 1789550536, ready: 1789548242, tags: [phase1] -->
 - Add a rockspec declaring busted, luacov, luacheck and the Lua version <!-- backlog: 1789543830, done: 1789551581, id: card_01M2MHZMR8J95CSX9F9HSTDT84, in_progress: 1789551335, ready: 1789548245, tags: [phase1] -->
+- Fix tests/run_tests_standalone.sh: add shebang and set -e <!-- backlog: 1789543830, done: 1789556527, id: card_01M2MHZMJH15FW5CJ5EBFQWR95, in_progress: 1789556487, ready: 1789555998, tags: [phase1] -->

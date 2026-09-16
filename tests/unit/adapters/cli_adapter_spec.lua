@@ -50,84 +50,92 @@ describe("CLIAdapter", function()
   end)
 
   describe("notify()", function()
-    local old_stderr
+    local old_stderr, old_stdout
+    local captured_err, captured_out
 
+    -- Capture both streams so each test can assert the exact bytes written to
+    -- stderr *and* that nothing leaked onto stdout, which carries board data.
     before_each(function()
-      -- Capture stderr output
+      captured_err, captured_out = {}, {}
+
       old_stderr = io.stderr
       io.stderr = {
-        write = function(self, ...) end,
+        write = function(self, msg) table.insert(captured_err, msg) end,
+        flush = function(self) end,
+      }
+
+      old_stdout = io.stdout
+      io.stdout = {
+        write = function(self, msg) table.insert(captured_out, msg) end,
         flush = function(self) end,
       }
     end)
 
     after_each(function()
       io.stderr = old_stderr
+      io.stdout = old_stdout
     end)
 
-    it("should accept info level notifications", function()
-      local captured = {}
-      io.stderr.write = function(self, msg)
-        table.insert(captured, msg)
-      end
+    local function stderr_output()
+      return table.concat(captured_err, "")
+    end
 
+    it("should prefix info level notifications with the info emoji", function()
       CLIAdapter:notify("Test info message", "info")
 
-      -- Should have called write with prefix and message
-      assert.is_true(#captured > 0)
-      local output = table.concat(captured, "")
-      assert.is_not_nil(output:match("Test info message"))
+      assert.equals("ℹ️ Test info message\n", stderr_output())
     end)
 
-    it("should accept warn level notifications", function()
-      local captured = {}
-      io.stderr.write = function(self, msg)
-        table.insert(captured, msg)
-      end
-
+    it("should prefix warn level notifications with the warning emoji", function()
       CLIAdapter:notify("Test warning", "warn")
 
-      assert.is_true(#captured > 0)
-      local output = table.concat(captured, "")
-      assert.is_not_nil(output:match("Test warning"))
+      assert.equals("⚠️ Test warning\n", stderr_output())
     end)
 
-    it("should accept error level notifications", function()
-      local captured = {}
-      io.stderr.write = function(self, msg)
-        table.insert(captured, msg)
-      end
-
+    it("should prefix error level notifications with the error emoji", function()
       CLIAdapter:notify("Test error", "error")
 
-      assert.is_true(#captured > 0)
-      local output = table.concat(captured, "")
-      assert.is_not_nil(output:match("Test error"))
+      assert.equals("❌ Test error\n", stderr_output())
     end)
 
     it("should default to info level when level not specified", function()
-      local captured = {}
-      io.stderr.write = function(self, msg)
-        table.insert(captured, msg)
-      end
-
       CLIAdapter:notify("Default level message")
 
-      assert.is_true(#captured > 0)
-      local output = table.concat(captured, "")
-      assert.is_not_nil(output:match("Default level message"))
+      assert.equals("ℹ️ Default level message\n", stderr_output())
+    end)
+
+    it("should emit valid UTF-8 prefixes, not mojibake", function()
+      CLIAdapter:notify("m", "info")
+      CLIAdapter:notify("m", "warn")
+      CLIAdapter:notify("m", "error")
+
+      local output = stderr_output()
+
+      -- U+FFFD (replacement character) and stray control bytes are the
+      -- signature of the corruption these prefixes used to carry.
+      assert.is_nil(output:find("�", 1, true))
+      assert.is_nil(output:find("[%z\1-\9\11-\31]"))
+    end)
+
+    it("should use no prefix for an unrecognised level", function()
+      CLIAdapter:notify("Mystery level", "trace")
+
+      assert.equals(" Mystery level\n", stderr_output())
     end)
 
     it("should include newline at end of message", function()
-      local captured = {}
-      io.stderr.write = function(self, msg)
-        table.insert(captured, msg)
-      end
-
       CLIAdapter:notify("Message with newline", "info")
 
-      local output = table.concat(captured, "")
-      assert.is_not_nil(output:match("\n$"))
+      assert.is_not_nil(stderr_output():match("\n$"))
+    end)
+
+    it("should route every level to stderr, never stdout", function()
+      CLIAdapter:notify("info msg", "info")
+      CLIAdapter:notify("warn msg", "warn")
+      CLIAdapter:notify("error msg", "error")
+
+      assert.equals(3, #captured_err)
+      assert.equals(0, #captured_out)
     end)
   end)
 

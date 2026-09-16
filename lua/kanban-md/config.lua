@@ -23,9 +23,8 @@ local TblUtils = require("kanban-md.utils.table")
 -- options (timestamp_format, task_indent, property_separator, blank_line_*,
 -- blank_lines_between_sections, use_multiline_comments, multiline_threshold,
 -- wrap_properties_at, persist_card_ids), the automation options
--- (auto_timestamp, auto_id, use_complexity, default_complexity,
--- enable_cursor_positioning) and the optional-feature toggles
--- (dependency_validation, subtask_validation).
+-- (auto_timestamp, auto_id, use_complexity, default_complexity) and the
+-- optional-feature toggles (dependency_validation, subtask_validation).
 
 -- Default configuration
 local default_config = {
@@ -262,11 +261,6 @@ local default_config = {
   ----------------------------
   -- USER EXPERIENCE
   ----------------------------
-
-  -- enable_cursor_positioning (boolean) [BOARD-OVERRIDABLE]
-  -- Automatically move cursor to newly created cards after creation
-  -- Used by: Card/column creation commands
-  enable_cursor_positioning = false,
 
   -- dependency_check_on_parse (boolean)
   -- Validate all dependencies when loading a board (check for missing/circular dependencies)

@@ -54,7 +54,6 @@
 
 ###### Ready
 
-- Drop cursor_triggers require from board.lua and remove enable_cursor_positioning <!-- backlog: 1789543830, id: card_01M2MHZMFRPHJGZ27A9Z33986Y, ready: 1789544697, tags: [phase0] -->
 - Mark templates.lua as unimplemented (file is empty) <!-- backlog: 1789543830, id: card_01M2MHZN7ZVSAZWWS1NET8SVZB, ready: 1789544699, tags: [phase0] -->
 - Fix mojibake in CLIAdapter:notify() prefixes <!-- backlog: 1789543830, id: card_01M2MHZMWBFAFQNRQRW012ZTYS, ready: 1789544701, tags: [phase0] -->
 - Assert notify() prefix and level routing in tests <!-- backlog: 1789543830, id: card_01M2MHZMMEXN1QQP5HZZCYATEN, ready: 1789544703, tags: [phase0] -->
@@ -62,4 +61,7 @@
 
 ###### In Progress
 
+
 ###### Done
+
+- Drop cursor_triggers require from board.lua and remove enable_cursor_positioning <!-- backlog: 1789543830, done: 1789547153, id: card_01M2MHZMFRPHJGZ27A9Z33986Y, in_progress: 1789545981, ready: 1789544697, tags: [phase0] -->

@@ -577,15 +577,6 @@ function Board:register_basic_triggers(column)
     column:register_on_entry("add_default_complexity", complexity_fn)
   end
 
-  -- Register cursor positioning trigger if enabled
-  local enable_cursor_positioning = self:get_config_value('enable_cursor_positioning')
-
-  if enable_cursor_positioning then
-    local cursor_triggers = require('kanban-md.extras.cursor_triggers')
-    local cursor_fn = cursor_triggers.create_cursor_target_trigger()
-    column:register_on_entry("mark_for_cursor", cursor_fn)
-  end
-
   -- Register WIP limit trigger if configured (using existing triggers.lua)
   if column.config and column.config.wip_limit then
     local wip_fn = triggers.wip_limit(column.config.wip_limit)

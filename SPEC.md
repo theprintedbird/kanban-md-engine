@@ -284,7 +284,195 @@ the trigger-maintained timestamps that produced them. Durations are formatted ac
 
 ## 7. The Markdown syntax contract
 
-*To be specified.*
+The board format is ordinary Markdown. Every kanban-specific element is either a heading level
+that documents rarely use or an HTML comment, so a board renders unremarkably in Obsidian or any
+other viewer, and a viewer that knows nothing about kanban shows the user their content rather
+than machinery.
+
+Two rules govern the whole grammar:
+
+- **Anything unrecognised is preserved verbatim.** The parser has no error state for unknown
+  content; it becomes a `markdown` content block (§4.4).
+- **Markdown always wins.** Where an authored value and a resolved or inherited one disagree, the
+  authored value is what the engine uses and what the writer emits.
+
+### 7.1 Board title
+
+```markdown
+# My Board
+```
+
+An H1 sets `board.title`. A board with no H1 has the title `"Untitled Board"` and the writer
+emits no title line for it. A board **SHOULD** contain at most one H1; where there is more than
+one, each is re-rendered from the single `board.title`, so the last one parsed determines the
+text of them all.
+
+### 7.2 Columns
+
+```markdown
+###### In Progress
+```
+
+Columns are **H6** — six hashes. H2–H5 are reserved for the user's own documentation and are
+preserved as prose; H1 is the board title. H6 is chosen because it is almost never used
+otherwise, degrades gracefully in any renderer, and makes an accidental collision obvious.
+
+Column order in `board.columns` is document order.
+
+### 7.3 Special sections
+
+A column name wrapped in double underscores is a special section:
+
+```markdown
+###### __ARCHIVE__
+```
+
+- `__ARCHIVE__` is the one the engine understands. It becomes `board.archive`, is **not** a member
+  of `board.columns`, and its cards are excluded from WIP counts and from the position-based
+  semantic-state fallbacks (§4.2).
+- Any other `__NAME__` section has no defined structure. The parser **MUST** preserve it and
+  everything after it verbatim, and **MUST** stop attributing following list items to the previous
+  column — an unknown special section ends the current column rather than silently swallowing its
+  content.
+
+### 7.4 Cards
+
+```markdown
+- Write the specification
+```
+
+A card is an unordered list item. There is no checkbox syntax: `- [ ]` and `- [x]` are not part of
+the format, and completion is decided by which column a card is in (§6.3).
+
+A card may span several lines. Lines indented by two or more spaces, or by one or more tabs, that
+follow the card's first line with no intervening blank line are **continuation lines** and belong
+to the card:
+
+```markdown
+- Write the specification
+  The continuation lines are preserved exactly as authored,
+  including their indentation.
+```
+
+A blank line ends the card. A non-indented, non-list line ends the card and becomes prose.
+
+### 7.5 Properties
+
+Properties ride in HTML comments, which keeps them invisible in a rendered view.
+
+**Card properties**, inline on the card's first line:
+
+```markdown
+- Write the specification <!-- id: card_01H…, in_progress: 1709567890, complexity: 3 -->
+```
+
+A property comment on its own line, inside a column, attaches to the card it accompanies. A
+property comment that belongs to no card — one sitting between columns, for example — is
+discarded.
+
+**Board configuration**, conventionally just after the title:
+
+```markdown
+<!-- kanban:config wip_limit: 7, auto_timestamp: false -->
+```
+
+**Column configuration**, just after the column header:
+
+```markdown
+###### In Progress
+<!-- column:config wip_limit: 3, is_start_state: true -->
+```
+
+Inside a column, `<!-- config … -->` is accepted as a shorthand for `column:config`.
+
+All three forms may be written across several lines; the parser joins them before parsing:
+
+```markdown
+<!--
+  wip_limit: 3
+  is_start_state: true
+-->
+```
+
+Multiple `kanban:config` comments in one board merge, with later keys overriding earlier ones. A
+comma directly after the `kanban:config` or `column:config` prefix is accepted on input; the
+writer does not emit one.
+
+### 7.6 Property values
+
+Keys match `[%w_]+` and their authored case is preserved. Values are converted by shape:
+
+| Written | Parsed as |
+|---|---|
+| `42` | number |
+| `1.5` | number |
+| `1709567890` | number (rendered back as a timestamp only for timestamp keys, §7.8) |
+| `2024-03-04` or `2024-03-04T12:34:50Z` | number — converted to epoch seconds on parse |
+| `true` / `false` (any case) | boolean |
+| `[alpha, beta]` | array of strings, trimmed |
+| anything else | string |
+
+Commas separate properties, except inside brackets, so an array value may contain commas.
+
+Timestamps are held internally as epoch seconds regardless of how they were authored.
+
+### 7.7 Fenced code blocks
+
+Content inside a fenced code block is never kanban syntax:
+
+````markdown
+```markdown
+###### This is not a column
+- This is not a card <!-- nor is this a property -->
+```
+````
+
+A fence opens on a line whose first non-space content is three or more backticks or tildes, and
+closes on a line of the same character, at least as long, with nothing but whitespace after it.
+Everything between, blank lines included, is passed through untouched.
+
+A fence opened inside a card's continuation lines belongs to that card, and the blank lines
+within it do not terminate the card.
+
+### 7.8 What the writer normalises
+
+Round-tripping preserves prose exactly (§5.2), but structured elements are re-rendered, so these
+normalisations apply:
+
+- **Property order.** Properties are emitted in alphabetical order by key, not in the order
+  authored.
+- **Underscore-prefixed properties are never serialised.** Any property whose key begins with `_`
+  is ephemeral, internal state — `_cursor_target`, `_scratch`, anything — and **MUST NOT** appear
+  in the output. Re-parsing therefore never resurrects it.
+- **Comment placement.** A card's properties are re-emitted inline on the card's first line, even
+  when they were authored in a standalone comment beneath it.
+- **Card identifiers.** Written only when `persist_card_ids` resolves true (§10). When it does, an
+  id the user authored in the Markdown wins over the in-memory `card.id`, so a generated id can
+  never overwrite an authored one.
+- **Column configuration.** Only the authored layer (`column.markdown_config`) is written, so
+  properties inferred from a column type or pattern are not injected into the user's file. Setting
+  `write_full_config_to_markdown` writes the fully resolved `column.config` instead.
+- **Timestamp rendering.** Controlled by `timestamp_format`: `epoch` (default) writes the raw
+  number, `iso` writes `YYYY-MM-DDTHH:MM:SSZ` in UTC, `date` writes `YYYY-MM-DD` in local time.
+  Only keys known to be timestamps are formatted — `archived` plus the normalised name of every
+  column on the board — so an ordinary number property stays a number.
+- **Comment layout.** `property_separator` (default `", "`) joins properties. When
+  `use_multiline_comments` is set and the assembled comment exceeds `multiline_threshold`
+  characters, the comment is split across lines instead.
+- **Blank lines.** `blank_line_after_title`, `blank_line_after_config`,
+  `blank_line_after_column_header` and `blank_lines_between_sections` govern spacing around
+  structured elements. Blank lines within preserved prose are untouched.
+- **Card indentation.** `task_indent` prefixes single-line cards. Continuation lines keep their
+  authored indentation.
+
+### 7.9 Board detection
+
+Deciding whether a given Markdown file is a board at all is the host's job, not the parser's —
+`board:parse()` will happily parse anything. The `detection_strategy` setting exists for hosts
+that scan files: `"marker"` requires `<!-- kanban-board -->` near the top of the file,
+`"extension"` requires a `.kanban.md` name, `"both"` accepts either, and `"auto"` infers from the
+presence of H6 headings. `"marker"` is the default and `"auto"` **SHOULD NOT** be used on
+directories of general documentation.
 
 ## 8. The adapter contract
 

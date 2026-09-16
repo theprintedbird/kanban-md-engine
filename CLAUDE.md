@@ -8,6 +8,11 @@ Use British English.
 
 This is a Kanban board engine for managing Markdown files, designed for compatibility with Obsidian. It allows users to create and manage Kanban boards using extended Markdown syntax with HTML comments for configuration and task properties. The engine is platform-agnostic and can be used in standalone Lua environments or integrated into applications like Neovim.
 
+`SPEC.md` is the behaviour specification: the markdown syntax contract, the adapter contract, the
+`notify()` contract and configuration resolution. When a change alters observable behaviour,
+update `SPEC.md` in the same change - it is meant to be assertable against the test suite, so a
+statement there that no longer holds is a bug.
+
 ## Core Modules
 
 - **board.lua**: Board class with parser and writer mixins, core data structure
@@ -69,7 +74,12 @@ When working with parser/writer:
 1. parser.lua and writer_mixin.lua are the most mature components - reference them for patterns and conventions
 2. Columns use H6 headers (`######`), not H2 (`##`)
 3. Content blocks architecture preserves all markdown - the board.content_blocks array tracks structured and unstructured content
-4. Card properties use epoch timestamps for consistency
+4. Timestamps are held internally as epoch seconds for consistency; ISO dates in the markdown are
+   converted on parse. How they are *written back* depends on `timestamp_format`: `epoch`
+   (default), `iso` (`YYYY-MM-DDTHH:MM:SSZ`, UTC) or `date` (`YYYY-MM-DD`, local time). Only keys
+   known to be timestamps are formatted - `archived` plus the normalised name of every column -
+   so an ordinary number property stays a number. Note that `config.lua`'s own comment on
+   `timestamp_format` lists only `epoch` and `iso`; `date` is implemented in `writer_mixin.lua`.
 5. Special sections use double underscore naming and H6: `###### __ARCHIVE__`
 6. HTML comments are used for configuration to maintain Obsidian compatibility
 7. WIP limit validation occurs at both board and column levels
@@ -79,7 +89,7 @@ When working with parser/writer:
 ## Property System
 
 Cards support rich properties via HTML comments:
-- Timestamps: Column-based timestamps (e.g., backlog, ready, in_progress, done) and archived (epoch format)
+- Timestamps: Column-based timestamps (e.g., backlog, ready, in_progress, done) and archived (epoch seconds internally; serialised per `timestamp_format`)
 - Work metrics: complexity, actual_time, blocked_time
 - Metadata: assignee, tags, blocker, parent, id, position
 - Automatic type conversion (numbers, booleans, arrays, strings)
@@ -111,6 +121,24 @@ The plugin uses semantic state flags on columns to enable sophisticated metrics 
 3. **Position-based fallback**: First/last regular column (for start/completion states)
 
 **Note**: Blocked and waiting states require explicit declaration (no fallback).
+
+## Adapters and User Feedback
+
+All I/O and user interaction goes through an adapter (`lua/kanban-md/adapters/interface.lua`); the
+engine never calls `vim.*` or `io.*` directly. `adapters/cli.lua` is the reference implementation.
+See `SPEC.md` sections 8 and 9 for the full contract. The two rules that are easiest to break:
+
+- **Data goes to stdout, everything else goes to stderr.** `notify()` at every level, and both
+  prompts, write to stderr. Board content reaches stdout only via
+  `write_buffer(lines, { stdout = true })`, so a redirect produces a clean board file even when the
+  run emits warnings.
+- **`notify()` prefixes are part of the observable output.** The CLI adapter emits an emoji per
+  level (info U+2139 U+FE0F, warn U+26A0 U+FE0F, error U+274C). Assert the emitted string, not just
+  that the call did not error - these bytes have been corrupted before, and a "does not error" test
+  cannot see it.
+
+`notify(message, "error")` is a report, not a raise: engine code that notifies at error level must
+also return a value reflecting the failure, because the host learns nothing from the control flow.
 
 ## Trigger System
 

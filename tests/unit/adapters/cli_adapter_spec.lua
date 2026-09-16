@@ -5,6 +5,16 @@ _G._TEST = true
 
 local CLIAdapter = require("kanban-md.adapters.cli")
 
+-- CLIAdapter is a module singleton shared by every spec file in a `busted`
+-- run, and tests further down this file deliberately move its cursor and fill
+-- its internal buffer. Snapshot the as-loaded state here, at require time and
+-- before any test body has run, so the "initialisation" assertions below
+-- describe the module's actual initial state rather than whatever the most
+-- recently executed test happened to leave behind (which made them fail under
+-- `busted --shuffle`).
+local initial_cursor_line, initial_cursor_col = CLIAdapter:get_cursor()
+local initial_buffer_line_count = #CLIAdapter._buffer_lines
+
 describe("CLIAdapter", function()
   describe("initialisation", function()
     it("should have correct adapter name", function()
@@ -12,15 +22,12 @@ describe("CLIAdapter", function()
     end)
 
     it("should initialise with default cursor position", function()
-      local line, col = CLIAdapter:get_cursor()
-      assert.equals(1, line)
-      assert.equals(0, col)
+      assert.equals(1, initial_cursor_line)
+      assert.equals(0, initial_cursor_col)
     end)
 
     it("should initialise with empty internal buffer", function()
-      -- Reset buffer state
-      CLIAdapter._buffer_lines = {}
-      assert.equals(0, #CLIAdapter._buffer_lines)
+      assert.equals(0, initial_buffer_line_count)
     end)
 
     it("should report no virtual text support", function()

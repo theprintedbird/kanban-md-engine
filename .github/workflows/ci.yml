@@ -26,14 +26,20 @@ jobs:
         run: luacheck lua tests
 
   test:
-    name: Tests (Lua 5.4)
+    name: Tests (Lua ${{ matrix.lua }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 5.1 and LuaJIT are what Neovim embeds, so they are the versions the
+        # engine has to keep working on; 5.3 and 5.4 cover standalone use.
+        lua: ["5.1", "5.3", "5.4", "luajit"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: leafo/gh-actions-lua@v10
         with:
-          luaVersion: "5.4"
+          luaVersion: ${{ matrix.lua }}
 
       - uses: leafo/gh-actions-luarocks@v4
 
@@ -46,7 +52,8 @@ jobs:
         run: busted --coverage
 
       - name: Coverage report
-        if: always()
+        # One report is enough; 5.4 is the development version.
+        if: always() && matrix.lua == '5.4'
         run: |
           luacov
           # The summary table is the last section of the report.

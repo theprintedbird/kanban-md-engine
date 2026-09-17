@@ -15,8 +15,8 @@ changing either.
 | `tests/unit/` | One module, one spec, minimal collaborators |
 | `tests/integration/` | Several modules together: parse → mutate → write, triggers, validation |
 | `tests/e2e/` | Whole-workflow scenarios over realistic boards |
-| `tests/fixtures/` | `boards.lua` builders, plus `.md` boards under `fixtures/boards/` |
-| `tests/helpers/` | `mocks.lua` (mock triggers and adapters) and `setup.lua` (opt-in `cli.setup()`) |
+| `tests/fixtures/` | `boards.lua` builders, `large_board.lua` (generated boards of any size), plus `.md` boards under `fixtures/boards/` |
+| `tests/helpers/` | `mocks.lua` (mock triggers and adapters), `setup.lua` (opt-in `cli.setup()`) and `perf.lua` (timing and calibration) |
 | `tests/polyfills/` | `vim.lua`, the pure-Lua stand-ins for the `vim.*` utilities the engine calls |
 | `tests/run_tests_standalone.sh` | The suite runner, with optional TAP output |
 
@@ -38,6 +38,7 @@ make test-file FILE=tests/unit/parser_content_blocks_spec.lua
 
 make test-shuffle       # random order; SEED=<n> reproduces a given run
 make test-tap           # TAP output; TAP_FILE=<path> also saves it
+make test-perf          # the performance specs alone, uninstrumented
 make coverage           # luacov, summary printed, no threshold
 make lint               # luacheck over lua/ and tests/
 ```
@@ -157,6 +158,65 @@ end)
 Do not use `git stash`, `git reset` or any other git command to save or restore state in a test.
 Copy the file instead.
 
+## Performance regression tests
+
+`tests/integration/performance_spec.lua` bounds individual operations — parse, write, stats,
+validation, lookup, move — over generated boards of 240 and 1440 cards. There is deliberately no
+bound on how long the suite takes: it runs in a few seconds, so a wall-clock bound over it would be
+measuring the CI runner rather than the engine.
+
+Two kinds of assertion, because they catch different things:
+
+- A **budget** says the operation cost no more than N milliseconds on the 1440-card board. It
+  catches "this got several times more expensive".
+- A **scaling ratio** says six times the cards cost no more than nine times the time. It catches a
+  change of algorithmic shape — a budget loose enough not to flake will absorb a quadratic at these
+  sizes, and in testing an injected quadratic slipped under the parse budget while the ratio failed
+  at 11x.
+
+Only `parse`, `write` and `calculate_stats` make a scaling claim. `validate`, `find_task` and
+`move_card` cost tenths of a millisecond even on the large board, where memory latency rather than
+the work sets the price: the small board stays in cache and the large one does not. That reads as
+6.1x–7.7x under Lua 5.3 and 12.8x–15.2x under LuaJIT with no change to the engine, which is a wider
+spread than a quadratic would produce — so those three are left to their budgets.
+
+Every operation is measured at both sizes once, in `setup()`; the assertions read those
+measurements rather than re-timing anything.
+
+`tests/helpers/perf.lua` is what keeps the bounds from flaking:
+
+- Timings are **CPU time** (`os.clock`), not wall clock, so a runner descheduled while another job
+  hogs the box does not fail the build.
+- Every figure is the **best of N runs**. Noise only ever makes a run slower, so the minimum is the
+  closest estimate of the real cost and much steadier than an average.
+- `perf.per_call()` **sizes its own batch**: it runs the operation in a growing batch until one
+  batch takes at least 5ms, then divides. Operations costing microseconds cannot be timed one at a
+  time — they are the same size as the clock's resolution and a single GC step. A *fixed* batch
+  size does not work either: 50 calls of `find_task()` is a healthy 15ms sample under Lua 5.3 and
+  an unmeasurable 0.2ms under LuaJIT. The sizing runs double as JIT warm-up.
+- Budgets are milliseconds measured on a reference machine, **scaled by a calibration factor**
+  taken from a fixed pure-Lua workload run in-process. A machine half the speed gets twice the
+  budget, which is what lets one set of figures hold across Lua 5.1, 5.3, 5.4 and LuaJIT.
+- Headroom is roughly 3x. What fails here is an operation that got several times more expensive,
+  not a slow afternoon. Scaling ratios need no calibration at all: a ratio of two timings taken in
+  the same process is immune to how fast the machine is.
+
+The specs **skip themselves under luacov**, whose per-line hook costs the calibration workload
+about 10x and board parsing about 40x — unevenly, so calibration cannot correct for it. `make
+coverage` and CI's coverage run therefore report them as pending; `make test-perf` and a separate
+uninstrumented CI step are what actually measure them.
+
+Two environment variables:
+
+| Variable | Effect |
+|---|---|
+| `KANBAN_SKIP_PERF=1` | Skip the performance specs entirely |
+| `KANBAN_PERF_TOLERANCE=n` | Multiply every budget by `n` on a box known to be noisy (CI uses `2`) |
+
+If a budget fails, read the failure message before touching the number: it prints what was
+measured, what was allowed, and the reference/calibration/tolerance the budget was built from.
+Raise a budget only once you know what got slower and have decided it is acceptable.
+
 ## Assertions
 
 ```lua
@@ -196,6 +256,8 @@ Busted syntax, not Plenary syntax: `assert.are.equal`, not `assert.equals`.
 - **Tests** across a matrix of Lua 5.1, 5.3, 5.4 and LuaJIT — 5.1 and LuaJIT because that is what
   Neovim embeds, the rest for standalone use. Each run is shuffled with an echoed seed, so a red
   run can be reproduced with `busted --shuffle --seed=<seed>`, and emits TAP, kept as an artifact.
+- **Performance bounds** on every matrix version, in a separate uninstrumented run (the main run
+  is under luacov, where the specs skip themselves) with `KANBAN_PERF_TOLERANCE=2` for runner noise.
 - **Coverage** reported once, on 5.4. There is no threshold: the number is there to be read, not
   to fail the build.
 
@@ -210,3 +272,4 @@ Busted syntax, not Plenary syntax: `assert.are.equal`, not `assert.equals`.
 | Passes in the suite, fails alone | The spec depends on another file's side effects — usually the polyfill or `helpers.setup` |
 | Passes alone, fails under `--shuffle` | A singleton left dirty by another spec; see above |
 | `assert.equals` is nil | Plenary syntax; use `assert.are.equal` |
+| A performance budget fails on an unchanged engine | The machine is noisier or slower than calibration can account for; rerun, then raise `KANBAN_PERF_TOLERANCE` |

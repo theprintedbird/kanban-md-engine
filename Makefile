@@ -1,7 +1,7 @@
 # Makefile for Kanban plugin
 
 .PHONY: test test-standalone test-unit test-integration test-e2e test-file \
-	test-container container-build ci-local ci-local-list test-shuffle test-tap coverage lint lint-container \
+	test-container container-build ci-local ci-local-list test-shuffle test-tap test-perf coverage lint lint-container \
 	clean check-deps help
 
 # Container engine used by the test-container targets. Podman is preferred;
@@ -43,6 +43,16 @@ test-shuffle:
 # TAP_FILE=<path> also writes the output to a file.
 test-tap:
 	@TAP=1 tests/run_tests_standalone.sh
+
+# Run the per-operation performance regression specs. Deliberately a
+# separate target from `coverage`: luacov's per-line debug hook costs the
+# calibration workload about 10x and board parsing about 40x, so timings
+# taken under it are meaningless and the specs skip themselves. Note that
+# `make test` runs them too -- this target is for measuring them alone.
+# KANBAN_PERF_TOLERANCE=<n> widens every budget on a noisy machine.
+test-perf:
+	@echo "Running performance regression tests..."
+	@busted tests/integration/performance_spec.lua
 
 # Run the suite under luacov and print the summary. There is deliberately no
 # threshold: the number is there to be looked at, not to fail the build.
@@ -162,6 +172,7 @@ help:
 	@echo "  test-e2e          - Run E2E tests only"
 	@echo "  test-shuffle      - Run all tests in a random order (SEED=<n> to repeat one)"
 	@echo "  test-tap          - Run all tests with TAP output (TAP_FILE=<path> to save)"
+	@echo "  test-perf         - Run the performance regression specs only (no coverage)"
 	@echo "  coverage          - Run tests under luacov and print the summary"
 	@echo "  lint              - Run luacheck"
 	@echo "  lint-container    - Run luacheck inside the Alpine test image"

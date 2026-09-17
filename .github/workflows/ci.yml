@@ -63,6 +63,17 @@ jobs:
           busted --coverage --shuffle --seed="$seed" --output=TAP \
             | tee "busted-tap-${{ matrix.lua }}.txt"
 
+      - name: Performance bounds
+        # A separate, uninstrumented run: the specs above are shuffled and
+        # measured under luacov, whose per-line hook makes every timing
+        # meaningless, so they skip themselves there. Budgets are calibrated
+        # against a fixed workload measured in-process, which is what lets
+        # the same figures hold across all four Lua versions; the tolerance
+        # buys extra slack for a shared runner on a bad day.
+        env:
+          KANBAN_PERF_TOLERANCE: "2"
+        run: busted tests/integration/performance_spec.lua
+
       - name: Upload TAP results
         if: always()
         uses: actions/upload-artifact@v4

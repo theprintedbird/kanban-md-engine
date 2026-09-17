@@ -130,9 +130,19 @@ Add to Phase 1:
 
 ## Phase 2 (revised): CI/CD and documentation
 
-- Add performance regression tests with timing bounds. *(Note: the whole suite is 2.3s, so bounds
-  must be per-operation — e.g. parse/write of a large board — not wall-clock on the suite, which
-  will be dominated by CI runner noise.)*
+- ~~Add performance regression tests with timing bounds.~~ **Done** —
+  `tests/integration/performance_spec.lua` bounds parse, write, stats, validate, `find_task` and
+  `move_card` on a generated 1440-card board, and asserts scaling ratios for parse/write/stats
+  against a 240-card board (6x the cards, no more than 9x the time) to catch an accidental
+  quadratic. The three sub-millisecond operations get budgets only: at that scale memory latency
+  sets the price, so their ratio moves between 6x and 15x across interpreters without the engine
+  changing. Both kinds earn their
+  place: an injected quadratic parse came in under the budget and failed the ratio at 11x, while an
+  injected constant-factor slowdown did the reverse. `tests/helpers/perf.lua` takes CPU time,
+  best-of-N, and scales every budget by a calibration factor measured in-process, so one set of
+  figures holds across Lua 5.1/5.3/5.4/LuaJIT. The specs skip themselves under luacov (its hook
+  costs parsing ~40x and the calibration workload ~10x, so calibration cannot correct for it);
+  `make test-perf` and a separate CI step measure them uninstrumented.
 - Create `SPEC.md` behaviour specification document.
 - Document the input/output contract: the `Adapter` interface in `adapters/interface.lua` is the
   real contract — the eleven methods `Adapter.validate()` checks, plus the `opts` shapes

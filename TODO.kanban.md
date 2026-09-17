@@ -4,7 +4,6 @@
 
 ###### Backlog
 
-- Add per-operation performance regression tests with timing bounds <!-- backlog: 1789543830, id: card_01M2MHZN8C0X92YG1R15G792EV, tags: [phase2] -->
 - Test adapters/interface.lua: Adapter.validate() and Adapter.new() <!-- backlog: 1789543830, id: card_01M2MHZMV6VGFZ1HDQFWH6WJVD, tags: [phase3] -->
 - Extend virtual_text_spec: cycle time, blocked breakdown, units, archive, disabled <!-- backlog: 1789543830, id: card_01M2MHZMG4XKMKB8W1KADV1SPJ, tags: [phase3] -->
 - Test core/setup.lua directly <!-- backlog: 1789543830, id: card_01M2MHZMR3PKT3A9ZWFWEB9E8X, tags: [phase3] -->
@@ -67,6 +66,7 @@
 
 
 
+
 ###### Done
 
 - Drop cursor_triggers require from board.lua and remove enable_cursor_positioning <!-- backlog: 1789543830, done: 1789547153, id: card_01M2MHZMFRPHJGZ27A9Z33986Y, in_progress: 1789545981, ready: 1789544697, tags: [phase0] -->
@@ -94,3 +94,4 @@
 - SPEC.md: document the markdown syntax contract <!-- backlog: 1789543830, done: 1789566819, id: card_01M2MHZMM8SH5YHEBM5MH0KYP4, in_progress: 1789566679, ready: 1789565178, tags: [phase2] -->
 - SPEC.md: document config-resolution layering and board-overridable keys <!-- backlog: 1789543830, done: 1789566879, id: card_01M2MHZN5FX9ZKS34G1DNXETQ0, in_progress: 1789566820, ready: 1789565180, tags: [phase2] -->
 - Refresh tests/README.md; drop stale counts and the hand-maintained tree <!-- backlog: 1789543830, done: 1789604231, id: card_01M2MHZMFTNHE16KPQM9NADC8P, in_progress: 1789604148, tags: [phase2] -->
+- Add per-operation performance regression tests with timing bounds <!-- backlog: 1789543830, done: 1789614311, id: card_01M2MHZN8C0X92YG1R15G792EV, in_progress: 1789604727, tags: [phase2] -->

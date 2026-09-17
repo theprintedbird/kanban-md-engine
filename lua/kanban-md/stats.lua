@@ -435,8 +435,16 @@ function StatsMixin:validate()
 		self:calculate_stats()
 	end
 
+	-- A hand-written board file can carry a wip_limit that is not a number at
+	-- all (`wip_limit: none`). Report it rather than comparing against it,
+	-- which would raise "attempt to compare string with number" here.
+	if self.config and self.config.wip_limit ~= nil and type(self.config.wip_limit) ~= "number" then
+		table.insert(self.validation.warnings,
+			string.format("Ignoring non-numeric board wip_limit '%s'", tostring(self.config.wip_limit)))
+	end
+
 	-- Check board-level WIP limit
-	if self.config and self.config.wip_limit then
+	if self.config and type(self.config.wip_limit) == "number" then
 		local total_wip = 0
 		for _, count in pairs(self.stats.wip_by_column) do
 			total_wip = total_wip + count
@@ -451,7 +459,14 @@ function StatsMixin:validate()
 
 	-- Check column-level WIP limits
 	for _, column in ipairs(self.columns) do
-		if column.config and column.config.wip_limit then
+		if column.config and column.config.wip_limit ~= nil
+				and type(column.config.wip_limit) ~= "number" then
+			table.insert(self.validation.warnings,
+				string.format("Ignoring non-numeric wip_limit '%s' on column '%s'",
+						tostring(column.config.wip_limit), column.name))
+		end
+
+		if column.config and type(column.config.wip_limit) == "number" then
 			local wip = self.stats.wip_by_column[column.name] or 0
 			if wip > column.config.wip_limit then
 				table.insert(self.validation.warnings,

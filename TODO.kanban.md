@@ -13,7 +13,6 @@
 
 ###### Ready
 
-- Test CLI error paths: unreadable file, malformed markdown, empty input <!-- backlog: 1789543830, id: card_01M2MHZNAVYDHKHRZ9X9VNK46F, ready: 1789620916, tags: [phase3] -->
 - Remove debug print from timestamp_on_initial_placement_spec.lua <!-- backlog: 1789543830, id: card_01M2MHZMMF9ZXD418R3AHHGDGY, ready: 1789620919, tags: [phase3] -->
 - Capture and assert fixture warnings instead of printing them <!-- backlog: 1789543830, id: card_01M2MHZNDM3GQ3SMCN9ZSGEYSD, ready: 1789620921, tags: [phase3] -->
 - Move os.tmpname() cleanup into after_each or a temp-dir helper <!-- backlog: 1789543830, id: card_01M2MHZNA56HXEA1SWJAA3886R, ready: 1789620922, tags: [phase3] -->
@@ -30,6 +29,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -107,3 +107,4 @@
 - Test read_buffer with opts.stdin <!-- backlog: 1789543830, done: 1789625068, id: card_01M2MHZN83J0QSJRGMP1KCPGX7, in_progress: 1789624335, ready: 1789620912, tags: [phase3] -->
 - Test write_buffer with opts.stdout <!-- backlog: 1789543830, done: 1789625201, id: card_01M2MHZMKQC43G7NM37CR59HQ9, in_progress: 1789625076, ready: 1789620914, tags: [phase3] -->
 - Test cli.lua Neovim guard and setup() config passthrough <!-- backlog: 1789543830, done: 1789625263, id: card_01M2MHZMR6HV12GQ444TM12RD6, in_progress: 1789625207, ready: 1789620915, tags: [phase3] -->
+- Test CLI error paths: unreadable file, malformed markdown, empty input <!-- backlog: 1789543830, done: 1789625617, id: card_01M2MHZNAVYDHKHRZ9X9VNK46F, in_progress: 1789625270, ready: 1789620916, tags: [phase3] -->

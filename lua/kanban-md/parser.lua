@@ -197,13 +197,37 @@ end
 
 -- Apply column configuration with type resolution and property merging
 -- Handles both "column:config" and simplified "config" syntax
+-- Config keys the engine later compares as numbers. A board file is written by
+-- hand, so `wip_limit: "7"` is entirely possible; a numeric-looking value is
+-- coerced here so the comparison in calculate_stats() sees a number. A value
+-- that is not a number at all is left exactly as authored -- dropping it would
+-- lose it on the next write -- and validate() reports it instead.
+local NUMERIC_CONFIG_KEYS = { "wip_limit" }
+
+local function coerce_numeric_config(props)
+	for _, key in ipairs(NUMERIC_CONFIG_KEYS) do
+		local value = props[key]
+
+		if type(value) == "string" then
+			-- Accept a quoted number as a number.
+			local number = tonumber((value:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")))
+
+			if number then
+				props[key] = number
+			end
+		end
+	end
+
+	return props
+end
+
 local function apply_column_config(column, config_content)
 	if not column or not config_content or config_content == "" then
 		return
 	end
 
 	-- Parse markdown properties
-	local markdown_props = parse_properties(config_content)
+	local markdown_props = coerce_numeric_config(parse_properties(config_content))
 
 	-- Get global config and resolver
 	local global_config = require("kanban-md.config").get()
@@ -419,7 +443,7 @@ function ParserMixin:parse(content)
 						local config_content = comment_buffer:match("^%s*kanban:config%s*,?%s*(.*)")
 						if config_content and config_content ~= "" then
 							-- Merge into existing config (later comments override earlier keys)
-							self.config:merge(parse_properties(config_content))
+							self.config:merge(coerce_numeric_config(parse_properties(config_content)))
 						end
 						pending_config = nil
 					-- e.g. <!-- column:config wip_limit: 3 --> or <!-- config type: wip -->
@@ -457,7 +481,7 @@ function ParserMixin:parse(content)
 						local config_content = comment_content:match("^%s*kanban:config%s*,?%s*(.*)")
 						if config_content and config_content ~= "" then
 							-- Merge into existing config (later comments override earlier keys)
-							self.config:merge(parse_properties(config_content))
+							self.config:merge(coerce_numeric_config(parse_properties(config_content)))
 						end
 					elseif current_column and (comment_content:match("column:config") or comment_content:match("^%s*config%s")) then
 						-- Handle both "column:config" and simplified "config" syntax

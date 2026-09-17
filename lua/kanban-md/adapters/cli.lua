@@ -80,10 +80,20 @@ local CLIAdapter = Adapter.new({
         return {}
       end
 
-      for line in f:lines() do
-        table.insert(lines, line)
-      end
+      -- io.open() succeeds on a directory, and it is f:lines() that fails; read
+      -- under pcall so that is reported like any other unreadable input rather
+      -- than raised at the caller.
+      local ok, err_reading = pcall(function()
+        for line in f:lines() do
+          table.insert(lines, line)
+        end
+      end)
       f:close()
+
+      if not ok then
+        self:notify("Failed to read file: " .. file .. " (" .. tostring(err_reading) .. ")", "error")
+        return {}
+      end
 
       -- Store in internal buffer and filename for potential modifications
       self._buffer_lines = lines

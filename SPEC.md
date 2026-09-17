@@ -254,8 +254,14 @@ be derived from the column it is in.
 - Board-level WIP limit exceeded (sum of column WIP against `config.wip_limit`).
 - Each column-level WIP limit exceeded.
 - Duplicate card identifiers, reported with the location they were found in.
+- A `wip_limit` that is not a number, at board or column level, reported as
+  `Ignoring non-numeric wip_limit …`. The limit is not enforced, the authored value is kept so a
+  round trip preserves it, and `valid` is left alone.
 
 Exceeding a WIP limit is a **warning** that sets `valid = false`; it does not raise.
+
+A `wip_limit` written as a quoted number (`wip_limit: "7"`) is parsed as the number 7 and written
+back unquoted.
 
 `ValidationResult` (`validation_result.lua`) is the return type for move validation, with three
 states — `approved`, `warning`, `denied` — constructed via `ValidationResult.success()`,

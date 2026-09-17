@@ -2,7 +2,7 @@
 
 .PHONY: test test-standalone test-unit test-integration test-e2e test-file \
 	test-container container-build ci-local ci-local-list test-shuffle test-tap test-perf coverage lint lint-container \
-	smoke clean check-deps help
+	test-each-file smoke clean check-deps help
 
 # Container engine used by the test-container targets. Podman is preferred;
 # set CONTAINER_ENGINE=docker to override.
@@ -38,6 +38,36 @@ test-shuffle:
 	@seed=$${SEED:-$$(date +%s)}; \
 	echo "Running with --shuffle --seed=$$seed"; \
 	busted --shuffle --seed="$$seed"
+
+# Run every spec file in its own busted process.
+#
+# `busted` and `make test-shuffle` both load the whole suite into one process,
+# so a spec that only passes because an earlier file required something --
+# tests/polyfills/vim, a config setup, a registered adapter -- still passes.
+# Shuffling reorders the tests, not the loading. One process per file is the
+# only check for that, and it reports every offender rather than stopping at
+# the first.
+test-each-file:
+	@failed=""; total=0; \
+	for spec in $$(find tests -name '*_spec.lua' | sort); do \
+		total=$$((total + 1)); \
+		if busted "$$spec" >/dev/null 2>&1; then \
+			printf '.'; \
+		else \
+			printf 'F'; \
+			failed="$$failed $$spec"; \
+		fi; \
+	done; \
+	echo ""; \
+	if [ -n "$$failed" ]; then \
+		echo "Specs that fail in isolation:"; \
+		for spec in $$failed; do \
+			echo "  $$spec"; \
+			busted "$$spec" 2>&1 | sed 's/^/    /'; \
+		done; \
+		exit 1; \
+	fi; \
+	echo "$$total spec files pass on their own."
 
 # Run the suite with TAP output, for tooling that consumes test results.
 # TAP_FILE=<path> also writes the output to a file.
@@ -186,6 +216,7 @@ help:
 	@echo "  test-integration  - Run integration tests only"
 	@echo "  test-e2e          - Run E2E tests only"
 	@echo "  test-shuffle      - Run all tests in a random order (SEED=<n> to repeat one)"
+	@echo "  test-each-file    - Run every spec file in its own process (catches load-order deps)"
 	@echo "  test-tap          - Run all tests with TAP output (TAP_FILE=<path> to save)"
 	@echo "  test-perf         - Run the performance regression specs only (no coverage)"
 	@echo "  coverage          - Run tests under luacov and print the summary"

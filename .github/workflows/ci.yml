@@ -63,6 +63,13 @@ jobs:
           busted --coverage --shuffle --seed="$seed" --output=TAP \
             | tee "busted-tap-${{ matrix.lua }}.txt"
 
+      - name: Spec files in isolation
+        # Load-order dependencies between spec files are version-independent,
+        # so one Lua is enough; 5.4 is the development version. Runs after the
+        # suite so a genuine failure is reported by the run above first.
+        if: always() && matrix.lua == '5.4'
+        run: make test-each-file
+
       - name: CLI example smoke test
         # The example is the only exercise of a bare `lua` with nothing but
         # LUA_PATH set -- no busted, no polyfills, no rockspec. It writes its

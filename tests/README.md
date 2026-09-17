@@ -130,7 +130,9 @@ shared by every spec in a run. Two consequences:
 
 `make test-shuffle` is the cheap way to catch the first shape. It does not catch the second —
 `busted` shuffles within a process, so a file that only passes because an earlier file loaded
-something still passes. Running a single file on its own is the check for that.
+something still passes. `make test-each-file` is the check for that: one `busted` process per spec
+file, listing every file that cannot stand on its own rather than stopping at the first. CI runs it
+on Lua 5.4.
 
 ### Timestamps and completion
 

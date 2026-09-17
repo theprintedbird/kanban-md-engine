@@ -13,7 +13,6 @@
 
 ###### Ready
 
-- Extend virtual_text_spec: cycle time, blocked breakdown, units, archive, disabled <!-- backlog: 1789543830, id: card_01M2MHZMG4XKMKB8W1KADV1SPJ, ready: 1789620899, tags: [phase3] -->
 - Test core/setup.lua directly <!-- backlog: 1789543830, id: card_01M2MHZMR3PKT3A9ZWFWEB9E8X, ready: 1789620901, tags: [phase3] -->
 - Test extras/workflow_triggers.lua <!-- backlog: 1789543830, id: card_01M2MHZMJKW9BRAZ3QV4GJPS8A, ready: 1789620903, tags: [phase3] -->
 - Test extras/capacity_triggers.lua and the board.lua capacity branch <!-- backlog: 1789543830, id: card_01M2MHZN31CMXCGD8YSJD2GHYS, ready: 1789620904, tags: [phase3] -->
@@ -40,6 +39,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -97,3 +97,4 @@
 - Refresh tests/README.md; drop stale counts and the hand-maintained tree <!-- backlog: 1789543830, done: 1789604231, id: card_01M2MHZMFTNHE16KPQM9NADC8P, in_progress: 1789604148, tags: [phase2] -->
 - Add per-operation performance regression tests with timing bounds <!-- backlog: 1789543830, done: 1789614311, id: card_01M2MHZN8C0X92YG1R15G792EV, in_progress: 1789604727, tags: [phase2] -->
 - Test adapters/interface.lua: Adapter.validate() and Adapter.new() <!-- backlog: 1789543830, done: 1789622677, id: card_01M2MHZMV6VGFZ1HDQFWH6WJVD, in_progress: 1789622540, ready: 1789620896, tags: [phase3] -->
+- Extend virtual_text_spec: cycle time, blocked breakdown, units, archive, disabled <!-- backlog: 1789543830, done: 1789622869, id: card_01M2MHZMG4XKMKB8W1KADV1SPJ, in_progress: 1789622711, ready: 1789620899, tags: [phase3] -->

@@ -12,6 +12,7 @@ require('polyfills.vim')
 
 local Board = require('kanban-md.board')
 local Card = require('kanban-md.card')
+local Column = require('kanban-md.column')
 local adapter_registry = require('kanban-md.adapter_registry')
 local virtual_text = require('kanban-md.virtual_text')
 
@@ -28,6 +29,56 @@ describe("virtual_text", function()
       end
     end
     return ""
+  end
+
+  local DAY = 86400
+
+  -- A board with one column of each kind the metrics code distinguishes, all
+  -- stated explicitly so none of the positional fallbacks in
+  -- helpers/column.lua are in play.
+  local function metrics_board()
+    local board = Board:new()
+    board.title = "Test Board"
+    board.title_line = 1
+
+    local backlog = board:add_column("col_backlog", "Backlog")
+    backlog.config.is_backlog_state = true
+    backlog.line_number = 2
+
+    local in_progress = board:add_column("col_in_progress", "In Progress")
+    in_progress.config.is_start_state = true
+    in_progress.line_number = 3
+
+    local blocked = board:add_column("col_blocked", "Blocked")
+    blocked.config.is_blocked_state = true
+    blocked.line_number = 4
+
+    local done = board:add_column("col_done", "Done")
+    done.config.is_completion_state = true
+    done.line_number = 5
+
+    return board, backlog, in_progress, blocked, done
+  end
+
+  --- Put a card with the given timestamp properties in `column`.
+  local function add_card(column, properties, line_number)
+    local card = Card:new("card-" .. tostring(#column.cards + 1), "A card", properties)
+    card.line_number = line_number or 6
+    table.insert(column.cards, card)
+    return card
+  end
+
+  --- Render the board and return every emitted virtual-text line joined, so a
+  --- single assertion can ask what the user would see.
+  local function rendered_text(board)
+    board:calculate_stats()
+    virtual_text.update_virtual_text(board, 0)
+
+    local lines = {}
+    for _, call in ipairs(mock_calls) do
+      table.insert(lines, call.text)
+    end
+    return table.concat(lines, "\n")
   end
 
   setup(function()
@@ -50,10 +101,18 @@ describe("virtual_text", function()
       create_namespace = function(self, name) return 1 end,
       clear_namespace = function(self, bufnr, ns, opts) end,
       set_extmark = function(self, bufnr, ns_id, line, col, opts)
+        -- Join every virt_text segment: a card's metrics are emitted as
+        -- several chunks (lead, separator, cycle, blocked breakdown) and the
+        -- assertions below are about the line as the user reads it.
+        local segments = {}
+        for _, chunk in ipairs(opts.virt_text or {}) do
+          table.insert(segments, chunk[1])
+        end
+
         table.insert(mock_calls, {
           bufnr = bufnr,
           line = line,
-          text = opts.virt_text and opts.virt_text[1] and opts.virt_text[1][1] or ""
+          text = table.concat(segments)
         })
       end,
     }
@@ -142,5 +201,301 @@ describe("virtual_text", function()
 
     -- Should not have created any extmarks
     assert.are.equals(0, #mock_calls)
+  end)
+  describe("cycle time", function()
+    it("displays the cycle time alongside the lead time", function()
+      local board, _, _, _, done = metrics_board()
+      add_card(done, {
+        backlog = os.time() - 10 * DAY,
+        in_progress = os.time() - 4 * DAY,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      assert.matches("Lead %(Backlog → Done%): 10 days", text)
+      assert.matches("Cycle %(In Progress → Done%): 4 days", text)
+    end)
+
+    it("reports N/A when the card never reached the start column", function()
+      local board, _, _, _, done = metrics_board()
+      add_card(done, {
+        backlog = os.time() - 3 * DAY,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      assert.matches("Lead ", text)
+      assert.matches("Cycle: N/A", text)
+    end)
+
+    it("breaks out active and blocked time when a blocked column was visited", function()
+      local board, _, _, _, done = metrics_board()
+      add_card(done, {
+        backlog = os.time() - 10 * DAY,
+        in_progress = os.time() - 4 * DAY,
+        blocked = os.time() - 3 * DAY,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      -- 4 days from In Progress to Done, 3 of them sat in Blocked.
+      assert.matches("%[active: 1%.0 day, blocked: 3%.0 days%]", text)
+    end)
+
+    it("omits the breakdown when no blocked column was visited", function()
+      local board, _, _, _, done = metrics_board()
+      add_card(done, {
+        backlog = os.time() - 10 * DAY,
+        in_progress = os.time() - 4 * DAY,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      assert.is_nil(text:find("active:", 1, true))
+      assert.is_nil(text:find("blocked:", 1, true))
+    end)
+  end)
+
+  describe("cycle_time_unit", function()
+    it("defaults to whole days", function()
+      local board, _, _, _, done = metrics_board()
+      add_card(done, {
+        backlog = os.time() - 2 * DAY - 3600,
+        in_progress = os.time() - 2 * DAY,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      assert.matches("Cycle %(In Progress → Done%): 2 days", text)
+    end)
+
+    it("singularises the unit for a duration of exactly one", function()
+      local board, _, _, _, done = metrics_board()
+      add_card(done, {
+        backlog = os.time() - DAY,
+        in_progress = os.time() - DAY,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      assert.matches("1 day", text)
+      assert.is_nil(text:find("1 days", 1, true))
+    end)
+
+    it("reports hours when cycle_time_unit is 'hours'", function()
+      local board, _, _, _, done = metrics_board()
+      board.config.cycle_time_unit = "hours"
+      add_card(done, {
+        backlog = os.time() - 5 * 3600,
+        in_progress = os.time() - 3 * 3600,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      assert.matches("Lead %(Backlog → Done%): 5 hours", text)
+      assert.matches("Cycle %(In Progress → Done%): 3 hours", text)
+    end)
+
+    it("singularises hours too", function()
+      local board, _, _, _, done = metrics_board()
+      board.config.cycle_time_unit = "hours"
+      add_card(done, {
+        backlog = os.time() - 3600,
+        in_progress = os.time() - 3600,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      assert.matches("1 hour", text)
+      assert.is_nil(text:find("1 hours", 1, true))
+    end)
+
+    it("falls through to raw seconds for any other unit", function()
+      local board, _, _, _, done = metrics_board()
+      board.config.cycle_time_unit = "seconds"
+      add_card(done, {
+        backlog = os.time() - 90,
+        in_progress = os.time() - 90,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      assert.matches("90 seconds", text)
+    end)
+
+    it("uses the unit for the blocked breakdown as well", function()
+      local board, _, _, _, done = metrics_board()
+      board.config.cycle_time_unit = "hours"
+      add_card(done, {
+        backlog = os.time() - 10 * 3600,
+        in_progress = os.time() - 4 * 3600,
+        blocked = os.time() - 3 * 3600,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      assert.matches("%[active: 1%.0 hour, blocked: 3%.0 hours%]", text)
+    end)
+  end)
+
+  describe("archive", function()
+    it("displays metrics for archived cards", function()
+      local board = metrics_board()
+      board.archive = Column:new("__ARCHIVE__", "__ARCHIVE__")
+      board.archive.is_archive = true
+      add_card(board.archive, {
+        backlog = os.time() - 8 * DAY,
+        in_progress = os.time() - 2 * DAY,
+        done = os.time(),
+      }, 9)
+
+      local text = rendered_text(board)
+
+      assert.matches("Lead %(Backlog → Done%): 8 days", text)
+      assert.matches("Cycle %(In Progress → Done%): 2 days", text)
+    end)
+
+    it("skips archived cards with no line number", function()
+      local board = metrics_board()
+      board.archive = Column:new("__ARCHIVE__", "__ARCHIVE__")
+      board.archive.is_archive = true
+      local card = add_card(board.archive, {
+        backlog = os.time() - 8 * DAY,
+        in_progress = os.time() - 2 * DAY,
+        done = os.time(),
+      })
+      card.line_number = nil
+
+      assert.equals("", rendered_text(board))
+    end)
+  end)
+
+  describe("display toggles", function()
+    it("emits nothing at all when show_stats_virtual_text is false", function()
+      local board, _, _, _, done = metrics_board()
+      board.config.show_stats_virtual_text = false
+      board.config.wip_limit = 0
+      add_card(done, {
+        backlog = os.time() - 2 * DAY,
+        in_progress = os.time() - DAY,
+        done = os.time(),
+      })
+
+      assert.equals("", rendered_text(board))
+    end)
+
+    it("omits the lead time when show_lead_time is false", function()
+      local board, _, _, _, done = metrics_board()
+      board.config.show_lead_time = false
+      add_card(done, {
+        backlog = os.time() - 2 * DAY,
+        in_progress = os.time() - DAY,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      assert.is_nil(text:find("Lead", 1, true))
+      assert.matches("Cycle %(In Progress → Done%): 1 day", text)
+    end)
+
+    it("omits the cycle time when show_cycle_time is false", function()
+      local board, _, _, _, done = metrics_board()
+      board.config.show_cycle_time = false
+      add_card(done, {
+        backlog = os.time() - 2 * DAY,
+        in_progress = os.time() - DAY,
+        done = os.time(),
+      })
+
+      local text = rendered_text(board)
+
+      assert.matches("Lead %(Backlog → Done%): 2 days", text)
+      assert.is_nil(text:find("Cycle", 1, true))
+    end)
+
+    it("still shows WIP warnings when both metrics are disabled", function()
+      local board, backlog = metrics_board()
+      board.config.show_lead_time = false
+      board.config.show_cycle_time = false
+      backlog.config.wip_limit = 1
+      add_card(backlog, {})
+      add_card(backlog, {})
+
+      local text = rendered_text(board)
+
+      assert.matches("WIP limit exceeded %(2/1%)", text)
+      assert.is_nil(text:find("Lead", 1, true))
+    end)
+  end)
+
+  describe("WIP warnings", function()
+    it("warns on the board title line when the board limit is exceeded", function()
+      local board, backlog = metrics_board()
+      board.config.wip_limit = 1
+      add_card(backlog, {})
+      add_card(backlog, {})
+
+      local text = rendered_text(board)
+
+      assert.matches("Board WIP limit exceeded %(2/1%)", text)
+
+      -- title_line is 1-indexed in the parser, extmarks are 0-indexed.
+      assert.equals(0, mock_calls[1].line)
+    end)
+
+    it("stays quiet when a column is exactly at its limit", function()
+      local board, backlog = metrics_board()
+      backlog.config.wip_limit = 2
+      add_card(backlog, {})
+      add_card(backlog, {})
+
+      assert.equals("", rendered_text(board))
+    end)
+
+    it("places the column warning on the column's own line", function()
+      local board, _, in_progress = metrics_board()
+      in_progress.config.wip_limit = 1
+      add_card(in_progress, {})
+      add_card(in_progress, {})
+
+      rendered_text(board)
+
+      assert.equals(1, #mock_calls)
+      assert.equals(in_progress.line_number - 1, mock_calls[1].line)
+    end)
+  end)
+
+  describe("namespace handling", function()
+    it("clears the namespace before redrawing", function()
+      local cleared = {}
+      mock_adapter.clear_namespace = function(_, bufnr, ns)
+        table.insert(cleared, { bufnr = bufnr, ns = ns })
+      end
+
+      local board = metrics_board()
+      rendered_text(board)
+
+      assert.equals(1, #cleared)
+      assert.equals(0, cleared[1].bufnr)
+    end)
+
+    it("does nothing without a buffer number", function()
+      local board = metrics_board()
+
+      virtual_text.update_virtual_text(board, nil)
+
+      assert.equals(0, #mock_calls)
+    end)
   end)
 end)

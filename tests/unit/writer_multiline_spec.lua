@@ -1,3 +1,5 @@
+require('polyfills.vim')
+
 local Board = require('kanban-md.board')
 local Card = require('kanban-md.card')
 local Column = require('kanban-md.column')

@@ -1,3 +1,5 @@
+require('polyfills.vim')
+
 local Board = require('kanban-md.board')
 
 describe("Parser - Multi-line list items", function()

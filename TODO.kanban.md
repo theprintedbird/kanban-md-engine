@@ -13,7 +13,6 @@
 
 ###### Ready
 
-- Add require('polyfills.vim') to the four specs missing it <!-- backlog: 1789543830, id: card_01M2MHZMQGDRKFC2T9QX6NKQ9G, ready: 1789620927, tags: [phase3] -->
 - Add make test-each-file running every spec in its own process <!-- backlog: 1789543830, id: card_01M2MHZMQEJE7YCFW46WKXAVB2, ready: 1789620928, tags: [phase3] -->
 - Audit tests asserting default or initial values on singletons <!-- backlog: 1789543830, id: card_01M2MHZMYQTEHMQ9JXZ5N9NXV4, ready: 1789620930, tags: [phase3] -->
 - Remove pending() from roundtrip_fixtures_spec.lua and confirm Tasks 3-6 landed <!-- backlog: 1789543830, id: card_01M2MHZMMPTGMPNVK8RX43ZMYD, ready: 1789620932, tags: [phase3] -->
@@ -23,6 +22,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -113,3 +113,4 @@
 - Scope make clean temp files per-run; drop the rm -rf /tmp/lua_* glob <!-- backlog: 1789543830, done: 1789626351, id: card_01M2MHZMFG9JMN7YM0F3Z8HTF3, in_progress: 1789626282, ready: 1789620924, tags: [phase3] -->
 - Make examples/test_cli.sh write to temp and run it as a CI smoke test <!-- backlog: 1789543830, done: 1789626791, id: card_01M2MHZN6KYDRQAB1MEAXN3XYN, ready: 1789620925, tags: [phase3] -->
 - Inject a clock so lead/cycle/blocked time can be tested with real deltas <!-- backlog: 1789543830, done: 1789627617, id: card_01M2MHZN0RMXG8YZCX7XQQ0FPD, in_progress: 1789626830, ready: 1789620926, tags: [phase3] -->
+- Add require('polyfills.vim') to the four specs missing it <!-- backlog: 1789543830, done: 1789627791, id: card_01M2MHZMQGDRKFC2T9QX6NKQ9G, in_progress: 1789627660, ready: 1789620927, tags: [phase3] -->

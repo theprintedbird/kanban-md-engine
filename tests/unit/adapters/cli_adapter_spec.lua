@@ -1,6 +1,8 @@
 -- tests/unit/adapters/cli_adapter_spec.lua
 -- Unit tests for CLI adapter functionality
 
+require('polyfills.vim')
+
 _G._TEST = true
 
 local CLIAdapter = require("kanban-md.adapters.cli")

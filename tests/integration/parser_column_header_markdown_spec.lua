@@ -1,5 +1,6 @@
 -- tests/integration/parser_column_header_markdown_spec.lua
 -- Integration test for column header markdown preservation
+require('polyfills.vim')
 
 describe("Column header markdown preservation", function()
   local Board

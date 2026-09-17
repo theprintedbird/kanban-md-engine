@@ -9,8 +9,21 @@ local Card = require("kanban-md.card")
 local Column = require("kanban-md.column")
 local CLIAdapter = require("kanban-md.adapters.cli")
 local config_module = require("kanban-md.config")
+local streams = require('helpers.streams')
 
 describe("CLI usage integration", function()
+
+  -- The CLI adapter notifies on every successful file write; capture stderr so
+  -- those notifications are assertable instead of printed mid-run.
+  local stderr
+
+  before_each(function()
+    stderr = streams.capture_stderr()
+  end)
+
+  after_each(function()
+    stderr.restore()
+  end)
   local original_config
   local original_adapter
 

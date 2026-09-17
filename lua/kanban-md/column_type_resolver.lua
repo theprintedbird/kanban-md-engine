@@ -152,6 +152,19 @@ function ColumnTypeResolver.merge_properties(column_name, markdown_props, type_n
   return result
 end
 
+--- Report a column-type problem at warn level.
+--- These used to be print(), which puts them on stdout -- the stream that
+--- carries board data (SPEC.md section 9.2) -- and bypasses the adapter the
+--- engine is supposed to speak through. Silent when no adapter is registered,
+--- following the same pattern as type_converter.lua.
+---@param message string
+local function notify(message)
+  local adapter_registry = require("kanban-md.adapter_registry")
+  if adapter_registry.has_adapter() then
+    adapter_registry.get_adapter():notify(message, "warn")
+  end
+end
+
 --- Validate column has required properties
 --- Emits warnings/errors based on global_config.missing_property_requirement
 ---@param column table The column object with name, type, and config
@@ -164,8 +177,8 @@ function ColumnTypeResolver.validate_requirements(column, global_config)
   local type_def = ColumnTypeResolver.get_type_definition(column.type, global_config)
   if not type_def then
     -- Warn about invalid type reference
-    print(string.format(
-      "Warning: Column '%s' references type '%s' which is not defined in config",
+    notify(string.format(
+      "Column '%s' references type '%s' which is not defined in config",
       column.name,
       column.type
     ))
@@ -194,7 +207,7 @@ function ColumnTypeResolver.validate_requirements(column, global_config)
         if requirement_level == "error" then
           error(message)
         elseif requirement_level == "warning" then
-          print("Warning: " .. message)
+          notify(message)
         end
         -- "none" means silent, do nothing
       end

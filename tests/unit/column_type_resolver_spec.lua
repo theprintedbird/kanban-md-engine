@@ -1,5 +1,6 @@
 require('polyfills.vim')
 local ColumnTypeResolver = require("kanban-md.column_type_resolver")
+local adapter_registry = require("kanban-md.adapter_registry")
 
 describe("ColumnTypeResolver", function()
   -- Sample config used across tests
@@ -256,55 +257,66 @@ describe("ColumnTypeResolver", function()
       }
     end
 
-    it("emits warning when required property is missing", function()
+    -- validate_requirements() reports through the registered adapter at warn
+    -- level. adapter_registry holds a module singleton, so the mock is put
+    -- back after each test.
+    local warnings
+    local previous_adapter
+
+    before_each(function()
+      warnings = {}
+      previous_adapter = adapter_registry.has_adapter() and adapter_registry.get_adapter() or nil
+
+      adapter_registry.set_adapter({
+        notify = function(_, message, level)
+          table.insert(warnings, { message = message, level = level })
+        end,
+      })
+    end)
+
+    after_each(function()
+      adapter_registry.set_adapter(previous_adapter)
+    end)
+
+    it("warns when a required property is missing", function()
       -- Type "wip" has requires_wip_limit = true
       local column = make_column("In Progress", "wip", {})
 
-      -- Capture warning output (implementation detail - may need adjustment)
-      local warnings = {}
-      local original_warn = vim and vim.notify or print
-      _G.test_warnings = warnings
+      ColumnTypeResolver.validate_requirements(column, sample_config)
+
+      assert.equals(1, #warnings)
+      assert.equals(
+        "Column 'In Progress' of type 'wip' requires wip_limit but none is set",
+        warnings[1].message
+      )
+      assert.equals("warn", warnings[1].level)
+    end)
+
+    it("says nothing when the required property is present", function()
+      local column = make_column("In Progress", "wip", { wip_limit = 5 })
 
       ColumnTypeResolver.validate_requirements(column, sample_config)
 
-      -- Should have emitted a warning about missing wip_limit
-      -- The actual assertion depends on how warnings are implemented
-      assert.is_not_nil(column) -- Placeholder - actual test needs warning capture mechanism
+      assert.same({}, warnings)
     end)
 
-    it("does not emit warning when required property is present", function()
-      local column = make_column("In Progress", "wip", { wip_limit = 5 })
-
-      -- Should not emit any warning
-      local success = pcall(function()
-        ColumnTypeResolver.validate_requirements(column, sample_config)
-      end)
-
-      assert.is_true(success)
-    end)
-
-    it("handles column with no type gracefully", function()
+    it("says nothing for a column with no type", function()
       local column = make_column("Random Column", nil, {})
 
-      local success = pcall(function()
-        ColumnTypeResolver.validate_requirements(column, sample_config)
-      end)
+      ColumnTypeResolver.validate_requirements(column, sample_config)
 
-      assert.is_true(success)
+      assert.same({}, warnings)
     end)
 
-    it("handles type with no requirements", function()
+    it("says nothing for a type with no requirements", function()
       local column = make_column("Done", "completion", {})
 
-      local success = pcall(function()
-        ColumnTypeResolver.validate_requirements(column, sample_config)
-      end)
+      ColumnTypeResolver.validate_requirements(column, sample_config)
 
-      assert.is_true(success)
+      assert.same({}, warnings)
     end)
 
-    it("handles multiple required properties", function()
-      -- Add a type with multiple requirements for this test
+    it("warns once per missing requirement", function()
       local test_config = vim.deepcopy(sample_config)
       test_config.column_config.types.multi_req = {
         properties = {},
@@ -314,26 +326,57 @@ describe("ColumnTypeResolver", function()
 
       local column = make_column("Test", "multi_req", {})
 
-      -- Should validate both requirements
-      local success = pcall(function()
-        ColumnTypeResolver.validate_requirements(column, test_config)
-      end)
+      ColumnTypeResolver.validate_requirements(column, test_config)
 
-      assert.is_true(success) -- Function should run without error
+      assert.equals(2, #warnings)
+
+      local messages = { warnings[1].message, warnings[2].message }
+      table.sort(messages)
+      assert.same({
+        "Column 'Test' of type 'multi_req' requires assignee but none is set",
+        "Column 'Test' of type 'multi_req' requires wip_limit but none is set",
+      }, messages)
     end)
 
-    it("handles missing property requirement config levels (none/warning/error)", function()
-      -- Test with "none" - should not emit anything
+    it("stays silent when missing_property_requirement is 'none'", function()
       local test_config = vim.deepcopy(sample_config)
       test_config.missing_property_requirement = "none"
 
-      local column = make_column("In Progress", "wip", {})
+      ColumnTypeResolver.validate_requirements(make_column("In Progress", "wip", {}), test_config)
 
-      local success = pcall(function()
-        ColumnTypeResolver.validate_requirements(column, test_config)
+      assert.same({}, warnings)
+    end)
+
+    it("raises when missing_property_requirement is 'error'", function()
+      local test_config = vim.deepcopy(sample_config)
+      test_config.missing_property_requirement = "error"
+
+      local ok, err = pcall(
+        ColumnTypeResolver.validate_requirements, make_column("In Progress", "wip", {}), test_config)
+
+      assert.is_false(ok)
+      assert.is_truthy(tostring(err):find(
+        "Column 'In Progress' of type 'wip' requires wip_limit but none is set", 1, true))
+      assert.same({}, warnings)
+    end)
+
+    it("warns about a type that is not defined in config", function()
+      ColumnTypeResolver.validate_requirements(make_column("Odd", "no_such_type", {}), sample_config)
+
+      assert.equals(1, #warnings)
+      assert.equals(
+        "Column 'Odd' references type 'no_such_type' which is not defined in config",
+        warnings[1].message
+      )
+      assert.equals("warn", warnings[1].level)
+    end)
+
+    it("does not raise when no adapter is registered", function()
+      adapter_registry.set_adapter(nil)
+
+      assert.has_no.errors(function()
+        ColumnTypeResolver.validate_requirements(make_column("In Progress", "wip", {}), sample_config)
       end)
-
-      assert.is_true(success)
     end)
   end)
 

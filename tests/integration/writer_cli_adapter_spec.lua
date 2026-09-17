@@ -10,8 +10,21 @@ local Column = require("kanban-md.column")
 local CLIAdapter = require("kanban-md.adapters.cli")
 local config_module = require("kanban-md.config")
 local adapter_registry = require("kanban-md.adapter_registry")
+local streams = require('helpers.streams')
 
 describe("Writer CLIAdapter integration", function()
+
+  -- The CLI adapter notifies on every successful file write; capture stderr so
+  -- those notifications are assertable instead of printed mid-run.
+  local stderr
+
+  before_each(function()
+    stderr = streams.capture_stderr()
+  end)
+
+  after_each(function()
+    stderr.restore()
+  end)
   local original_config
   local original_adapter
 
@@ -97,6 +110,12 @@ describe("Writer CLIAdapter integration", function()
       -- Write board to file using adapter
       local lines = board:write()
       CLIAdapter:write_buffer(lines, { file = temp_file })
+
+      -- The write is reported to the user, on stderr, once.
+      assert.equals(
+        "\226\132\185\239\184\143 Wrote " .. #lines .. " lines to " .. temp_file .. "\n",
+        stderr.output()
+      )
 
       -- Read file contents
       local f = io.open(temp_file, "r")

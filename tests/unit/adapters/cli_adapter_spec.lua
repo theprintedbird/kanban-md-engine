@@ -4,6 +4,7 @@
 _G._TEST = true
 
 local CLIAdapter = require("kanban-md.adapters.cli")
+local streams = require("helpers.streams")
 
 -- CLIAdapter is a module singleton shared by every spec file in a `busted`
 -- run, and tests further down this file deliberately move its cursor and fill
@@ -218,9 +219,16 @@ describe("CLIAdapter", function()
     end)
 
     it("should return empty table for non-existent file", function()
+      -- The failure is reported on stderr; capture it so the assertion can see
+      -- it rather than the test run printing it.
+      local stderr = streams.capture_stderr()
+
       local lines = CLIAdapter:read_buffer(1, { file = "/nonexistent/file.txt" })
+      local output = stderr.output()
+      stderr.restore()
 
       assert.equals(0, #lines)
+      assert.matches("Failed to read file: /nonexistent/file%.txt", output)
     end)
 
     it("should handle empty file", function()

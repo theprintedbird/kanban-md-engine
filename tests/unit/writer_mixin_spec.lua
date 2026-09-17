@@ -134,9 +134,34 @@ describe("WriterMixin serialization", function()
 
     it("should handle column:config prefix", function()
       local props = { wip_limit = 3, auto_assign = true }
-      local result = properties_to_comment(props, "column:config")
-      assert.is_true(result:match("^<!%-%- column:config") ~= nil)
-      assert.is_true(result:match("wip_limit: 3") ~= nil)
+      -- Exact: a loose ^<!-- column:config match would also accept a comma
+      -- after the prefix, which is the one thing this must not emit.
+      assert.are.equals("<!-- column:config auto_assign: true, wip_limit: 3 -->",
+        properties_to_comment(props, "column:config"))
+    end)
+
+    it("should separate a prefix from the first property with a space, not the separator",
+      function()
+        -- SPEC.md 7.5: a comma directly after the kanban:config or column:config
+        -- prefix is accepted on input; the writer does not emit one. The boundary
+        -- is always a single space, whatever property_separator is set to.
+        config_module.setup({ property_separator = " | " })
+        local props = { alpha = "a", beta = "b" }
+
+        for _, prefix in ipairs({ "kanban:config", "column:config" }) do
+          local result = properties_to_comment(props, prefix)
+          assert.are.equals("<!-- " .. prefix .. " alpha: a | beta: b -->", result)
+          assert.is_nil(result:match(prefix .. "%s*[,|]"),
+            "separator must not follow the " .. prefix .. " prefix")
+        end
+      end)
+
+    it("should emit the prefix alone when every property is filtered out", function()
+      -- Underscore-prefixed properties are ephemeral, so nothing is left to join
+      -- and no dangling separator should appear after the prefix.
+      local props = { _cursor_target = true, _scratch = "x" }
+      assert.are.equals("<!-- kanban:config -->",
+        properties_to_comment(props, "kanban:config"))
     end)
 
     it("should use custom property separator", function()
@@ -551,6 +576,44 @@ describe("WriterMixin serialization", function()
   end)
 
   describe("Round-trip parsing", function()
+    it("should normalise a comma after a config prefix away", function()
+      -- SPEC.md 7.5: the comma form is legacy input the parser still accepts.
+      -- Writing it back drops the comma, so a board authored either way
+      -- converges on the space form.
+      local input = {
+        "# Comma Board",
+        "",
+        "<!-- kanban:config, wip_limit: 7 -->",
+        "",
+        "###### Todo",
+        "",
+        "<!-- column:config, wip_limit: 3 -->",
+        "",
+        "- A card",
+        ""
+      }
+
+      local board = Board:new()
+      board:parse(input)
+
+      -- The comma form still parses
+      assert.are.equals(7, board.config.wip_limit)
+      assert.are.equals(3, board.columns[1].config.wip_limit)
+
+      local output = board:write()
+      local seen = {}
+      for _, line in ipairs(output) do
+        if line:match("config") then
+          table.insert(seen, line)
+          assert.is_nil(line:match("config,"),
+            "writer must not emit a comma after the config prefix: " .. line)
+        end
+      end
+
+      assert.are.equals("<!-- kanban:config wip_limit: 7 -->", seen[1])
+      assert.are.equals("<!-- column:config wip_limit: 3 -->", seen[2])
+    end)
+
     it("should preserve simple board structure", function()
       local input = {
         "# Simple Board",

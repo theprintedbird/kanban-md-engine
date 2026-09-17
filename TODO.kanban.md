@@ -4,28 +4,6 @@
 
 ###### Backlog
 
-- Test adapters/interface.lua: Adapter.validate() and Adapter.new() <!-- backlog: 1789543830, id: card_01M2MHZMV6VGFZ1HDQFWH6WJVD, tags: [phase3] -->
-- Extend virtual_text_spec: cycle time, blocked breakdown, units, archive, disabled <!-- backlog: 1789543830, id: card_01M2MHZMG4XKMKB8W1KADV1SPJ, tags: [phase3] -->
-- Test core/setup.lua directly <!-- backlog: 1789543830, id: card_01M2MHZMR3PKT3A9ZWFWEB9E8X, tags: [phase3] -->
-- Test extras/workflow_triggers.lua <!-- backlog: 1789543830, id: card_01M2MHZMJKW9BRAZ3QV4GJPS8A, tags: [phase3] -->
-- Test extras/capacity_triggers.lua and the board.lua capacity branch <!-- backlog: 1789543830, id: card_01M2MHZN31CMXCGD8YSJD2GHYS, tags: [phase3] -->
-- Unit-test extras/subtasks_triggers.lua <!-- backlog: 1789543830, id: card_01M2MHZNBRQ4WTVRYCAN5KZSZM, tags: [phase3] -->
-- Test helpers/ulid.lua: format, monotonicity, collisions <!-- backlog: 1789543830, id: card_01M2MHZN6DC44M3Y6H0Q2YGZNM, tags: [phase3] -->
-- Test validation_result.lua factories and state transitions <!-- backlog: 1789543830, id: card_01M2MHZNAYGGMEWY42J4WHRMYW, tags: [phase3] -->
-- Test read_buffer with opts.stdin <!-- backlog: 1789543830, id: card_01M2MHZN83J0QSJRGMP1KCPGX7, tags: [phase3] -->
-- Test write_buffer with opts.stdout <!-- backlog: 1789543830, id: card_01M2MHZMKQC43G7NM37CR59HQ9, tags: [phase3] -->
-- Test cli.lua Neovim guard and setup() config passthrough <!-- backlog: 1789543830, id: card_01M2MHZMR6HV12GQ444TM12RD6, tags: [phase3] -->
-- Test CLI error paths: unreadable file, malformed markdown, empty input <!-- backlog: 1789543830, id: card_01M2MHZNAVYDHKHRZ9X9VNK46F, tags: [phase3] -->
-- Remove debug print from timestamp_on_initial_placement_spec.lua <!-- backlog: 1789543830, id: card_01M2MHZMMF9ZXD418R3AHHGDGY, tags: [phase3] -->
-- Capture and assert fixture warnings instead of printing them <!-- backlog: 1789543830, id: card_01M2MHZNDM3GQ3SMCN9ZSGEYSD, tags: [phase3] -->
-- Move os.tmpname() cleanup into after_each or a temp-dir helper <!-- backlog: 1789543830, id: card_01M2MHZNA56HXEA1SWJAA3886R, tags: [phase3] -->
-- Scope make clean temp files per-run; drop the rm -rf /tmp/lua_* glob <!-- backlog: 1789543830, id: card_01M2MHZMFG9JMN7YM0F3Z8HTF3, tags: [phase3] -->
-- Make examples/test_cli.sh write to temp and run it as a CI smoke test <!-- backlog: 1789543830, id: card_01M2MHZN6KYDRQAB1MEAXN3XYN, tags: [phase3] -->
-- Inject a clock so lead/cycle/blocked time can be tested with real deltas <!-- backlog: 1789543830, id: card_01M2MHZN0RMXG8YZCX7XQQ0FPD, tags: [phase3] -->
-- Add require('polyfills.vim') to the four specs missing it <!-- backlog: 1789543830, id: card_01M2MHZMQGDRKFC2T9QX6NKQ9G, tags: [phase3] -->
-- Add make test-each-file running every spec in its own process <!-- backlog: 1789543830, id: card_01M2MHZMQEJE7YCFW46WKXAVB2, tags: [phase3] -->
-- Audit tests asserting default or initial values on singletons <!-- backlog: 1789543830, id: card_01M2MHZMYQTEHMQ9JXZ5N9NXV4, tags: [phase3] -->
-- Remove pending() from roundtrip_fixtures_spec.lua and confirm Tasks 3-6 landed <!-- backlog: 1789543830, id: card_01M2MHZMMPTGMPNVK8RX43ZMYD, tags: [phase3] -->
 - De-duplicate the copied suite in kanban-md; this engine is source of truth <!-- backlog: 1789543830, id: card_01M2MHZMNEK5F53EBRQ1PK5WEP, tags: [phase4] -->
 - Fix kanban-md writer_mixin_spec expecting a comma after kanban:config <!-- backlog: 1789543830, id: card_01M2MHZMZW5BCRM5NR9NC72KV8, tags: [phase4] -->
 - Fix kanban-md.nvim test_helper.lua path: lib/kanban-md -> lib/kanban-md-engine <!-- backlog: 1789543830, id: card_01M2MHZMHY1BHC38DTWKPA97GN, tags: [phase5] -->
@@ -34,6 +12,29 @@
 - An update-version script, so that the number is changed in all the right places. <!-- backlog: 1789604497, id: card_01M2PBV1ZWA3JCJPRED1PHG8HF -->
 
 ###### Ready
+
+- Test adapters/interface.lua: Adapter.validate() and Adapter.new() <!-- backlog: 1789543830, id: card_01M2MHZMV6VGFZ1HDQFWH6WJVD, ready: 1789620896, tags: [phase3] -->
+- Extend virtual_text_spec: cycle time, blocked breakdown, units, archive, disabled <!-- backlog: 1789543830, id: card_01M2MHZMG4XKMKB8W1KADV1SPJ, ready: 1789620899, tags: [phase3] -->
+- Test core/setup.lua directly <!-- backlog: 1789543830, id: card_01M2MHZMR3PKT3A9ZWFWEB9E8X, ready: 1789620901, tags: [phase3] -->
+- Test extras/workflow_triggers.lua <!-- backlog: 1789543830, id: card_01M2MHZMJKW9BRAZ3QV4GJPS8A, ready: 1789620903, tags: [phase3] -->
+- Test extras/capacity_triggers.lua and the board.lua capacity branch <!-- backlog: 1789543830, id: card_01M2MHZN31CMXCGD8YSJD2GHYS, ready: 1789620904, tags: [phase3] -->
+- Unit-test extras/subtasks_triggers.lua <!-- backlog: 1789543830, id: card_01M2MHZNBRQ4WTVRYCAN5KZSZM, ready: 1789620905, tags: [phase3] -->
+- Test helpers/ulid.lua: format, monotonicity, collisions <!-- backlog: 1789543830, id: card_01M2MHZN6DC44M3Y6H0Q2YGZNM, ready: 1789620909, tags: [phase3] -->
+- Test validation_result.lua factories and state transitions <!-- backlog: 1789543830, id: card_01M2MHZNAYGGMEWY42J4WHRMYW, ready: 1789620910, tags: [phase3] -->
+- Test read_buffer with opts.stdin <!-- backlog: 1789543830, id: card_01M2MHZN83J0QSJRGMP1KCPGX7, ready: 1789620912, tags: [phase3] -->
+- Test write_buffer with opts.stdout <!-- backlog: 1789543830, id: card_01M2MHZMKQC43G7NM37CR59HQ9, ready: 1789620914, tags: [phase3] -->
+- Test cli.lua Neovim guard and setup() config passthrough <!-- backlog: 1789543830, id: card_01M2MHZMR6HV12GQ444TM12RD6, ready: 1789620915, tags: [phase3] -->
+- Test CLI error paths: unreadable file, malformed markdown, empty input <!-- backlog: 1789543830, id: card_01M2MHZNAVYDHKHRZ9X9VNK46F, ready: 1789620916, tags: [phase3] -->
+- Remove debug print from timestamp_on_initial_placement_spec.lua <!-- backlog: 1789543830, id: card_01M2MHZMMF9ZXD418R3AHHGDGY, ready: 1789620919, tags: [phase3] -->
+- Capture and assert fixture warnings instead of printing them <!-- backlog: 1789543830, id: card_01M2MHZNDM3GQ3SMCN9ZSGEYSD, ready: 1789620921, tags: [phase3] -->
+- Move os.tmpname() cleanup into after_each or a temp-dir helper <!-- backlog: 1789543830, id: card_01M2MHZNA56HXEA1SWJAA3886R, ready: 1789620922, tags: [phase3] -->
+- Scope make clean temp files per-run; drop the rm -rf /tmp/lua_* glob <!-- backlog: 1789543830, id: card_01M2MHZMFG9JMN7YM0F3Z8HTF3, ready: 1789620924, tags: [phase3] -->
+- Make examples/test_cli.sh write to temp and run it as a CI smoke test <!-- backlog: 1789543830, id: card_01M2MHZN6KYDRQAB1MEAXN3XYN, ready: 1789620925, tags: [phase3] -->
+- Inject a clock so lead/cycle/blocked time can be tested with real deltas <!-- backlog: 1789543830, id: card_01M2MHZN0RMXG8YZCX7XQQ0FPD, ready: 1789620926, tags: [phase3] -->
+- Add require('polyfills.vim') to the four specs missing it <!-- backlog: 1789543830, id: card_01M2MHZMQGDRKFC2T9QX6NKQ9G, ready: 1789620927, tags: [phase3] -->
+- Add make test-each-file running every spec in its own process <!-- backlog: 1789543830, id: card_01M2MHZMQEJE7YCFW46WKXAVB2, ready: 1789620928, tags: [phase3] -->
+- Audit tests asserting default or initial values on singletons <!-- backlog: 1789543830, id: card_01M2MHZMYQTEHMQ9JXZ5N9NXV4, ready: 1789620930, tags: [phase3] -->
+- Remove pending() from roundtrip_fixtures_spec.lua and confirm Tasks 3-6 landed <!-- backlog: 1789543830, id: card_01M2MHZMMPTGMPNVK8RX43ZMYD, ready: 1789620932, tags: [phase3] -->
 
 
 

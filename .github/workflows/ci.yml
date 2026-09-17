@@ -63,6 +63,12 @@ jobs:
           busted --coverage --shuffle --seed="$seed" --output=TAP \
             | tee "busted-tap-${{ matrix.lua }}.txt"
 
+      - name: CLI example smoke test
+        # The example is the only exercise of a bare `lua` with nothing but
+        # LUA_PATH set -- no busted, no polyfills, no rockspec. It writes its
+        # board to a temp path and cleans up after itself.
+        run: make smoke
+
       - name: Performance bounds
         # A separate, uninstrumented run: the specs above are shuffled and
         # measured under luacov, whose per-line hook makes every timing

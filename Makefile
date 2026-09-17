@@ -2,7 +2,7 @@
 
 .PHONY: test test-standalone test-unit test-integration test-e2e test-file \
 	test-container container-build ci-local ci-local-list test-shuffle test-tap test-perf coverage lint lint-container \
-	clean check-deps help
+	smoke clean check-deps help
 
 # Container engine used by the test-container targets. Podman is preferred;
 # set CONTAINER_ENGINE=docker to override.
@@ -143,6 +143,13 @@ test-file:
 		exit 1; \
 	fi
 
+# Run examples/cli_example.lua end to end through a standalone interpreter.
+# It is the only thing exercising the example, and the only test that proves
+# the engine works from a bare `lua` with nothing but LUA_PATH set.
+# LUA=<interpreter> picks one; the script falls back to whatever is on PATH.
+smoke:
+	@examples/test_cli.sh
+
 # Validate that dependencies are installed
 check-deps:
 	@echo "Checking dependencies..."
@@ -158,8 +165,9 @@ check-deps:
 # Clean up any test artifacts
 #
 # Everything removed here is either in the working tree or a per-run directory
-# named kanban-md-tests-* by tests/helpers/tempfiles.lua, which removes its own
-# once it is empty. There is deliberately no glob over anything the engine did
+# named kanban-md-tests-* by tests/helpers/tempfiles.lua or kanban-md-example.*
+# by examples/test_cli.sh, both of which remove their own; the globs here are
+# for a run that was killed before it could. There is deliberately no glob over anything the engine did
 # not create: `rm -rf /tmp/lua_*` used to live here, and it would happily take
 # another process's files with it.
 clean:
@@ -167,6 +175,7 @@ clean:
 	@rm -f *.tmp test_*.md
 	@rm -f luacov.stats.out luacov.report.out busted-tap*.txt
 	@rm -rf $${TMPDIR:-/tmp}/kanban-md-tests-* /tmp/kanban-md-tests-*
+	@rm -rf $${TMPDIR:-/tmp}/kanban-md-example.* /tmp/kanban-md-example.*
 
 # Help
 help:
@@ -180,6 +189,7 @@ help:
 	@echo "  test-tap          - Run all tests with TAP output (TAP_FILE=<path> to save)"
 	@echo "  test-perf         - Run the performance regression specs only (no coverage)"
 	@echo "  coverage          - Run tests under luacov and print the summary"
+	@echo "  smoke             - Run the CLI example end to end (LUA=<interpreter>)"
 	@echo "  lint              - Run luacheck"
 	@echo "  lint-container    - Run luacheck inside the Alpine test image"
 	@echo "  test-file FILE=<path> - Run a specific test file"

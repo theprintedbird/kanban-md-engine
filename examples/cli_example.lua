@@ -5,6 +5,9 @@
 ---
 --- Usage:
 ---   lua examples/cli_example.lua
+---
+--- Set KANBAN_EXAMPLE_OUTPUT to write the modified board somewhere other than
+--- examples/sample_board_modified.md.
 
 -- Add the project to the Lua path so we can require modules
 local script_dir = debug.getinfo(1).source:match("@?(.*/)")
@@ -179,8 +182,10 @@ local output_markdown = board:write()
 print(string.format("✓ Generated markdown (%d lines)", #output_markdown))
 print(string.format("  First line: %s", output_markdown[1] or ""))
 
--- Optionally write to a file
-local output_file_path = script_dir .. "sample_board_modified.md"
+-- Write the result out. KANBAN_EXAMPLE_OUTPUT chooses the destination so that
+-- the smoke test can run this against a temporary path instead of leaving a
+-- modified file behind in the working tree.
+local output_file_path = os.getenv("KANBAN_EXAMPLE_OUTPUT") or (script_dir .. "sample_board_modified.md")
 local output_file = io.open(output_file_path, "w")
 
 if output_file then
@@ -260,4 +265,4 @@ print("  ✓ Writing the modified board back to markdown")
 print("  ✓ Archive functionality")
 print()
 print("All operations completed without Neovim!")
-print("Check 'sample_board_modified.md' to see the changes.")
+print(string.format("Check '%s' to see the changes.", output_file_path))

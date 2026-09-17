@@ -6,20 +6,23 @@ This directory contains examples demonstrating standalone usage of kanban-md wit
 
 - `cli_example.lua` - Comprehensive demonstration of CLI adapter usage
 - `sample_board.md` - Sample kanban board for testing
-- `test_cli.sh` - Test script using Neovim's Lua runtime (works now)
+- `test_cli.sh` - Smoke test that runs the example through a standalone Lua interpreter
 
 ## Running the Example
 
-### Method 1: Using Neovim's Lua Runtime
+### Method 1: The smoke test
 
-You can test using Neovim's Lua runtime in headless mode. This still demonstrates that the core engine works with the CLI adapter without any Neovim APIs:
+`test_cli.sh` runs the example through a standalone Lua interpreter, checks that the board it writes really is one, and cleans up after itself. It is what CI runs, and `make smoke` is the same thing:
 
 ```bash
-cd /Users/iainb/Projects/ThePrintedBird/nvim-plugins/kanban-md
-./examples/test_cli.sh
+make smoke
+# or, to choose the interpreter:
+./examples/test_cli.sh luajit
 ```
 
-Or manually:
+### Method 2: Under Neovim's Lua runtime
+
+This demonstrates that the core engine works with the CLI adapter without using any Neovim APIs:
 ```bash
 cd kanban-md-engine
 nvim --headless --noplugin \
@@ -28,7 +31,7 @@ nvim --headless --noplugin \
   -c "quit"
 ```
 
-### Method 2: Using Standalone Lua Interpreter (Recommended)
+### Method 3: Using Standalone Lua Interpreter (Recommended)
 
 For true standalone testing without Neovim, install a Lua interpreter:
 
@@ -129,13 +132,15 @@ This example demonstrated:
   ✓ Archive functionality
 
 All operations completed without Neovim!
-Check 'sample_board_modified.md' to see the changes.
+Check 'examples/sample_board_modified.md' to see the changes.
 ```
 
 ## Output Files
 
 After running the example:
-- `sample_board_modified.md` - Modified board with changes applied
+- `sample_board_modified.md` - Modified board with changes applied. It is untracked, and ignored by git.
+
+Set `KANBAN_EXAMPLE_OUTPUT` to write it somewhere else instead - `test_cli.sh` points it at a temporary directory so that a run leaves the working tree clean.
 
 ## Use Cases
 

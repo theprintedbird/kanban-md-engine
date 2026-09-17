@@ -2,7 +2,7 @@
 
 .PHONY: test test-standalone test-unit test-integration test-e2e test-file \
 	test-container container-build ci-local ci-local-list test-shuffle test-tap test-perf coverage lint lint-container \
-	test-each-file smoke clean check-deps help
+	test-each-file smoke clean check-deps version help
 
 # Container engine used by the test-container targets. Podman is preferred;
 # set CONTAINER_ENGINE=docker to override.
@@ -100,12 +100,12 @@ lint:
 		echo "       or run 'make lint-container' to use the Alpine image)"; \
 		exit 1; \
 	fi
-	@luacheck lua tests
+	@luacheck lua scripts tests
 
 # Lint inside the Alpine test image, which already carries luacheck. Useful
 # when the host toolchain cannot build luacheck's C dependencies.
 lint-container: container-build
-	@$(CONTAINER_ENGINE) run --rm -v "$(CURDIR)":/src:ro -w /src $(CONTAINER_IMAGE) luacheck lua tests
+	@$(CONTAINER_ENGINE) run --rm -v "$(CURDIR)":/src:ro -w /src $(CONTAINER_IMAGE) luacheck lua scripts tests
 
 # Run only unit tests
 test-unit:
@@ -180,6 +180,16 @@ test-file:
 smoke:
 	@examples/test_cli.sh
 
+# Set the engine version everywhere it is recorded.
+# Usage: make version VERSION=0.2.0 [DRY_RUN=1]
+version:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Usage: make version VERSION=<x.y.z> [DRY_RUN=1]"; \
+		echo "Current version: $$(lua scripts/update-version.lua --current)"; \
+		exit 1; \
+	fi
+	@lua scripts/update-version.lua "$(VERSION)" $(if $(DRY_RUN),--dry-run,)
+
 # Validate that dependencies are installed
 check-deps:
 	@echo "Checking dependencies..."
@@ -230,6 +240,7 @@ help:
 	@echo "  ci-local-list     - List the jobs act can see"
 	@echo "  ci-local          - Run the GitHub Actions workflows locally with act"
 	@echo "  ci-local-list     - List the jobs act can see"
+	@echo "  version VERSION=<x.y.z> - Set the version in every file that records it (DRY_RUN=1 to preview)"
 	@echo "  check-deps        - Check if required dependencies are installed"
 	@echo "  clean             - Clean up test artifacts"
 	@echo "  help              - Show this help"

@@ -83,6 +83,13 @@ limits are enforced. Hand-editing skips all of that and silently produces a
 board the engine would not have written. Every change command takes
 `--dry-run`; preview the diff before the first change in a session.
 
+## Version Numbers
+
+The version is recorded in `lua/kanban-md/version.lua` and in the status line of `SPEC.md`. Change
+it with `make version VERSION=<x.y.z>` (`DRY_RUN=1` previews) rather than by hand, so the copies
+cannot drift. `scripts/update-version.lua` holds the list of places; a new one is an entry in its
+`targets` table, and every entry must match its file exactly once or the run fails.
+
 ## Testing
 
 Busted, run through the Makefile - `make help` lists every target. `make test` is the whole suite.

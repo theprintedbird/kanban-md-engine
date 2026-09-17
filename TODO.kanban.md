@@ -4,15 +4,14 @@
 
 ###### Backlog
 
-- De-duplicate the copied suite in kanban-md; this engine is source of truth <!-- backlog: 1789543830, id: card_01M2MHZMNEK5F53EBRQ1PK5WEP, tags: [phase4] -->
-- Fix kanban-md.nvim test_helper.lua path: lib/kanban-md -> lib/kanban-md-engine <!-- backlog: 1789543830, id: card_01M2MHZMHY1BHC38DTWKPA97GN, tags: [phase5] -->
-- An update-version script, so that the number is changed in all the right places. <!-- backlog: 1789604497, id: card_01M2PBV1ZWA3JCJPRED1PHG8HF -->
 
 ###### Ready
 
 
 
+
 ###### In Progress
+
 
 
 
@@ -71,3 +70,5 @@
 - Fix kanban-md writer_mixin_spec expecting a comma after kanban:config <!-- backlog: 1789543830, done: 1789631574, id: card_01M2MHZMZW5BCRM5NR9NC72KV8, in_progress: 1789631441, ready: 1789630450, tags: [phase4] -->
 - Add engine spec: underscore-prefixed properties are never serialised <!-- backlog: 1789543830, done: 1789632857, id: card_01M2MHZN3289SY22KFAP25Y579, in_progress: 1789632610, ready: 1789632172, tags: [phase5] -->
 - Add engine spec: board config enabling a default-off boolean registers its trigger <!-- backlog: 1789543830, done: 1789634770, id: card_01M2MHZN53KDY18VMY5Y6NMTYX, in_progress: 1789634558, ready: 1789632174, tags: [phase5] -->
+- Fix kanban-md.nvim test_helper.lua path: lib/kanban-md -> lib/kanban-md-engine <!-- backlog: 1789543830, done: 1789634906, id: card_01M2MHZMHY1BHC38DTWKPA97GN, tags: [phase5] -->
+- An update-version script, so that the number is changed in all the right places (SPEC.md and lua/kanban-md/version.lua). <!-- backlog: 1789604497, done: 1789636043, id: card_01M2PBV1ZWA3JCJPRED1PHG8HF, in_progress: 1789635236, ready: 1789634964 -->

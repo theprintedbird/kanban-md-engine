@@ -348,6 +348,23 @@ Shared options live in `.actrc`. Under Podman the Makefile points act at the
 machine's API socket automatically; an existing `DOCKER_HOST` is left alone.
 The podman machine has to be running (`podman machine start`).
 
+## Releasing
+
+The version number is recorded in more than one place -- `lua/kanban-md/version.lua`
+and the status line of `SPEC.md` -- so it is set from one command rather than by
+hand:
+
+```bash
+make version VERSION=0.2.0             # set it everywhere
+make version VERSION=0.2.0 DRY_RUN=1   # show what would change
+make version                           # print the current version
+```
+
+`scripts/update-version.lua` does the work, and every place it knows about has
+to match exactly once: if a file is reworded so its pattern no longer matches,
+the run fails rather than quietly skipping it. A new place to record the
+version is one entry in that script's `targets` list.
+
 ## Related Projects
 
 - **[kanban-md](https://github.com/theprintedbird/kanban-md)** — the Markdown syntax specification

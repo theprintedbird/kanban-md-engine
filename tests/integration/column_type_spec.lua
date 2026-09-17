@@ -1,13 +1,17 @@
 require('polyfills.vim')
 local Parser = require("kanban-md.parser")
 local Config = require("kanban-md.config")
+local singletons = require("helpers.singletons")
 
 describe("Column Type System Integration", function()
-  local original_config
+  local restore_config
 
   before_each(function()
-    -- Save original config
-    original_config = Config.get()
+    -- Config.setup() merges, so restoring by merging the old config back would
+    -- leave every column type this spec declares registered for the rest of the
+    -- run. Snapshot and reset instead.
+    restore_config = singletons.snapshot_config()
+    Config.reset()
 
     -- Set up test configuration
     Config.setup({
@@ -60,10 +64,7 @@ describe("Column Type System Integration", function()
   end)
 
   after_each(function()
-    -- Restore original config
-    if original_config then
-      Config.setup(original_config)
-    end
+    restore_config()
   end)
 
   describe("Pattern-based type resolution", function()

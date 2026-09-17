@@ -11,8 +11,24 @@
 require('polyfills.vim')
 
 local Board = require('kanban-md.board')
+local singletons = require('helpers.singletons')
 
 describe("kanban-md as a pure library (setup() never called)", function()
+  -- This file not calling setup() is not enough: busted runs the whole suite
+  -- in one Lua state, so a spec that ran earlier may have left class-level
+  -- triggers and a registered adapter behind, and the pure-library path would
+  -- then never actually be taken here. Clear them, and put them back.
+  local restore_singletons
+
+  before_each(function()
+    restore_singletons = singletons.snapshot()
+    singletons.reset()
+  end)
+
+  after_each(function()
+    restore_singletons()
+  end)
+
   it("parses and writes a simple board without requiring setup()", function()
     local markdown = table.concat({
       "# Pure Library Board",
@@ -55,6 +71,11 @@ describe("kanban-md as a pure library (setup() never called)", function()
     -- Fallback ids must be distinct even when generated within the same
     -- os.time() second (a bare "card_" .. os.time() fallback would collide).
     assert.are_not.equal(board.columns[1].cards[1].id, board.columns[1].cards[2].id)
+    -- ...and they are the fallback ids, not ULIDs: asserting the shape is what
+    -- makes a leaked class-level id trigger from another spec fail here rather
+    -- than quietly satisfy the is_not_nil assertions above.
+    assert.matches("^card_%d+_%d+$", board.columns[1].cards[1].id)
+    assert.matches("^card_%d+_%d+$", board.columns[2].cards[1].id)
 
     local written = table.concat(board:write(), "\n")
     assert.is_true(written:find("Pure Library Board", 1, true) ~= nil)

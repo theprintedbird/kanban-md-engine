@@ -128,6 +128,36 @@ shared by every spec in a run. Two consequences:
   have changed. Snapshot the value at require time, before any test body runs, or assert against a
   freshly reset object.
 
+`helpers.singletons` does the snapshotting for the three that are easiest to forget -- the
+class-level triggers on `Board`/`Column`/`Card`, the adapter registry and `config`:
+
+```lua
+local singletons = require('helpers.singletons')
+local restore
+
+before_each(function()
+  restore = singletons.snapshot()
+  singletons.reset() -- optional: start from the engine's as-loaded state
+end)
+
+after_each(function() restore() end)
+```
+
+`snapshot()` returns an idempotent restore, so calling it in the body as well as in `after_each` is
+safe. Restoring config goes through `config.reset()` and re-applies the snapshot rather than merging
+it back, because `config.setup()` merges -- a key the spec introduced would otherwise survive the
+restore.
+
+Two things the audit of this turned up, both worth recognising:
+
+- A spec claiming to exercise a path *without* setup (`tests/unit/no_setup_spec.lua`) proves nothing
+  unless it clears what earlier files registered, and its assertions have to be specific enough to
+  notice if it did not -- asserting `card.id ~= nil` passes just as well with a leaked ULID trigger,
+  so it asserts the fallback id's shape instead.
+- `assert.equals(config.get_defaults().wip_limit, config.get_value("wip_limit"))` asserts nothing:
+  there is no default `wip_limit` (the key is `default_wip_limit`), so it compares `nil` to `nil`.
+  Assert defaults against a key that has one.
+
 `make test-shuffle` is the cheap way to catch the first shape. It does not catch the second —
 `busted` shuffles within a process, so a file that only passes because an earlier file loaded
 something still passes. `make test-each-file` is the check for that: one `busted` process per spec

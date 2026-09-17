@@ -126,7 +126,10 @@ describe("kanban-md.cli", function()
 
       cli.setup()
 
-      assert.equals(config.get_defaults().wip_limit, config.get_value("wip_limit"))
+      -- Against a key that actually has a default: get_defaults().wip_limit is
+      -- nil, so comparing it to the live value asserts nothing.
+      assert.equals(config.get_defaults().cycle_time_unit, config.get_value("cycle_time_unit"))
+      assert.is_not_nil(config.get_value("cycle_time_unit"))
     end)
 
     it("registers the id triggers core_setup is responsible for", function()

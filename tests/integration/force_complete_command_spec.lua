@@ -10,14 +10,22 @@ describe("Force Complete Command", function()
   local config = require("kanban-md.config")
   local column_helper = require("kanban-md.helpers.column")
 
+  -- config is a module singleton and config.setup() merges rather than
+  -- replaces, so without the reset either side these strict validation modes
+  -- would be inherited from -- and then leaked to -- whatever else the run
+  -- loads into the same Lua state.
   before_each(function()
-    -- Reset config to defaults with dependency/subtask validation enabled
+    config.reset()
     config.setup({
       dependency_validation = "strict",
       subtask_validation = "strict",
       auto_timestamp = true,
       confirm_destructive = false, -- Disable confirmation for tests
     })
+  end)
+
+  after_each(function()
+    config.reset()
   end)
 
   describe("Command finds completion column correctly", function()

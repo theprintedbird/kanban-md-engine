@@ -138,7 +138,10 @@ describe("core.setup", function()
         core_setup.setup(nil, stub_adapter())
       end)
 
-      assert.equals(config.get_defaults().wip_limit, config.get_value("wip_limit"))
+      -- Against a key that actually has a default: get_defaults().wip_limit is
+      -- nil, so comparing it to the live value asserts nothing.
+      assert.equals(config.get_defaults().cycle_time_unit, config.get_value("cycle_time_unit"))
+      assert.is_not_nil(config.get_value("cycle_time_unit"))
     end)
   end)
 

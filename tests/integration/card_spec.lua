@@ -1,5 +1,6 @@
 require('polyfills.vim')
 local Card = require('kanban-md.card')
+local singletons = require('helpers.singletons')
 
 describe("Card lifecycle", function()
   describe("card states", function()
@@ -156,12 +157,23 @@ describe("Card lifecycle", function()
 
   describe("column-agnostic behaviour", function()
 		it("should get an ID on creation", function()
+			-- Card is a module singleton, so this registration is visible to every
+			-- spec that runs after it; snapshot the class triggers and put them
+			-- back rather than leaving every later Card:new() with a time-based id.
+			local restore_singletons = singletons.snapshot()
+
 			local id_triggers = require('kanban-md.extras.id_triggers')
 			local id_fn = id_triggers.time_based_id()
 			Card:register_on_create("time_based_id", id_fn)
-      local card = Card:new(nil, "ID-less card")
-			assert.is_not_nil(card.id)
-			assert.is_string(card.id)
+
+			local ok, err = pcall(function()
+				local card = Card:new(nil, "ID-less card")
+				assert.is_not_nil(card.id)
+				assert.is_string(card.id)
+			end)
+
+			restore_singletons()
+			assert.is_true(ok, tostring(err))
 		end)
     it("should not have hardcoded column states", function()
       local card = Card:new("test-10", "Flexible card")

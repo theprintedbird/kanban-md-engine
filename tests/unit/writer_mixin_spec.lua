@@ -815,4 +815,94 @@ describe("WriterMixin serialization", function()
       assert.are.equals(#output, #output2, "Round-trip should preserve line count")
     end)
   end)
+  -- SPEC.md 7.8: "Underscore-prefixed properties are never serialised." Any
+  -- property whose key begins with `_` is ephemeral, internal state and must
+  -- not reach the markdown, at any of the three levels that carry properties
+  -- (card, column:config, kanban:config). The filter lives in one place --
+  -- properties_to_comment -- so these cases guard the contract each caller
+  -- inherits, and the round-trip case guards the consequence the spec draws
+  -- from it: re-parsing never resurrects such a property.
+  describe("underscore-prefixed properties are never serialised", function()
+    local write_task, properties_to_comment
+
+    before_each(function()
+      local WriterMixin = require("kanban-md.writer_mixin")
+      write_task = WriterMixin._private.write_task
+      properties_to_comment = WriterMixin._private.properties_to_comment
+      config_module.setup({ task_indent = "", persist_card_ids = false })
+    end)
+
+    it("drops them from a card comment while keeping its ordinary properties", function()
+      local task = {
+        text = "Task",
+        properties = { _scratch = "keep", _cursor_target = true, assignee = "alice" },
+      }
+      assert.are.equals("- Task <!-- assignee: alice -->", write_task(task, "Todo"))
+    end)
+
+    it("emits no comment at all when a card has nothing but underscore properties", function()
+      local task = { text = "Task", properties = { _scratch = "keep" } }
+      -- Not merely "no _scratch": an empty <!-- --> would also be wrong.
+      assert.are.equals("- Task", write_task(task, "Todo"))
+    end)
+
+    it("only strips a leading underscore, not one anywhere in the key", function()
+      local task = { text = "Task", properties = { due_date = "2026-01-01", _due = "x" } }
+      assert.are.equals("- Task <!-- due_date: 2026-01-01 -->", write_task(task, "Todo"))
+    end)
+
+    it("drops them from kanban:config and column:config comments", function()
+      assert.are.equals("<!-- kanban:config show_stats: true -->",
+        properties_to_comment({ _hidden = 1, show_stats = true }, "kanban:config"))
+      assert.are.equals("<!-- column:config wip_limit: 3 -->",
+        properties_to_comment({ _tmp = 2, wip_limit = 3 }, "column:config"))
+    end)
+
+    it("keeps them out of multi-line comments too", function()
+      config_module.setup({ use_multiline_comments = true, multiline_threshold = 20 })
+      local lines = properties_to_comment({
+        _scratch = "internal",
+        very_long_property_name = "very_long_value",
+        another_property = "another_value",
+      })
+      assert.is_table(lines)
+      assert.is_nil(table.concat(lines, "\n"):find("_scratch", 1, true))
+    end)
+
+    it("parses them into memory but loses them on write, so a re-parse cannot resurrect them", function()
+      local input = {
+        "# Board",
+        "",
+        "<!-- kanban:config _hidden: 1, show_stats: true -->",
+        "",
+        "###### Todo",
+        "<!-- column:config _tmp: 2, wip_limit: 3 -->",
+        "",
+        "- A task <!-- _scratch: keep, assignee: alice -->",
+        "",
+      }
+
+      local board = Board:new()
+      board:parse(input)
+
+      -- The parser is not the filter: it reads the properties like any other,
+      -- so a host can put ephemeral state there deliberately.
+      local card = board.columns[1].cards[1]
+      assert.are.equals("keep", card.properties._scratch)
+
+      local output = table.concat(board:write(), "\n")
+      assert.is_nil(output:find("_scratch", 1, true))
+      assert.is_nil(output:find("_hidden", 1, true))
+      assert.is_nil(output:find("_tmp", 1, true))
+
+      local board2 = Board:new()
+      board2:parse(board:write())
+
+      local card2 = board2.columns[1].cards[1]
+      assert.is_nil(card2.properties._scratch)
+      -- The properties that share those comments are untouched.
+      assert.are.equals("alice", card2.properties.assignee)
+      assert.are.equals(3, board2.columns[1].config.wip_limit)
+    end)
+  end)
 end)

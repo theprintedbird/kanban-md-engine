@@ -129,6 +129,12 @@ local function properties_to_comment(properties, prefix, config, timestamp_keys)
 		end
 	end
 
+	-- Nothing survived the filter: with no prefix to anchor it there is no
+	-- comment to write, and emitting one would leave an empty <!--  --> behind.
+	if #parts == 0 then
+		return nil
+	end
+
 	-- Join prefix with a space, then join remaining parts with property_separator
 	local content
 	if prefix then

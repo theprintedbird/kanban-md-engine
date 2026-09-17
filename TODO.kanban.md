@@ -10,11 +10,11 @@
 
 ###### Ready
 
-- Add engine spec: underscore-prefixed properties are never serialised <!-- backlog: 1789543830, id: card_01M2MHZN3289SY22KFAP25Y579, ready: 1789632172, tags: [phase5] -->
 - Add engine spec: board config enabling a default-off boolean registers its trigger <!-- backlog: 1789543830, id: card_01M2MHZN53KDY18VMY5Y6NMTYX, ready: 1789632174, tags: [phase5] -->
 
 
 ###### In Progress
+
 
 
 
@@ -69,3 +69,4 @@
 - Audit tests asserting default or initial values on singletons <!-- backlog: 1789543830, done: 1789629105, id: card_01M2MHZMYQTEHMQ9JXZ5N9NXV4, in_progress: 1789627878, ready: 1789620930, tags: [phase3] -->
 - Remove pending() from roundtrip_fixtures_spec.lua and confirm Tasks 3-6 landed <!-- backlog: 1789543830, done: 1789629235, id: card_01M2MHZMMPTGMPNVK8RX43ZMYD, in_progress: 1789629173, ready: 1789620932, tags: [phase3] -->
 - Fix kanban-md writer_mixin_spec expecting a comma after kanban:config <!-- backlog: 1789543830, done: 1789631574, id: card_01M2MHZMZW5BCRM5NR9NC72KV8, in_progress: 1789631441, ready: 1789630450, tags: [phase4] -->
+- Add engine spec: underscore-prefixed properties are never serialised <!-- backlog: 1789543830, done: 1789632857, id: card_01M2MHZN3289SY22KFAP25Y579, in_progress: 1789632610, ready: 1789632172, tags: [phase5] -->

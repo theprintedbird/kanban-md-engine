@@ -452,7 +452,11 @@ normalisations apply:
   authored.
 - **Underscore-prefixed properties are never serialised.** Any property whose key begins with `_`
   is ephemeral, internal state — `_cursor_target`, `_scratch`, anything — and **MUST NOT** appear
-  in the output. Re-parsing therefore never resurrects it.
+  in the output. Re-parsing therefore never resurrects it. Only a leading underscore counts:
+  `due_date` is an ordinary property. When the filter leaves nothing to write, no comment is
+  emitted at all — a card whose properties are all underscore-prefixed is written as a bare list
+  item, not with an empty `<!--  -->`. A `kanban:config` or `column:config` comment, whose prefix
+  is itself content, is still written with the prefix alone.
 - **Comment placement.** A card's properties are re-emitted inline on the card's first line, even
   when they were authored in a standalone comment beneath it.
 - **Card identifiers.** Written only when `persist_card_ids` resolves true (§10). When it does, an

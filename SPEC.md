@@ -492,8 +492,9 @@ local MyAdapter = Adapter.new({
 })
 ```
 
-- `Adapter.new(implementation)` sets `Adapter` as the implementation's metatable and then
-  validates it. An incomplete implementation **MUST** raise; `Adapter.new` never returns a
+- `Adapter.new(implementation)` validates the implementation table and only then sets `Adapter`
+  as its metatable, so the abstract stubs inherited from the interface never stand in for a
+  missing method. An incomplete implementation **MUST** raise; `Adapter.new` never returns a
   half-formed adapter.
 - `Adapter.validate(adapter)` returns `(true, nil)` for a conforming adapter and
   `(false, "Adapter missing required method: <name>")` for the first missing one. Validation

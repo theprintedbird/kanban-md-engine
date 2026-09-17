@@ -188,13 +188,16 @@ end
 --- })
 function Adapter.new(implementation)
   local instance = implementation or {}
-  setmetatable(instance, Adapter)
 
-  -- Validate that required methods are implemented
+  -- Validate before establishing the prototype chain: once Adapter is the
+  -- metatable, every required method resolves to the abstract stub above and
+  -- validation would pass for any implementation at all.
   local is_valid, error_message = Adapter.validate(instance)
   if not is_valid then
     error(error_message)
   end
+
+  setmetatable(instance, Adapter)
 
   return instance
 end

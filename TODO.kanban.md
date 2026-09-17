@@ -13,7 +13,6 @@
 
 ###### Ready
 
-- Test extras/workflow_triggers.lua <!-- backlog: 1789543830, id: card_01M2MHZMJKW9BRAZ3QV4GJPS8A, ready: 1789620903, tags: [phase3] -->
 - Test extras/capacity_triggers.lua and the board.lua capacity branch <!-- backlog: 1789543830, id: card_01M2MHZN31CMXCGD8YSJD2GHYS, ready: 1789620904, tags: [phase3] -->
 - Unit-test extras/subtasks_triggers.lua <!-- backlog: 1789543830, id: card_01M2MHZNBRQ4WTVRYCAN5KZSZM, ready: 1789620905, tags: [phase3] -->
 - Test helpers/ulid.lua: format, monotonicity, collisions <!-- backlog: 1789543830, id: card_01M2MHZN6DC44M3Y6H0Q2YGZNM, ready: 1789620909, tags: [phase3] -->
@@ -38,6 +37,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -99,3 +99,4 @@
 - Test adapters/interface.lua: Adapter.validate() and Adapter.new() <!-- backlog: 1789543830, done: 1789622677, id: card_01M2MHZMV6VGFZ1HDQFWH6WJVD, in_progress: 1789622540, ready: 1789620896, tags: [phase3] -->
 - Extend virtual_text_spec: cycle time, blocked breakdown, units, archive, disabled <!-- backlog: 1789543830, done: 1789622869, id: card_01M2MHZMG4XKMKB8W1KADV1SPJ, in_progress: 1789622711, ready: 1789620899, tags: [phase3] -->
 - Test core/setup.lua directly <!-- backlog: 1789543830, done: 1789622969, id: card_01M2MHZMR3PKT3A9ZWFWEB9E8X, in_progress: 1789622879, ready: 1789620901, tags: [phase3] -->
+- Test extras/workflow_triggers.lua <!-- backlog: 1789543830, done: 1789623091, id: card_01M2MHZMJKW9BRAZ3QV4GJPS8A, in_progress: 1789622975, ready: 1789620903, tags: [phase3] -->

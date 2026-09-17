@@ -71,8 +71,7 @@ describe("Card timestamp behavior", function()
   end)
 
   describe("reproduction of reported bug", function()
-    it("DEMONSTRATES: new cards should get timestamp on initial placement (current behavior test)", function()
-      -- This test documents the expected behavior that the user is reporting as missing
+    it("timestamps a card on initial placement and on every move", function()
 
       -- Step 1: Create a new card and add to first column
       local card = Card:new("card-3", "New card")
@@ -81,7 +80,6 @@ describe("Card timestamp behavior", function()
       -- Expected: Card should have timestamp for Todo column
       -- This is what we want to verify is working
       local todo_ts = card.properties.todo
-      print(string.format("After initial placement in Todo: todo=%s", tostring(todo_ts)))
 
       -- Step 2: Move to In Progress
       os.execute("sleep 0.1")
@@ -89,8 +87,6 @@ describe("Card timestamp behavior", function()
 
       -- Expected: Card should have timestamps for BOTH columns
       local in_progress_ts = card.properties.in_progress
-      print(string.format("After move to In Progress: todo=%s, in_progress=%s",
-        tostring(card.properties.todo), tostring(in_progress_ts)))
 
       -- Step 3: Move to Done
       os.execute("sleep 0.1")
@@ -98,8 +94,6 @@ describe("Card timestamp behavior", function()
 
       -- Expected: Card should have timestamps for ALL columns
       local done_ts = card.properties.done
-      print(string.format("After move to Done: todo=%s, in_progress=%s, done=%s",
-        tostring(card.properties.todo), tostring(card.properties.in_progress), tostring(done_ts)))
 
       -- Assertions based on expected behavior
       assert.is_not_nil(todo_ts, "BUG: Card should have 'todo' timestamp from initial placement")

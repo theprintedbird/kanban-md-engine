@@ -35,12 +35,15 @@ function M.root()
     return root
   end
 
-  -- os.tmpname() is the one portable source of a unique name; take the name,
-  -- drop the file it made, and use it for a directory instead.
+  -- os.tmpname() is the one portable source of a unique name, but where it
+  -- puts it varies (on macOS it ignores $TMPDIR and uses /tmp). Keep only its
+  -- basename for uniqueness and place the directory somewhere predictable, so
+  -- `make clean` can name it without globbing over the whole temp directory.
   local unique = os.tmpname()
   os.remove(unique)
 
-  root = unique .. "-kanban-md"
+  local base = (os.getenv("TMPDIR") or "/tmp"):gsub("/$", "")
+  root = string.format("%s/kanban-md-tests-%s", base, unique:match("([^/]+)$"))
   os.execute(string.format("mkdir -p '%s'", root))
 
   return root

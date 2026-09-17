@@ -156,11 +156,17 @@ check-deps:
 	fi
 
 # Clean up any test artifacts
+#
+# Everything removed here is either in the working tree or a per-run directory
+# named kanban-md-tests-* by tests/helpers/tempfiles.lua, which removes its own
+# once it is empty. There is deliberately no glob over anything the engine did
+# not create: `rm -rf /tmp/lua_*` used to live here, and it would happily take
+# another process's files with it.
 clean:
 	@echo "Cleaning up test artifacts..."
 	@rm -f *.tmp test_*.md
 	@rm -f luacov.stats.out luacov.report.out busted-tap*.txt
-	@rm -rf /tmp/lua_*
+	@rm -rf $${TMPDIR:-/tmp}/kanban-md-tests-* /tmp/kanban-md-tests-*
 
 # Help
 help:

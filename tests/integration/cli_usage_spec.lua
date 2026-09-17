@@ -10,8 +10,15 @@ local Column = require("kanban-md.column")
 local CLIAdapter = require("kanban-md.adapters.cli")
 local config_module = require("kanban-md.config")
 local streams = require('helpers.streams')
+local temp = require('helpers.tempfiles')
 
 describe("CLI usage integration", function()
+
+  -- Temporary files land in one per-run directory and are removed here, so a
+  -- failing assertion earlier in a test body cannot leak them.
+  after_each(function()
+    temp.cleanup()
+  end)
 
   -- The CLI adapter notifies on every successful file write; capture stderr so
   -- those notifications are assertable instead of printed mid-run.
@@ -744,7 +751,7 @@ describe("CLI usage integration", function()
       })
 
       -- Create temp file
-      local temp_file = os.tmpname()
+      local temp_file = temp.path()
 
       -- Write to file
       local lines = board:write()
@@ -810,7 +817,7 @@ describe("CLI usage integration", function()
         "Review progress weekly."
       })
 
-      local temp_file = os.tmpname()
+      local temp_file = temp.path()
 
       -- Write original
       local lines1 = original_board:write()

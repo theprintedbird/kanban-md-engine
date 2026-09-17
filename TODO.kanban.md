@@ -13,7 +13,6 @@
 
 ###### Ready
 
-- Move os.tmpname() cleanup into after_each or a temp-dir helper <!-- backlog: 1789543830, id: card_01M2MHZNA56HXEA1SWJAA3886R, ready: 1789620922, tags: [phase3] -->
 - Scope make clean temp files per-run; drop the rm -rf /tmp/lua_* glob <!-- backlog: 1789543830, id: card_01M2MHZMFG9JMN7YM0F3Z8HTF3, ready: 1789620924, tags: [phase3] -->
 - Make examples/test_cli.sh write to temp and run it as a CI smoke test <!-- backlog: 1789543830, id: card_01M2MHZN6KYDRQAB1MEAXN3XYN, ready: 1789620925, tags: [phase3] -->
 - Inject a clock so lead/cycle/blocked time can be tested with real deltas <!-- backlog: 1789543830, id: card_01M2MHZN0RMXG8YZCX7XQQ0FPD, ready: 1789620926, tags: [phase3] -->
@@ -27,6 +26,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -110,3 +110,4 @@
 - Test CLI error paths: unreadable file, malformed markdown, empty input <!-- backlog: 1789543830, done: 1789625617, id: card_01M2MHZNAVYDHKHRZ9X9VNK46F, in_progress: 1789625270, ready: 1789620916, tags: [phase3] -->
 - Remove debug print from timestamp_on_initial_placement_spec.lua <!-- backlog: 1789543830, done: 1789625712, id: card_01M2MHZMMF9ZXD418R3AHHGDGY, in_progress: 1789625644, ready: 1789620919, tags: [phase3] -->
 - Capture and assert fixture warnings instead of printing them <!-- backlog: 1789543830, done: 1789626054, id: card_01M2MHZNDM3GQ3SMCN9ZSGEYSD, in_progress: 1789625817, ready: 1789620921, tags: [phase3] -->
+- Move os.tmpname() cleanup into after_each or a temp-dir helper <!-- backlog: 1789543830, done: 1789626232, id: card_01M2MHZNA56HXEA1SWJAA3886R, in_progress: 1789626134, ready: 1789620922, tags: [phase3] -->

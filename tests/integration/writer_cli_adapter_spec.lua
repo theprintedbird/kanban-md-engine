@@ -11,8 +11,15 @@ local CLIAdapter = require("kanban-md.adapters.cli")
 local config_module = require("kanban-md.config")
 local adapter_registry = require("kanban-md.adapter_registry")
 local streams = require('helpers.streams')
+local temp = require('helpers.tempfiles')
 
 describe("Writer CLIAdapter integration", function()
+
+  -- Temporary files land in one per-run directory and are removed here, so a
+  -- failing assertion earlier in a test body cannot leak them.
+  after_each(function()
+    temp.cleanup()
+  end)
 
   -- The CLI adapter notifies on every successful file write; capture stderr so
   -- those notifications are assertable instead of printed mid-run.
@@ -105,7 +112,7 @@ describe("Writer CLIAdapter integration", function()
       })
 
       -- Generate temp file path
-      local temp_file = os.tmpname()
+      local temp_file = temp.path()
 
       -- Write board to file using adapter
       local lines = board:write()
@@ -170,7 +177,7 @@ describe("Writer CLIAdapter integration", function()
         "###### Done"
       })
 
-      local temp_file = os.tmpname()
+      local temp_file = temp.path()
 
       -- Write initial board
       local lines = board:write()
@@ -216,7 +223,7 @@ describe("Writer CLIAdapter integration", function()
         "- Feature 0 <!-- id: f0, completed: 1234567890 -->"
       })
 
-      local temp_file = os.tmpname()
+      local temp_file = temp.path()
       local lines = board:write()
       CLIAdapter:write_buffer(lines, { file = temp_file })
 
@@ -280,7 +287,7 @@ describe("Writer CLIAdapter integration", function()
         "Additional notes at the end."
       })
 
-      local temp_file = os.tmpname()
+      local temp_file = temp.path()
       local lines = board:write()
       CLIAdapter:write_buffer(lines, { file = temp_file })
 
@@ -359,8 +366,8 @@ describe("Writer CLIAdapter integration", function()
         "- Initial task"
       })
 
-      local temp_file1 = os.tmpname()
-      local temp_file2 = os.tmpname()
+      local temp_file1 = temp.path()
+      local temp_file2 = temp.path()
 
       -- First write
       local lines = board:write()

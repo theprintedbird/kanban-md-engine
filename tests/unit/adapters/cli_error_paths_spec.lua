@@ -9,12 +9,19 @@ require('polyfills.vim')
 
 local Board = require('kanban-md.board')
 local CLIAdapter = require('kanban-md.adapters.cli')
+local temp = require('helpers.tempfiles')
 
 local INFO_PREFIX = "\226\132\185\239\184\143 "   -- U+2139 U+FE0F
 local WARN_PREFIX = "\226\154\160\239\184\143 "   -- U+26A0 U+FE0F
 local ERROR_PREFIX = "\226\157\140 "              -- U+274C
 
 describe("CLI error paths", function()
+
+  -- Temporary files land in one per-run directory and are removed here, so a
+  -- failing assertion earlier in a test body cannot leak them.
+  after_each(function()
+    temp.cleanup()
+  end)
   local real_stderr, real_stdout
   local captured_err, captured_out
 
@@ -99,7 +106,7 @@ describe("CLI error paths", function()
     end)
 
     it("does not report a successful write as a failure", function()
-      local temp_file = os.tmpname()
+      local temp_file = temp.path()
 
       CLIAdapter:write_buffer({ "# Board" }, { file = temp_file })
       os.remove(temp_file)
@@ -128,7 +135,7 @@ describe("CLI error paths", function()
     end)
 
     it("reads an empty file as no lines", function()
-      local temp_file = os.tmpname()
+      local temp_file = temp.path()
       io.open(temp_file, "w"):close()
 
       local lines = CLIAdapter:read_buffer(1, { file = temp_file })

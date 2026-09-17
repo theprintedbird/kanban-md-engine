@@ -5,6 +5,7 @@ _G._TEST = true
 
 local CLIAdapter = require("kanban-md.adapters.cli")
 local streams = require("helpers.streams")
+local temp = require('helpers.tempfiles')
 
 -- CLIAdapter is a module singleton shared by every spec file in a `busted`
 -- run, and tests further down this file deliberately move its cursor and fill
@@ -17,6 +18,12 @@ local initial_cursor_line, initial_cursor_col = CLIAdapter:get_cursor()
 local initial_buffer_line_count = #CLIAdapter._buffer_lines
 
 describe("CLIAdapter", function()
+
+  -- Temporary files land in one per-run directory and are removed here, so a
+  -- failing assertion earlier in a test body cannot leak them.
+  after_each(function()
+    temp.cleanup()
+  end)
   describe("initialisation", function()
     it("should have correct adapter name", function()
       assert.equals("CLIAdapter", CLIAdapter.name)
@@ -146,7 +153,7 @@ describe("CLIAdapter", function()
     before_each(function()
       -- Reset internal buffer
       CLIAdapter._buffer_lines = {}
-      temp_file = os.tmpname()
+      temp_file = temp.path()
     end)
 
     after_each(function()
@@ -339,7 +346,7 @@ describe("CLIAdapter", function()
     end)
 
     it("should prefer opts.file when both file and stdin are given", function()
-      local temp_file = os.tmpname()
+      local temp_file = temp.path()
       local f = io.open(temp_file, "w")
       f:write("From the file\n")
       f:close()
@@ -393,7 +400,7 @@ describe("CLIAdapter", function()
 
     before_each(function()
       CLIAdapter._buffer_lines = {}
-      temp_file = os.tmpname()
+      temp_file = temp.path()
 
       -- Suppress notifications
       old_stderr = io.stderr
@@ -585,7 +592,7 @@ describe("CLIAdapter", function()
     it("should take precedence over opts.file", function()
       local out = fake_stdout()
       io.stdout = out
-      local temp_file = os.tmpname()
+      local temp_file = temp.path()
       os.remove(temp_file)
 
       CLIAdapter:write_buffer({ "# Board" }, { stdout = true, file = temp_file })

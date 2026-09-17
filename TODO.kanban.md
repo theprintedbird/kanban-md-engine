@@ -6,65 +6,15 @@
 
 - De-duplicate the copied suite in kanban-md; this engine is source of truth <!-- backlog: 1789543830, id: card_01M2MHZMNEK5F53EBRQ1PK5WEP, tags: [phase4] -->
 - Fix kanban-md.nvim test_helper.lua path: lib/kanban-md -> lib/kanban-md-engine <!-- backlog: 1789543830, id: card_01M2MHZMHY1BHC38DTWKPA97GN, tags: [phase5] -->
-- Add engine spec: underscore-prefixed properties are never serialised <!-- backlog: 1789543830, id: card_01M2MHZN3289SY22KFAP25Y579, tags: [phase5] -->
-- Add engine spec: board config enabling a default-off boolean registers its trigger <!-- backlog: 1789543830, id: card_01M2MHZN53KDY18VMY5Y6NMTYX, tags: [phase5] -->
 - An update-version script, so that the number is changed in all the right places. <!-- backlog: 1789604497, id: card_01M2PBV1ZWA3JCJPRED1PHG8HF -->
 
 ###### Ready
 
-
-
-
-
+- Add engine spec: underscore-prefixed properties are never serialised <!-- backlog: 1789543830, id: card_01M2MHZN3289SY22KFAP25Y579, ready: 1789632172, tags: [phase5] -->
+- Add engine spec: board config enabling a default-off boolean registers its trigger <!-- backlog: 1789543830, id: card_01M2MHZN53KDY18VMY5Y6NMTYX, ready: 1789632174, tags: [phase5] -->
 
 
 ###### In Progress
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

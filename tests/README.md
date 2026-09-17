@@ -1,164 +1,78 @@
 # Test Suite
 
-## Overview
+Every test here is a [Busted](https://lunarmodules.github.io/busted/) spec running under plain
+Lua. There is no Neovim in the loop: the engine is platform-agnostic, and specs that need a host
+use the CLI adapter or a mock. Specs that genuinely require Neovim live in `kanban-md.nvim`.
 
-This test suite uses a dual-framework approach: **Busted** for standalone Lua tests.
+`SPEC.md` in the repository root is the behaviour specification these tests exist to hold the
+engine to. When a spec and `SPEC.md` disagree, one of them is wrong — decide which before
+changing either.
 
-## Structure
+## Layout
 
-```
-tests
-├── README.md
-├── e2e
-│   ├── realistic_scenarios_spec.lua
-│   └── triggers_spec.lua
-├── fixtures
-│   ├── boards
-│   │   ├── board_auto_move.md
-│   │   ├── board_complex.md
-│   │   ├── board_custom.md
-│   │   ├── board_edge.md
-│   │   ├── board_simple.md
-│   │   ├── complexity_demo.md
-│   │   └── test_basic_config.md
-│   ├── boards.lua
-│   └── multiline_board.md
-├── helpers
-│   └── mocks.lua
-├── integration
-│   ├── auto_complexity_spec.lua
-│   ├── auto_timestamp_spec.lua
-│   ├── board_spec.lua
-│   ├── card_spec.lua
-│   ├── cli_usage_spec.lua
-│   ├── column_spec.lua
-│   ├── column_type_spec.lua
-│   ├── content_preservation_spec.lua
-│   ├── dependency_validation_spec.lua
-│   ├── force_complete_command_spec.lua
-│   ├── parser_column_header_markdown_spec.lua
-│   ├── selective_bypass_spec.lua
-│   ├── state_transitions_spec.lua
-│   ├── subtask_validation_spec.lua
-│   ├── timestamp_on_initial_placement_spec.lua
-│   └── writer_cli_adapter_spec.lua
-├── polyfills
-│   └── vim.lua
-├── run_tests_standalone.sh
-└── unit
-    ├── adapters
-    │   └── cli_adapter_spec.lua
-    ├── blank_line_preservation_spec.lua
-    ├── board_validate_dependencies_spec.lua
-    ├── card_spec.lua
-    ├── column_helpers_spec.lua
-    ├── column_type_resolver_spec.lua
-    ├── config_dependency_refactor_spec.lua
-    ├── complexity_demo_fixture_spec.lua
-    ├── config_triggers_spec.lua
-    ├── detection_strategy_spec.lua
-    ├── id_persistence_spec.lua
-    ├── parser_content_blocks_spec.lua
-    ├── parser_multiline_spec.lua
-    ├── parser_properties_spec.lua
-    ├── stats_formatting_spec.lua
-    ├── stats_metrics_spec.lua
-    ├── triggerable_spec.lua
-    ├── type_converter_spec.lua
-    ├── utils_string_spec.lua
-    ├── utils_table_spec.lua
-    ├── workflow_engine_spec.lua
-    ├── writer_content_blocks_spec.lua
-    ├── writer_mixin_spec.lua
-    └── writer_multiline_spec.lua
+| Path | What lives there |
+|---|---|
+| `tests/unit/` | One module, one spec, minimal collaborators |
+| `tests/integration/` | Several modules together: parse → mutate → write, triggers, validation |
+| `tests/e2e/` | Whole-workflow scenarios over realistic boards |
+| `tests/fixtures/` | `boards.lua` builders, plus `.md` boards under `fixtures/boards/` |
+| `tests/helpers/` | `mocks.lua` (mock triggers and adapters) and `setup.lua` (opt-in `cli.setup()`) |
+| `tests/polyfills/` | `vim.lua`, the pure-Lua stand-ins for the `vim.*` utilities the engine calls |
+| `tests/run_tests_standalone.sh` | The suite runner, with optional TAP output |
 
-10 directories, 65 files
-```
+The directories are the suites: `.busted` defines `unit`, `integration` and `e2e` over exactly
+these paths, which is what `make test-unit` and friends select.
 
-## Test Categories
+File and assertion counts are deliberately not recorded here. `busted` prints the current numbers,
+and a hand-maintained tally is a line of documentation that is wrong within a fortnight.
 
-### Standalone Lua Tests
-
-Run with `busted` in standalone Lua environment (no Neovim).
-
-**Tagged:** (no tag) or explicitly exclude `#neovim-only`
-**Files:** ~35 test files covering core functionality
-**Run:** `./tests/run_tests_standalone.sh` or `make test-standalone`
-
-These tests use `tests/polyfills/vim.lua` to provide pure Lua implementations of Neovim utility functions like:
-- `vim.deepcopy()`
-- `vim.tbl_contains()`
-- `vim.tbl_count()`
-- `vim.tbl_extend()`
-- `vim.fn.getcwd()`
-
-### Neovim-Only Tests
-
-Moved to the Neovim plugin that utilises this engine.
-
-## Running Tests
-
-### Quick Start
+## Running
 
 ```bash
-# Run all tests (equivalent to standalone)
-make test
-
-# Run only standalone tests
-make test-standalone
-
-```
-
-### By Category
-
-```bash
-# Unit tests only
-make test-unit
-
-# Integration tests only
+make test               # the whole suite
+make test-unit          # one suite
 make test-integration
-
-# E2E tests only
 make test-e2e
-```
 
-### Specific Files
-
-```bash
-# Via Makefile
 make test-file FILE=tests/unit/parser_content_blocks_spec.lua
 
-# Via busted directly
-busted tests/unit/parser_content_blocks_spec.lua
-busted tests/integration/board_spec.lua
+make test-shuffle       # random order; SEED=<n> reproduces a given run
+make test-tap           # TAP output; TAP_FILE=<path> also saves it
+make coverage           # luacov, summary printed, no threshold
+make lint               # luacheck over lua/ and tests/
 ```
 
-### Using Busted Directly
+Or drive `busted` directly — `.busted` supplies the module paths, so no flags are needed:
 
 ```bash
-# Run all tests (uses .busted config)
-busted
-
-# Run tests in specific directory
-busted tests/unit
-busted tests/integration
-busted tests/e2e
-
-# Run tests matching a pattern
-busted --pattern=parser
-
-# Run with verbose output
-busted --verbose
-
-# List all tests
+busted                          # everything
+busted tests/unit               # one directory
+busted --run=unit               # one named suite
+busted --filter="Complete Workflow"
 busted --list
+busted --shuffle --seed=1234    # reproduce a shuffled run
 ```
 
-## Writing Tests
+**Requirements:** Lua 5.1+ or LuaJIT, and the rocks declared as `test_dependencies` in
+`kanban-md-engine-scm-1.rockspec` (`busted`, `luacov`, `luacheck`). `luarocks test --prepare`
+installs them; `make check-deps` checks for `busted`.
 
-### Standalone Tests (Most Tests)
+### In a container
 
-Add `require('polyfills.vim')` at the top of the file to access Neovim utility functions:
+`docker/Dockerfile.alpine` builds a small image with the toolchain already in it. The Makefile
+prefers Podman and falls back to Docker (`CONTAINER_ENGINE=docker` to force one):
+
+```bash
+make test-container                   # default Lua version
+make test-container LUA_VERSION=5.1   # 5.1, 5.3, 5.4 or jit
+make lint-container                   # luacheck in the image
+make ci-local                         # run the GitHub workflows locally with act
+```
+
+## Writing a spec
+
+Every spec file **must** start with the polyfill require. Do not rely on another file in the run
+having loaded it — that works under `busted` and breaks the moment the file is run on its own:
 
 ```lua
 require('polyfills.vim')
@@ -171,202 +85,128 @@ describe("MyModule", function()
   end)
 
   it("does something", function()
-    local result = MyModule.do_thing()
-    assert.are.equal("expected", result)
+    assert.are.equal("expected", MyModule.do_thing())
   end)
 end)
 ```
+
+The polyfill provides `vim.deepcopy`, `vim.tbl_contains`, `vim.tbl_count`, `vim.tbl_extend`,
+`vim.fn.getcwd` and `_G._TEST`. It does **not** call `setup()`, so the default path a spec
+exercises is the pure-library one: no adapter registered, no ID triggers, defaults in force. That
+is deliberate — it is the path a consumer gets when they only want to parse and write.
+
+### When a spec needs setup
+
+`tests/helpers/setup.lua` makes the configured path opt-in:
+
+```lua
+local test_setup = require('helpers.setup')
+test_setup.setup()                       -- CLI adapter + ULID id triggers + config
+test_setup.setup({ persist_card_ids = true })
+```
+
+It is idempotent, so calling it from several spec files in one run is safe.
+
+To change configuration for part of a spec, use `with_config`, which restores the config even when
+the body raises:
+
+```lua
+test_setup.with_config({ timestamp_format = "iso" }, function()
+  -- assertions under the override
+end)
+```
+
+### Singletons: the rule that bites
+
+`Board`, `Column`, `Card`, `CLIAdapter`, `adapter_registry` and `config` are module singletons
+shared by every spec in a run. Two consequences:
+
+- A spec that mutates one **must** restore it, in `after_each` rather than inline, so a failing
+  assertion cannot skip the cleanup.
+- A spec asserting a *default* or *initial* value is asserting something another file may already
+  have changed. Snapshot the value at require time, before any test body runs, or assert against a
+  freshly reset object.
+
+`make test-shuffle` is the cheap way to catch the first shape. It does not catch the second —
+`busted` shuffles within a process, so a file that only passes because an earlier file loaded
+something still passes. Running a single file on its own is the check for that.
+
+### Timestamps and completion
+
+Completion is column-based, and column timestamps are set by triggers. A spec **must not** write
+`card.properties.done = os.time()` by hand: call `board:auto_register_triggers()` and move the
+card. A hand-set timestamp asserts a state the engine would never produce.
+
+`os.time()` has one-second resolution, so every timestamp in a fast-running spec collides. A spec
+asserting *ordering* or *duration* between transitions must inject the times it needs rather than
+letting the clock supply them.
+
+### Temporary files
+
+Create them under a path the spec owns and remove them in `after_each`, never in the body:
+
+```lua
+local tmpfile
+
+after_each(function()
+  if tmpfile then os.remove(tmpfile) end
+  tmpfile = nil
+end)
+```
+
+Do not use `git stash`, `git reset` or any other git command to save or restore state in a test.
+Copy the file instead.
 
 ## Assertions
 
-Busted provides comprehensive assertions:
-
 ```lua
--- Equality
-assert.are.equal(expected, actual)     -- Simple equality
-assert.are.same(expected, actual)      -- Deep equality (tables)
+assert.are.equal(expected, actual)   -- identity / primitive equality
+assert.are.same(expected, actual)    -- deep equality (tables)
 
--- Boolean checks
-assert.is_true(value)                  -- Must be boolean true
-assert.is_false(value)                 -- Must be boolean false
-assert.truthy(value)                   -- Any truthy value (not nil or false)
-assert.falsy(value)                    -- Nil or false
+assert.is_true(value)                -- boolean true, not merely truthy
+assert.is_false(value)
+assert.truthy(value)
+assert.falsy(value)
 
--- Nil checks
-assert.is_nil(value)                   -- Must be nil
-assert.is_not_nil(value)               -- Must not be nil
+assert.is_nil(value)
+assert.is_not_nil(value)
 
--- Error handling
-assert.has_error(fn, pattern)          -- Function throws error matching pattern
-assert.has_no_error(fn)                -- Function does not throw error
+assert.has_error(fn, pattern)
+assert.has_no_error(fn)
 
--- String patterns
-assert.matches(pattern, str)           -- String matches pattern
+assert.matches(pattern, str)
 ```
 
-## Configuration
+Busted syntax, not Plenary syntax: `assert.are.equal`, not `assert.equals`.
 
-### .busted File
+## Configuration files
 
-The `.busted` file in the project root configures Busted:
+| File | Purpose |
+|---|---|
+| `.busted` | Module paths, the `_spec.lua` pattern, and the named suites |
+| `.luacov` | Coverage over `lua/kanban-md` only; tests and rocks excluded |
+| `.luacheckrc` | `std = "max"`, `vim`/`_TEST` declared, muted families each given a reason |
+| `kanban-md-engine-scm-1.rockspec` | The single declaration of the dev toolchain |
 
-```lua
-return {
-  _all = {
-    coverage = false,
-    lpath = "lua/?.lua;lua/?/init.lua;tests/?.lua;tests/?/init.lua",
-    pattern = "_spec%.lua$",
-    ROOT = {"tests/"},
-  },
-  default = {
-    verbose = true,
-  },
-  unit = {
-    ROOT = {"tests/unit/"},
-  },
-  integration = {
-    ROOT = {"tests/integration/"},
-  },
-  e2e = {
-    ROOT = {"tests/e2e/"},
-  },
-}
-```
+## CI
 
-This configuration:
-- Sets Lua module paths (including polyfills)
-- Defines test file pattern (`*_spec.lua`)
-- Provides named test suites
+`.github/workflows/ci.yml` runs on push, pull request and manual dispatch:
 
-## Test Isolation
+- **Luacheck** over `lua` and `tests`. A clean run is the baseline.
+- **Tests** across a matrix of Lua 5.1, 5.3, 5.4 and LuaJIT — 5.1 and LuaJIT because that is what
+  Neovim embeds, the rest for standalone use. Each run is shuffled with an echoed seed, so a red
+  run can be reproduced with `busted --shuffle --seed=<seed>`, and emits TAP, kept as an artifact.
+- **Coverage** reported once, on 5.4. There is no threshold: the number is there to be read, not
+  to fail the build.
 
-### Before/After Hooks
-
-```lua
-describe("MyModule", function()
-  local original_config
-
-  before_each(function()
-    -- Save state before each test
-    original_config = vim.deepcopy(Config.defaults)
-  end)
-
-  after_each(function()
-    -- Restore state after each test
-    Config.defaults = original_config
-  end)
-
-  it("modifies config", function()
-    -- Test can safely modify config
-    Config.defaults.wip_limit = 10
-  end)
-end)
-```
-
-### Temporary Files
-
-For file I/O tests, use temporary files instead of git stash:
-
-```lua
-local function write_temp_file()
-  local tmpfile = os.tmpname()
-  local file = io.open(tmpfile, "w")
-  file:write("# Test Board\n")
-  file:close()
-  return tmpfile
-end
-
-it("reads board from file", function()
-  local tmpfile = write_temp_file()
-
-  -- Test file operations
-  local content = read_file(tmpfile)
-  assert.are.equal("# Test Board\n", content)
-
-  -- Clean up
-  os.remove(tmpfile)
-end)
-```
-
-## Debugging Tests
-
-### Running Single Tests
-
-```bash
-# Run specific test file with verbose output
-busted --verbose tests/unit/parser_spec.lua
-```
-
-### Using Print Statements
-
-```lua
-it("debugs a complex operation", function()
-  local result = complex_operation()
-  print("Result:", vim.inspect(result))  -- Pretty-print tables
-  assert.are.equal("expected", result.field)
-end)
-```
-
-### Filter by Test Name
-
-```bash
-# Run only tests matching "parser"
-busted --filter=parser
-
-# Run only tests matching "Complete Workflow"
-busted --filter="Complete Workflow"
-```
-
-## CI/CD Integration
-
-The test suite is designed for CI/CD environments:
-
-```bash
-# Install dependencies
-luarocks install busted
-
-# Run all tests
-make test
-
-# Check exit code
-if [ $? -eq 0 ]; then
-  echo "All tests passed"
-else
-  echo "Tests failed"
-  exit 1
-fi
-```
+`make ci-local` runs the same workflows locally through [act](https://github.com/nektos/act).
 
 ## Troubleshooting
 
-### Common Issues
-
-**Issue: Module not found**
-```
-Solution: Check that .busted lpath includes lua/?.lua and tests/?.lua
-```
-
-**Issue: vim.* function not defined**
-```
-Solution: Add require('polyfills.vim') at top of test file
-```
-
-**Issue: Assertion syntax error**
-```
-Solution: Use Busted syntax (assert.are.equal) not Plenary syntax (assert.equals)
-```
-
-## Performance
-
-Test execution times ~2-3 seconds (675 tests)
-
-## Test Coverage
-
-Current coverage:
-
-- **Unit tests:** 19 files (456 tests)
-- **Integration tests:** 15 files (199 tests)
-- **E2E tests:** 2 files (20 tests)
-- **Total:** 36 standalone test files
-
-All core functionality (parser, writer, board, actions, stats, triggers) is tested in standalone Lua for maximum speed.
+| Symptom | Cause |
+|---|---|
+| `module 'kanban-md.…' not found` | Running `busted` from outside the repository root, so `.busted`'s `lpath` does not apply |
+| `attempt to index a nil value (global 'vim')` | Missing `require('polyfills.vim')` at the top of the spec |
+| Passes in the suite, fails alone | The spec depends on another file's side effects — usually the polyfill or `helpers.setup` |
+| Passes alone, fails under `--shuffle` | A singleton left dirty by another spec; see above |
+| `assert.equals` is nil | Plenary syntax; use `assert.are.equal` |

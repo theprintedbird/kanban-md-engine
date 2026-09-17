@@ -5,7 +5,6 @@
 ###### Backlog
 
 - Add per-operation performance regression tests with timing bounds <!-- backlog: 1789543830, id: card_01M2MHZN8C0X92YG1R15G792EV, tags: [phase2] -->
-- Refresh tests/README.md; drop stale counts and the hand-maintained tree <!-- backlog: 1789543830, id: card_01M2MHZMFTNHE16KPQM9NADC8P, tags: [phase2] -->
 - Test adapters/interface.lua: Adapter.validate() and Adapter.new() <!-- backlog: 1789543830, id: card_01M2MHZMV6VGFZ1HDQFWH6WJVD, tags: [phase3] -->
 - Extend virtual_text_spec: cycle time, blocked breakdown, units, archive, disabled <!-- backlog: 1789543830, id: card_01M2MHZMG4XKMKB8W1KADV1SPJ, tags: [phase3] -->
 - Test core/setup.lua directly <!-- backlog: 1789543830, id: card_01M2MHZMR3PKT3A9ZWFWEB9E8X, tags: [phase3] -->
@@ -33,6 +32,7 @@
 - Fix kanban-md.nvim test_helper.lua path: lib/kanban-md -> lib/kanban-md-engine <!-- backlog: 1789543830, id: card_01M2MHZMHY1BHC38DTWKPA97GN, tags: [phase5] -->
 - Add engine spec: underscore-prefixed properties are never serialised <!-- backlog: 1789543830, id: card_01M2MHZN3289SY22KFAP25Y579, tags: [phase5] -->
 - Add engine spec: board config enabling a default-off boolean registers its trigger <!-- backlog: 1789543830, id: card_01M2MHZN53KDY18VMY5Y6NMTYX, tags: [phase5] -->
+- An update-version script, so that the number is changed in all the right places. <!-- backlog: 1789604497, id: card_01M2PBV1ZWA3JCJPRED1PHG8HF -->
 
 ###### Ready
 
@@ -41,6 +41,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -92,3 +93,4 @@
 - SPEC.md: document notify() levels and the stdout/stderr split <!-- backlog: 1789543830, done: 1789566678, id: card_01M2MHZMVRNGR649PG3HPY95V1, in_progress: 1789566552, ready: 1789565176, tags: [phase2] -->
 - SPEC.md: document the markdown syntax contract <!-- backlog: 1789543830, done: 1789566819, id: card_01M2MHZMM8SH5YHEBM5MH0KYP4, in_progress: 1789566679, ready: 1789565178, tags: [phase2] -->
 - SPEC.md: document config-resolution layering and board-overridable keys <!-- backlog: 1789543830, done: 1789566879, id: card_01M2MHZN5FX9ZKS34G1DNXETQ0, in_progress: 1789566820, ready: 1789565180, tags: [phase2] -->
+- Refresh tests/README.md; drop stale counts and the hand-maintained tree <!-- backlog: 1789543830, done: 1789604231, id: card_01M2MHZMFTNHE16KPQM9NADC8P, in_progress: 1789604148, tags: [phase2] -->

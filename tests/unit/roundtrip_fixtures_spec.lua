@@ -7,13 +7,13 @@
 -- asserts the two parses agree on title, column names/order, card texts and
 -- properties, and board config.
 --
--- The second block documents four known round-trip defects (see
--- PLAN-config-fixes.md Tasks 3-6). Those defects are NOT triggered by the
--- plain fixtures in tests/fixtures/boards.lua, so they are reproduced here
--- directly from markdown. Each is marked pending() with a comment naming the
--- plan task that fixes it -- once that task lands, delete the pending() call
--- (the assertions below it already describe the expected, fixed, behaviour)
--- and the case becomes a live regression test.
+-- The second block is the regression cover for four round-trip defects that
+-- were once open (PLAN-config-fixes.md Tasks 3-6, fixed in 5cd696f, 99d30fe,
+-- 378599b and aaf9d06). They are not triggered by the plain fixtures in
+-- tests/fixtures/boards.lua, so each is reproduced here directly from the
+-- markdown that used to break it. They were written as pending() cases
+-- describing the fixed behaviour, and each fix commit made its own live; they
+-- are all live now.
 require('polyfills.vim')
 
 local Board = require('kanban-md.board')
@@ -78,7 +78,7 @@ describe("Round-trip fidelity: parse(write(parse(x))) == parse(x)", function()
     end
   end)
 
-  describe("known round-trip defects (pending until their fix task lands)", function()
+  describe("regressions: round-trip defects that were once open", function()
     it("does not inject resolved column-type config into markdown (plan Task 3)", function()
       test_setup.with_config({
         column_config = {
@@ -94,8 +94,8 @@ describe("Round-trip fidelity: parse(write(parse(x))) == parse(x)", function()
 
         local parsed1, _, written = assert_round_trips(x)
 
-        -- Expected once Task 3 lands: only authored config round-trips: the
-        -- injected type-derived comment must not appear in the output.
+        -- Only authored config round-trips: the type-derived comment the
+        -- writer used to inject must not appear in the output.
         assert.is_nil(written:find("column:config", 1, true))
         assert.is_true(parsed1.columns[2].name == "Done")
       end)
@@ -120,8 +120,8 @@ describe("Round-trip fidelity: parse(write(parse(x))) == parse(x)", function()
       local parsed1 = assert_round_trips(x)
 
       local card = parsed1.columns[1].cards[1]
-      -- Expected once Task 4 lands: properties from the multiline comment
-      -- are attached to the preceding card and survive the round trip.
+      -- Properties from the multiline comment are attached to the preceding
+      -- card and survive the round trip; the parser used to drop them.
       assert.are.equal(5, card.properties.complexity)
       assert.are.equal("alice", card.properties.assignee)
     end)
@@ -142,13 +142,16 @@ describe("Round-trip fidelity: parse(write(parse(x))) == parse(x)", function()
         "",
       }, "\n")
 
-      local parsed1 = assert_round_trips(x)
+      local parsed1, _, written = assert_round_trips(x)
 
-      -- Expected once Task 5 lands: "Task A" stays the only card in Todo,
-      -- and the __NOTES__ section (and its content) is preserved verbatim
-      -- rather than being absorbed into Todo or vanishing entirely.
+      -- "Task A" stays the only card in Todo, and the __NOTES__ section keeps
+      -- both its heading and its content: it used to be absorbed into Todo,
+      -- taking its list items with it.
+      assert.are.equal(2, #parsed1.columns)
       assert.are.equal(1, #parsed1.columns[1].cards)
       assert.are.equal("Task A", parsed1.columns[1].cards[1].text)
+      assert.is_not_nil(written:find("###### __NOTES__", 1, true))
+      assert.is_not_nil(written:find("- Some note", 1, true))
     end)
 
     it("keeps the board config comment when the file has no H1 title (plan Task 6)", function()

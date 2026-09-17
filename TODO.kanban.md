@@ -13,13 +13,13 @@
 
 ###### Ready
 
-- Remove pending() from roundtrip_fixtures_spec.lua and confirm Tasks 3-6 landed <!-- backlog: 1789543830, id: card_01M2MHZMMPTGMPNVK8RX43ZMYD, ready: 1789620932, tags: [phase3] -->
 
 
 
 
 
 ###### In Progress
+
 
 
 
@@ -116,3 +116,4 @@
 - Add require('polyfills.vim') to the four specs missing it <!-- backlog: 1789543830, done: 1789627791, id: card_01M2MHZMQGDRKFC2T9QX6NKQ9G, in_progress: 1789627660, ready: 1789620927, tags: [phase3] -->
 - Add make test-each-file running every spec in its own process <!-- backlog: 1789543830, done: 1789627866, id: card_01M2MHZMQEJE7YCFW46WKXAVB2, in_progress: 1789627792, ready: 1789620928, tags: [phase3] -->
 - Audit tests asserting default or initial values on singletons <!-- backlog: 1789543830, done: 1789629105, id: card_01M2MHZMYQTEHMQ9JXZ5N9NXV4, in_progress: 1789627878, ready: 1789620930, tags: [phase3] -->
+- Remove pending() from roundtrip_fixtures_spec.lua and confirm Tasks 3-6 landed <!-- backlog: 1789543830, done: 1789629235, id: card_01M2MHZMMPTGMPNVK8RX43ZMYD, in_progress: 1789629173, ready: 1789620932, tags: [phase3] -->

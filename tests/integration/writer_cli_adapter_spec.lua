@@ -282,7 +282,7 @@ describe("Writer CLIAdapter integration", function()
   end)
 
   describe("CLIAdapter-specific features", function()
-    it("should support writing to stdout (simulated)", function()
+    it("should write a board to the internal buffer", function()
       local board = Board:new()
       board:parse({
         "# Stdout Board",
@@ -290,7 +290,6 @@ describe("Writer CLIAdapter integration", function()
         "- Task 1"
       })
 
-      -- Write to internal buffer (simulates stdout)
       CLIAdapter._buffer_lines = {}
       local lines = board:write()
       CLIAdapter:write_buffer(lines, {})
@@ -298,6 +297,39 @@ describe("Writer CLIAdapter integration", function()
       assert.is_true(#CLIAdapter._buffer_lines > 0)
       local content = table.concat(CLIAdapter._buffer_lines, "\n")
       assert.is_not_nil(content:match("# Stdout Board"))
+    end)
+
+    it("should write a board to stdout", function()
+      -- This used to be the test above, named "writing to stdout (simulated)"
+      -- while exercising the internal-buffer branch instead. The stdout branch
+      -- is now taken for real, with io.stdout stood in for; the separation of
+      -- the two streams is asserted against a real process in
+      -- tests/unit/adapters/cli_adapter_spec.lua.
+      local board = Board:new()
+      board:parse({
+        "# Stdout Board",
+        "###### Tasks",
+        "- Task 1"
+      })
+
+      local written = {}
+      local real_stdout = io.stdout
+      io.stdout = {
+        write = function(_, text) table.insert(written, text) end,
+        flush = function() end,
+      }
+
+      local ok, err = pcall(function()
+        CLIAdapter:write_buffer(board:write(), { stdout = true })
+      end)
+
+      io.stdout = real_stdout
+      assert.is_true(ok, tostring(err))
+
+      local content = table.concat(written)
+      assert.is_not_nil(content:match("# Stdout Board"))
+      assert.is_not_nil(content:match("###### Tasks"))
+      assert.equals("\n", content:sub(-1))
     end)
 
     it("should support multiple sequential writes", function()

@@ -508,6 +508,120 @@ describe("CLIAdapter", function()
     end)
   end)
 
+  describe("write_buffer() with opts.stdout", function()
+    -- Same approach as the stdin block above: a stand-in for io.stdout for the
+    -- unit tests, and one real process to prove the stand-in is honest.
+    local real_stdout
+
+    --- An io.stdout stand-in collecting everything written to it.
+    local function fake_stdout()
+      local written = {}
+      return {
+        written = written,
+        flushes = 0,
+        write = function(self, text)
+          table.insert(written, text)
+        end,
+        flush = function(self)
+          self.flushes = self.flushes + 1
+        end,
+      }
+    end
+
+    before_each(function()
+      real_stdout = io.stdout
+      CLIAdapter._buffer_lines = {}
+    end)
+
+    after_each(function()
+      io.stdout = real_stdout
+      CLIAdapter._buffer_lines = {}
+    end)
+
+    it("should write each line with a trailing newline", function()
+      local out = fake_stdout()
+      io.stdout = out
+
+      CLIAdapter:write_buffer({ "# Board", "", "###### To Do" }, { stdout = true })
+
+      assert.same({ "# Board\n", "\n", "###### To Do\n" }, out.written)
+    end)
+
+    it("should flush stdout", function()
+      local out = fake_stdout()
+      io.stdout = out
+
+      CLIAdapter:write_buffer({ "# Board" }, { stdout = true })
+
+      assert.equals(1, out.flushes)
+    end)
+
+    it("should write nothing for an empty line list", function()
+      local out = fake_stdout()
+      io.stdout = out
+
+      CLIAdapter:write_buffer({}, { stdout = true })
+
+      assert.same({}, out.written)
+    end)
+
+    it("should leave the internal buffer untouched", function()
+      io.stdout = fake_stdout()
+      CLIAdapter._buffer_lines = { "Existing line" }
+
+      CLIAdapter:write_buffer({ "# Board" }, { stdout = true })
+
+      assert.same({ "Existing line" }, CLIAdapter._buffer_lines)
+    end)
+
+    it("should take precedence over opts.file", function()
+      local out = fake_stdout()
+      io.stdout = out
+      local temp_file = os.tmpname()
+      os.remove(temp_file)
+
+      CLIAdapter:write_buffer({ "# Board" }, { stdout = true, file = temp_file })
+
+      assert.same({ "# Board\n" }, out.written)
+      local leftover = io.open(temp_file, "r")
+      assert.is_nil(leftover, "stdout write also created the file")
+    end)
+
+    it("should send the board to stdout and notifications to stderr", function()
+      -- The contract in SPEC.md section 9: a redirect of stdout must produce a
+      -- clean board file even when the run notifies. Only a real process can
+      -- show the two streams are actually separate.
+      local interpreter = os.getenv("LUA") or "lua"
+      local probe = io.popen(interpreter .. " -v 2>/dev/null", "r")
+      local available = probe:read("*a") ~= ""
+      probe:close()
+
+      if not available then
+        return pending("no standalone " .. interpreter .. " interpreter on PATH")
+      end
+
+      local script = table.concat({
+        "package.path = 'lua/?.lua;lua/?/init.lua;' .. package.path",
+        "local a = require('kanban-md.adapters.cli')",
+        "a:notify('a warning', 'warn')",
+        "a:write_buffer({ '# Board', '###### To Do' }, { stdout = true })",
+      }, "; ")
+
+      local stdout_only = io.popen(
+        string.format("%s -e %q 2>/dev/null", interpreter, script), "r")
+      local data = stdout_only:read("*a")
+      stdout_only:close()
+
+      local stderr_only = io.popen(
+        string.format("%s -e %q 2>&1 >/dev/null", interpreter, script), "r")
+      local diagnostics = stderr_only:read("*a")
+      stderr_only:close()
+
+      assert.equals("# Board\n###### To Do\n", data)
+      assert.equals("\226\154\160\239\184\143 a warning\n", diagnostics)
+    end)
+  end)
+
   describe("cursor operations", function()
     before_each(function()
       -- Reset cursor

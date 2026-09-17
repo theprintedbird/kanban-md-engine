@@ -259,6 +259,126 @@ describe("CLIAdapter", function()
     end)
   end)
 
+  describe("read_buffer() with opts.stdin", function()
+    -- io.stdin is not readable under `busted`, so the branch is exercised by
+    -- swapping in a stand-in with the one method the adapter uses (:lines()).
+    -- The final test pipes through a real process instead, so the stand-in is
+    -- checked against the real thing rather than trusted on its own.
+    local real_stdin
+
+    --- An io.stdin stand-in yielding the given lines.
+    local function fake_stdin(lines)
+      return {
+        lines = function()
+          local i = 0
+          return function()
+            i = i + 1
+            return lines[i]
+          end
+        end,
+      }
+    end
+
+    before_each(function()
+      real_stdin = io.stdin
+      CLIAdapter._buffer_lines = {}
+    end)
+
+    after_each(function()
+      io.stdin = real_stdin
+      CLIAdapter._buffer_lines = {}
+    end)
+
+    it("should read every line from stdin", function()
+      io.stdin = fake_stdin({ "# Board", "", "###### To Do" })
+
+      local lines = CLIAdapter:read_buffer(1, { stdin = true })
+
+      assert.same({ "# Board", "", "###### To Do" }, lines)
+    end)
+
+    it("should store what it read in the internal buffer", function()
+      io.stdin = fake_stdin({ "Line 1", "Line 2" })
+
+      CLIAdapter:read_buffer(1, { stdin = true })
+
+      assert.same({ "Line 1", "Line 2" }, CLIAdapter._buffer_lines)
+      assert.equals(2, CLIAdapter:buf_line_count(1))
+    end)
+
+    it("should not set a buffer filename", function()
+      CLIAdapter._buffer_filename = nil
+      io.stdin = fake_stdin({ "Line 1" })
+
+      CLIAdapter:read_buffer(1, { stdin = true })
+
+      assert.is_nil(CLIAdapter:get_buffer_name(1))
+    end)
+
+    it("should return an empty table for empty stdin", function()
+      io.stdin = fake_stdin({})
+
+      assert.same({}, CLIAdapter:read_buffer(1, { stdin = true }))
+    end)
+
+    it("should honour a start/_end range over stdin content", function()
+      io.stdin = fake_stdin({ "Line 1", "Line 2", "Line 3", "Line 4" })
+
+      -- start is 0-indexed, _end is 1-indexed and inclusive.
+      local lines = CLIAdapter:read_buffer(1, { stdin = true, start = 1, _end = 3 })
+
+      assert.same({ "Line 2", "Line 3" }, lines)
+    end)
+
+    it("should prefer opts.file when both file and stdin are given", function()
+      local temp_file = os.tmpname()
+      local f = io.open(temp_file, "w")
+      f:write("From the file\n")
+      f:close()
+      io.stdin = fake_stdin({ "From stdin" })
+
+      local lines = CLIAdapter:read_buffer(1, { file = temp_file, stdin = true })
+
+      os.remove(temp_file)
+      assert.same({ "From the file" }, lines)
+    end)
+
+    it("should read a board piped into a real process", function()
+      -- The stand-in above cannot show that io.stdin:lines() is the right call
+      -- for an actual pipe; this does, in the CLI's primary input shape.
+      local script = table.concat({
+        "package.path = 'lua/?.lua;lua/?/init.lua;' .. package.path",
+        "local a = require('kanban-md.adapters.cli')",
+        "local lines = a:read_buffer(1, { stdin = true })",
+        "io.stdout:write(#lines .. '|' .. table.concat(lines, ','))",
+      }, "; ")
+
+      -- $LUA lets a CI matrix point this at the interpreter under test; the
+      -- test skips itself rather than failing where there is no standalone
+      -- one on PATH (busted's own arg[-1] is a -e chunk, not a usable path).
+      local interpreter = os.getenv("LUA") or "lua"
+      local probe = io.popen(interpreter .. " -v 2>/dev/null", "r")
+      local available = probe:read("*a") ~= ""
+      probe:close()
+
+      if not available then
+        return pending("no standalone " .. interpreter .. " interpreter on PATH")
+      end
+
+      local command = string.format(
+        "printf '%%s\\n' '# Board' '###### To Do' | %s -e %q 2>/dev/null",
+        interpreter,
+        script
+      )
+
+      local process = io.popen(command, "r")
+      local output = process:read("*a")
+      process:close()
+
+      assert.equals("2|# Board,###### To Do", output)
+    end)
+  end)
+
   describe("write_buffer()", function()
     local temp_file
     local old_stderr

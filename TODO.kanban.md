@@ -13,7 +13,6 @@
 
 ###### Ready
 
-- Test read_buffer with opts.stdin <!-- backlog: 1789543830, id: card_01M2MHZN83J0QSJRGMP1KCPGX7, ready: 1789620912, tags: [phase3] -->
 - Test write_buffer with opts.stdout <!-- backlog: 1789543830, id: card_01M2MHZMKQC43G7NM37CR59HQ9, ready: 1789620914, tags: [phase3] -->
 - Test cli.lua Neovim guard and setup() config passthrough <!-- backlog: 1789543830, id: card_01M2MHZMR6HV12GQ444TM12RD6, ready: 1789620915, tags: [phase3] -->
 - Test CLI error paths: unreadable file, malformed markdown, empty input <!-- backlog: 1789543830, id: card_01M2MHZNAVYDHKHRZ9X9VNK46F, ready: 1789620916, tags: [phase3] -->
@@ -33,6 +32,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -104,3 +104,4 @@
 - Unit-test extras/subtasks_triggers.lua <!-- backlog: 1789543830, done: 1789623401, id: card_01M2MHZNBRQ4WTVRYCAN5KZSZM, in_progress: 1789623190, ready: 1789620905, tags: [phase3] -->
 - Test helpers/ulid.lua: format, monotonicity, collisions <!-- backlog: 1789543830, done: 1789624217, id: card_01M2MHZN6DC44M3Y6H0Q2YGZNM, in_progress: 1789623435, ready: 1789620909, tags: [phase3] -->
 - Test validation_result.lua factories and state transitions <!-- backlog: 1789543830, done: 1789624306, id: card_01M2MHZNAYGGMEWY42J4WHRMYW, in_progress: 1789624241, ready: 1789620910, tags: [phase3] -->
+- Test read_buffer with opts.stdin <!-- backlog: 1789543830, done: 1789625068, id: card_01M2MHZN83J0QSJRGMP1KCPGX7, in_progress: 1789624335, ready: 1789620912, tags: [phase3] -->

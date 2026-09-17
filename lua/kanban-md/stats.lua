@@ -178,10 +178,19 @@ local function find_start_state_timestamp(task_properties, board)
 end
 
 -- Helper: calculate total blocked/waiting time
+--
+-- window_start/window_end clip the intervals counted, so that blocked time
+-- taken from a cycle is only the part of it that fell inside that cycle.
+-- Without the window a card blocked before it started, or after it finished,
+-- would have that time subtracted from a cycle it was never part of, and the
+-- resulting active_time could go negative.
+--
 -- @param task_properties table: Task properties containing timestamp fields
 -- @param board table: Board object
+-- @param window_start number|nil: Ignore anything before this timestamp
+-- @param window_end number|nil: Ignore anything after this timestamp
 -- @return number: Total blocked/waiting time in seconds
-local function calculate_blocked_time(task_properties, board)
+local function calculate_blocked_time(task_properties, board, window_start, window_end)
 	local total_blocked = 0
 
 	-- Collect all timestamps chronologically with their column info
@@ -210,7 +219,19 @@ local function calculate_blocked_time(task_properties, board)
 		local next = timeline[i + 1]
 
 		if current.is_blocked or current.is_waiting then
-			total_blocked = total_blocked + (next.timestamp - current.timestamp)
+			local from = current.timestamp
+			local to = next.timestamp
+
+			if window_start and from < window_start then
+				from = window_start
+			end
+			if window_end and to > window_end then
+				to = window_end
+			end
+
+			if to > from then
+				total_blocked = total_blocked + (to - from)
+			end
 		end
 	end
 
@@ -251,7 +272,7 @@ local function calculate_cycle_time(task_properties, board)
 	end
 
 	local total_duration = end_time - start_time
-	local blocked_time = calculate_blocked_time(task_properties, board)
+	local blocked_time = calculate_blocked_time(task_properties, board, start_time, end_time)
 	local active_time = total_duration - blocked_time
 
 	return {

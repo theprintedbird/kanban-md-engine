@@ -156,7 +156,8 @@ local default_config = {
 
   -- auto_timestamp (boolean) [CORE FEATURE] [BOARD-OVERRIDABLE]
   -- Automatically set timestamp properties when cards enter columns
-  -- When enabled: Moving a card to "In Progress" sets card.properties.in_progress = os.time()
+  -- When enabled: Moving a card to "In Progress" sets card.properties.in_progress to the
+  -- current time from kanban-md.helpers.clock
   -- Timestamps use Unix epoch format (seconds since 1970-01-01)
   -- Column names are converted to snake_case property keys ("Code Review" → code_review)
   -- Used by:

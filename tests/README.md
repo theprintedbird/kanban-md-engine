@@ -138,9 +138,31 @@ Completion is column-based, and column timestamps are set by triggers. A spec **
 `card.properties.done = os.time()` by hand: call `board:auto_register_triggers()` and move the
 card. A hand-set timestamp asserts a state the engine would never produce.
 
-`os.time()` has one-second resolution, so every timestamp in a fast-running spec collides. A spec
-asserting *ordering* or *duration* between transitions must inject the times it needs rather than
-letting the clock supply them.
+`os.time()` has one-second resolution, so every timestamp in a fast-running spec collides: three
+moves in a millisecond give three identical timestamps, and any assertion about their order or the
+gaps between them passes by coincidence. Every timestamp the engine writes comes from
+`kanban-md.helpers.clock`, so a spec asserting *ordering* or *duration* freezes that clock and
+advances it by hand:
+
+```lua
+local test_clock = require('helpers.clock')
+local clock
+
+before_each(function() clock = test_clock.install() end)
+after_each(function() clock.restore() end)
+
+it("measures a two-day lead time", function()
+  backlog:add_card(card)
+  clock.advance(2 * test_clock.DAY)
+  board:move_card(card, backlog, done)
+
+  assert.equals(2 * test_clock.DAY, stats._private.calculate_lead_time(card.properties, board).duration)
+end)
+```
+
+`install()` freezes the clock at `test_clock.EPOCH` (2024-01-01T00:00:00Z); `MINUTE`, `HOUR` and
+`DAY` are there so durations read as durations. `tests/integration/lead_cycle_time_spec.lua` is the
+worked example.
 
 ### Temporary files
 

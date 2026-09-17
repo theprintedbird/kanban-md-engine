@@ -1,6 +1,7 @@
 local Triggerable = require('kanban-md.triggerable')
 local TypeConverter = require('kanban-md.type_converter')
 local TblUtils = require("kanban-md.utils.table")
+local clock = require('kanban-md.helpers.clock')
 
 -- Column class with enhanced capabilities
 local Column = {}
@@ -27,7 +28,7 @@ function Column:new(id, name)
   -- Fire on_create triggers (both class-level and instance-level)
   local context = {
     column = obj,
-    timestamp = os.time()
+    timestamp = clock.now()
   }
 
   -- Execute class-level triggers first (if any)
@@ -45,7 +46,7 @@ function Column:new(id, name)
 
   -- Fallback: if ID is still nil after triggers, generate a simple one
   if not obj.id then
-    obj.id = obj.name or ("column_" .. os.time())
+    obj.id = obj.name or ("column_" .. clock.now())
   end
 
   return obj

@@ -2,6 +2,7 @@
 -- Uses the ulid helper with proper seeding for unique, sortable identifiers
 
 local ulid = require('kanban-md.helpers.ulid')
+local clock = require('kanban-md.helpers.clock')
 
 -- TODO check if this is needed since not Neovim-only library
 -- Set up proper time function for Neovim
@@ -9,7 +10,7 @@ local ulid = require('kanban-md.helpers.ulid')
 ulid.set_time_func(function()
   -- os.time() only gives second precision, so we add sub-second component
   -- This is acceptable as ULID's random portion provides uniqueness
-  local t = os.time()
+  local t = clock.now()
   -- Add a small random offset to simulate milliseconds (0-999ms)
   return t + (math.random(0, 999) / 1000)
 end)
@@ -124,7 +125,7 @@ local function create_time_based_id_trigger()
 
     -- Only generate if ID doesn't exist
     if not card.id or card.id == "" then
-      local id_source = card.text .. (context.timestamp or os.time())
+      local id_source = card.text .. (context.timestamp or clock.now())
       local hash = 0
       for i = 1, #id_source do
         hash = (hash * 31 + string.byte(id_source, i)) % 0x100000000

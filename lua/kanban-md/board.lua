@@ -7,6 +7,7 @@ local StatsMixin = require('kanban-md.stats')
 local ParserMixin = require('kanban-md.parser')
 local WriterMixin = require('kanban-md.writer_mixin')
 local TblUtils = require("kanban-md.utils.table")
+local clock = require('kanban-md.helpers.clock')
 
 -- Board class with stats calculation and parsing capabilities
 local Board = {}
@@ -53,7 +54,7 @@ function Board:new()
   -- Fire on_create triggers (both class-level and instance-level)
   local context = {
     board = obj,
-    timestamp = os.time()
+    timestamp = clock.now()
   }
 
   -- Execute class-level triggers first (if any)
@@ -71,7 +72,7 @@ function Board:new()
 
   -- Fallback: if ID is still nil after triggers, generate a simple one
   if not obj.id then
-    obj.id = "board_" .. os.time()
+    obj.id = "board_" .. clock.now()
   end
 
   return obj
@@ -645,7 +646,7 @@ end
 -- @return number - Count of archived cards
 function Board:archive_done_cards(older_than_days)
   older_than_days = older_than_days or 0
-  local cutoff_time = os.time() - (older_than_days * 86400)
+  local cutoff_time = clock.now() - (older_than_days * 86400)
   local column_helpers = require('kanban-md.helpers.column')
   local triggers_module = require('kanban-md.triggers')
 

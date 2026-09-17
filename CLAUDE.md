@@ -33,7 +33,7 @@ Completion is **column-based**, not checkbox-based:
 1. A card is "complete" when it's in a completion column (detected via `lua/kanban-md/helpers/column.lua:is_completion_column()`)
 2. The detection function contains NO hardcoded column name patterns - all detection is explicit
    (`is_completion_state`) or position-based. See `SPEC.md` section 6.3 for the full fallback order.
-3. **Timestamps are automatically set via triggers**: When `auto_timestamp = true` (default in `config.lua`), the `board:auto_register_triggers()` method registers timestamp triggers that automatically set `card.properties[column_name] = os.time()` when a card enters any column
+3. **Timestamps are automatically set via triggers**: When `auto_timestamp = true` (default in `config.lua`), the `board:auto_register_triggers()` method registers timestamp triggers that automatically set `card.properties[column_name]` to `clock.now()` (see `lua/kanban-md/helpers/clock.lua`) when a card enters any column
 4. **NEVER manually set completion timestamps in code**: Use `board:auto_register_triggers()` and let the trigger system handle it automatically. Tests that manually set `card.properties.done = os.time()` are incorrect and should be refactored.
 
 ## Adapters and User Feedback

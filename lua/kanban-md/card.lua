@@ -1,5 +1,6 @@
 local Triggerable = require('kanban-md.triggerable')
 local TypeConverter = require('kanban-md.type_converter')
+local clock = require('kanban-md.helpers.clock')
 
 -- Card class with enhanced state capture
 local Card = {}
@@ -44,7 +45,7 @@ function Card:new(id, text, properties)
   -- Fire on_create triggers (both class-level and instance-level)
   local context = {
     card = obj,
-    timestamp = os.time()
+    timestamp = clock.now()
   }
 
   -- Execute class-level triggers first (if any)
@@ -66,7 +67,7 @@ function Card:new(id, text, properties)
   -- up with obj.id == nil forever -- see PLAN-config-fixes.md Task 2.
   if not obj.id then
     fallback_id_counter = fallback_id_counter + 1
-    obj.id = "card_" .. os.time() .. "_" .. fallback_id_counter
+    obj.id = "card_" .. clock.now() .. "_" .. fallback_id_counter
   end
 
   return obj

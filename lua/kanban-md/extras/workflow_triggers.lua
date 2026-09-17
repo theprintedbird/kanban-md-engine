@@ -4,6 +4,7 @@
 local Triggerable = require('kanban-md.triggerable')
 local WorkflowEngine = require('kanban-md.workflow_engine')
 local column_helper = require('kanban-md.helpers.column')
+local clock = require('kanban-md.helpers.clock')
 
 local M = {}
 
@@ -30,7 +31,7 @@ function M.create_sla_compliance_trigger(sla_config)
       return true -- No timestamp to check against
     end
 
-    local current_time = context.timestamp or os.time()
+    local current_time = context.timestamp or clock.now()
     local elapsed_hours = (current_time - earliest_time) / 3600
 
     -- Check if task is moving to completion after SLA deadline
@@ -79,7 +80,7 @@ function M.create_business_hours_trigger(business_hours_config)
       return true -- No restrictions for this column
     end
 
-    local current_time = os.date("*t", context.timestamp or os.time())
+    local current_time = os.date("*t", context.timestamp or clock.now())
     local current_hour = current_time.hour
     local current_wday = current_time.wday -- 1=Sunday, 2=Monday, ..., 7=Saturday
 

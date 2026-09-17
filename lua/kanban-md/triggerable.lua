@@ -27,10 +27,14 @@ end
 
 EXAMPLE: Timestamp Trigger
 ---------------------------
+-- Time comes from kanban-md.helpers.clock, not os.time, so that a test can
+-- set its own clock and assert real durations between transitions.
+local clock = require('kanban-md.helpers.clock')
+
 local function create_timestamp_trigger()
   return function(self, context)
     local timestamp_key = self.name:lower():gsub("[^%w_]", "_")
-    context.card.properties[timestamp_key] = os.time()
+    context.card.properties[timestamp_key] = context.timestamp or clock.now()
     return true
   end
 end
@@ -68,6 +72,8 @@ See lua/kanban-md/triggers.lua and lua/kanban-md/extras/id_triggers.lua for more
 --]]
 
 -- Triggerable mixin
+local clock = require('kanban-md.helpers.clock')
+
 local Triggerable = {}
 
 -- Register a trigger with optional metadata
@@ -204,7 +210,7 @@ function Triggerable:create_checking_context(card, source_column, target_column,
     target_column = target_column,
     target_column_name = target_column and target_column.name or nil,
     transition_type = transition_type or "move",
-    timestamp = timestamp or os.time(),
+    timestamp = timestamp or clock.now(),
     board = board
   }
 end

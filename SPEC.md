@@ -210,8 +210,10 @@ does not bypass WIP limits.
 configuration only:
 
 - Timestamp triggers on every column when `auto_timestamp` resolves true. Entering a column sets
-  `card.properties[normalised_column_name] = os.time()`. Column names normalise to snake_case
-  (`"Code Review"` → `code_review`).
+  `card.properties[normalised_column_name]` to the current time. Column names normalise to
+  snake_case (`"Code Review"` → `code_review`). Every timestamp the engine writes comes from
+  `kanban-md.helpers.clock`, whose `now()` is `os.time()` unless a test has replaced it via
+  `clock.set()`; nothing in the engine calls `os.time()` directly.
 - Complexity defaulting when `use_complexity` resolves true.
 - Dependency and subtask `on_checking` triggers when those modes resolve to `"strict"` or
   `"warn"` (§10.4), registered with bypass metadata.
@@ -281,8 +283,9 @@ segmented by semantic state, and `lead_times` / `cycle_times` arrays.
 
 - **Lead time** — backlog timestamp → completion timestamp.
 - **Cycle time** — start-state timestamp → completion timestamp.
-- **Blocked time** — total time spent in columns flagged blocked or waiting, subtracted from
-  active time.
+- **Blocked time** — time spent in columns flagged blocked or waiting, counted only within the
+  cycle it is reported against and subtracted from active time. Time blocked before the cycle
+  started, or after it ended, is not counted, so `active_time` is never negative.
 
 All three are derived from the column timestamps on card properties, so they are only as good as
 the trigger-maintained timestamps that produced them. Durations are formatted according to

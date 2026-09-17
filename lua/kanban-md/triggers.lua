@@ -2,13 +2,14 @@
 
 local Triggerable = require('kanban-md.triggerable')
 local column_helpers = require('kanban-md.helpers.column')
+local clock = require('kanban-md.helpers.clock')
 
 -- Timestamp trigger
 local function create_timestamp_trigger()
   return function(self, context)
     local card = context.card
     local timestamp_key = column_helpers.normalize_column_name(self.name or self.id)
-    card.properties[timestamp_key] = os.time()
+    card.properties[timestamp_key] = clock.now()
     return true
   end
 end

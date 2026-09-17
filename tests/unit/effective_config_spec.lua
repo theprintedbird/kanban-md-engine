@@ -191,5 +191,112 @@ describe("effective config resolution (Task 1)", function()
       todo:add_card(card)
       assert.is_not_nil(card.properties.todo, "timestamp should be set when auto_timestamp is enabled")
     end)
+
+    -- The mirror of the auto_timestamp cases above: auto_timestamp defaults on
+    -- and the board file turns it off, whereas dependency_validation and
+    -- subtask_validation default off, so the board file has to turn them on.
+    local function checking_trigger_names(column)
+      local names = {}
+      for name, _ in pairs(column.triggers.on_checking or {}) do
+        table.insert(names, name)
+      end
+      table.sort(names)
+      return names
+    end
+
+    it("registers no dependency or subtask trigger when both default to off", function()
+      config.setup({ dependency_validation = false, subtask_validation = false })
+      local board = Board:new()
+      board:parse({
+        "# B",
+        "",
+        "###### Todo",
+        "- A",
+        "",
+        "###### Done",
+      })
+      for _, column in ipairs(board.columns) do
+        local names = checking_trigger_names(column)
+        assert.is_nil(column.triggers.on_checking and column.triggers.on_checking.dependencies,
+          "dependencies trigger should not be registered on " .. column.name ..
+          " (registered: " .. table.concat(names, ", ") .. ")")
+        assert.is_nil(column.triggers.on_checking and column.triggers.on_checking.subtasks,
+          "subtasks trigger should not be registered on " .. column.name ..
+          " (registered: " .. table.concat(names, ", ") .. ")")
+      end
+    end)
+
+    it("dependency_validation:true in the board file registers the trigger a false global default leaves off", function()
+      config.setup({ dependency_validation = false, subtask_validation = false })
+      local board = Board:new()
+      board:parse({
+        "# B",
+        "<!-- kanban:config dependency_validation: true -->",
+        "",
+        "###### Todo",
+        "- A",
+        "",
+        "###### Done",
+      })
+      assert.are.equals(true, board:get_config_value("dependency_validation"))
+      for _, column in ipairs(board.columns) do
+        assert.is_function(column.triggers.on_checking.dependencies,
+          "dependencies trigger should be registered on " .. column.name)
+        local metadata = column.trigger_metadata.on_checking.dependencies
+        assert.are.equals("dependency", metadata.category)
+        assert.is_true(metadata.bypassable)
+        assert.is_nil(column.triggers.on_checking.subtasks,
+          "subtask validation is still off, so its trigger should not be registered")
+      end
+    end)
+
+    it("subtask_validation:true in the board file registers the trigger a false global default leaves off", function()
+      config.setup({ dependency_validation = false, subtask_validation = false })
+      local board = Board:new()
+      board:parse({
+        "# B",
+        "<!-- kanban:config subtask_validation: true -->",
+        "",
+        "###### Todo",
+        "- A",
+        "",
+        "###### Done",
+      })
+      assert.are.equals(true, board:get_config_value("subtask_validation"))
+      for _, column in ipairs(board.columns) do
+        assert.is_function(column.triggers.on_checking.subtasks,
+          "subtasks trigger should be registered on " .. column.name)
+        local metadata = column.trigger_metadata.on_checking.subtasks
+        assert.are.equals("subtask", metadata.category)
+        assert.is_true(metadata.bypassable)
+        assert.is_nil(column.triggers.on_checking.dependencies,
+          "dependency validation is still off, so its trigger should not be registered")
+      end
+    end)
+
+    it("the trigger a board file switched on actually validates the move", function()
+      config.setup({ dependency_validation = false, subtask_validation = false })
+      local board = Board:new()
+      board:parse({
+        "# B",
+        "<!-- kanban:config dependency_validation: true -->",
+        "",
+        "###### Todo",
+        "- Blocker <!-- id: blocker_1 -->",
+        "- Blocked <!-- id: blocked_1, depends_on: blocker_1 -->",
+        "",
+        "###### Done",
+      })
+      local todo = board:get_column_by_name("Todo")
+      local done = board:get_column_by_name("Done")
+      local blocked = todo.cards[2]
+      assert.are.equals("Blocked", blocked.text)
+
+      local success, err = pcall(function()
+        board:move_card(blocked, todo, done)
+      end)
+      assert.is_false(success, "move to completion should be blocked while the dependency is incomplete")
+      assert.matches("not complete", tostring(err))
+    end)
   end)
 end)

@@ -8,7 +8,6 @@
 
 ###### Ready
 
-- Document column types in README.md: column_config types/definitions/patterns, type: in a column config, the short 'config' comment syntax without the column: prefix, requires_* with missing_property_requirement, write_full_config_to_markdown, and the type path in Completion Tracking <!-- backlog: 1789774469, id: card_01M2VDY69VXK4JJ5HWV5Z1RJYX, ready: 1789981939, tags: [Sonnet] -->
 - Make pattern-matching statements accurate: SPEC 10.5 should say matching is case-insensitive with longest pattern then alphabetical type name as tie-break; rename the misleading tests 'matches first pattern when multiple patterns exist' and '(case-sensitive)' in the column type specs <!-- backlog: 1789774469, id: card_01M2VDY60WYYWB26PJE5MXW1NN, ready: 1789981944, tags: [Haiku] -->
 - Update features/CONFIG_PLAN.md status: everything through the writer flag is implemented and tested; tick the checklists and leave only type inheritance, computed properties, transition validation and UI indicators as future <!-- backlog: 1789774469, id: card_01M2VDY6F20C5KMYD1SNBA9Y2S, ready: 1789981948, tags: [Haiku] -->
 - A card containing a literal HTML comment gets truncated at the comment, because the engine reads it as a property block, look in to improving the parser to handle that. <!-- backlog: 1789774846, id: card_01M2VE9PYZB2NM79GJFA8DA2XJ, ready: 1789981950 -->
@@ -25,6 +24,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -92,3 +92,4 @@
 - Test type-defined triggers end to end: auto_register_triggers registers a column type's triggers on a parsed board, and a missing trigger module raises the 'could not be registered' error <!-- backlog: 1789774469, done: 1789974375, id: card_01M2VDY68B65CB0DCA984KYWJZ, in_progress: 1789971680, ready: 1789971574, tags: [Opus] -->
 - kanban-md.triggers.mark_complete no longer exists, remove references to it in tests. <!-- backlog: 1789974228, done: 1789974550, id: card_01M31CEBBPGRZM5WVP7MQ5X5NY, in_progress: 1789974473, ready: 1789974433 -->
 - Assert column-type warnings through auto_register_triggers: the invalid-type-reference and missing-required-property notify() strings, at every missing_property_requirement level, via a captured adapter (tests/integration/column_type_spec.lua only checks column.type today) <!-- backlog: 1789774469, done: 1789975162, id: card_01M2VDY6R08S37N6VJMMD73YRE, in_progress: 1789974964, ready: 1789974846, tags: [Sonnet] -->
+- Document column types in README.md: column_config types/definitions/patterns, type: in a column config, the short 'config' comment syntax without the column: prefix, requires_* with missing_property_requirement, write_full_config_to_markdown, and the type path in Completion Tracking <!-- backlog: 1789774469, done: 1789982330, id: card_01M2VDY69VXK4JJ5HWV5Z1RJYX, in_progress: 1789982195, ready: 1789981939, tags: [Sonnet] -->

@@ -195,9 +195,156 @@ See `CLAUDE.md` for the full architectural notes (parser/writer conventions, ID 
 
 Completion is **column-based**, not checkbox-based. A card is "complete" when it's in a completion column, detected via `helpers/column.lua:is_completion_column()`:
 
-1. Explicit property: `<!-- column:config is_completion_state: true -->`
+1. Explicit (resolved) property: `column.config.is_completion_state`. This is `true` either because the
+   comment sets it directly (`<!-- column:config is_completion_state: true -->`) or because the
+   column resolved to a [column type](#column-types) whose `properties` include
+   `is_completion_state = true` — see below.
 2. Position-based fallback: the last regular column on the board
-3. No hardcoded name patterns — detection is always explicit or positional
+3. No hardcoded name patterns — detection is always explicit/type-resolved or positional
+
+## Column Types
+
+kanban-md can assign each column a reusable **type** — a bundle of default properties, triggers
+and validation requirements — instead of repeating the same configuration on every column. There
+are no built-in types: `column_config.types` is empty by default and the engine has no hardcoded
+name patterns (no built-in notion that a column called "Done" means completion).
+
+### Configuring types (`column_config`)
+
+Set it up via `kanban.setup()` (or by editing `config.column_config` directly):
+
+```lua
+kanban.setup({
+  column_config = {
+    types = {
+      completion = {
+        properties = { is_completion_state = true, auto_archive_days = 30 },
+        patterns = { "done", "complete", "finished" },
+      },
+      wip = {
+        properties = { is_active_state = true },
+        requires_wip_limit = true,
+        patterns = { "progress", "doing", "working" },
+      },
+    },
+    definitions = {
+      ["Done"] = { type = "completion", wip_limit = 5 },
+    },
+  },
+  missing_property_requirement = "warning",
+})
+```
+
+- **`types`** — named type definitions: `properties` (merged into every column of that type),
+  `patterns` (Lua patterns for name-based matching), optional `triggers` (below), and `requires_*`
+  validation flags (below).
+- **`definitions`** — exact column-name → type/property mappings.
+- **`patterns`** — matched against the column name, lower-cased. When patterns from more than one
+  type match, the longest (most specific) pattern wins.
+
+### Resolving a column's type
+
+Each column's type is resolved when the board is parsed, in priority order:
+
+1. An explicit `type:` in the column's own config comment (see below).
+2. A named definition: `column_config.definitions[column_name].type`.
+3. A pattern match against `column_config.types[*].patterns`.
+4. No match — the column is untyped.
+
+The resolved type's properties then merge with the matching definition's and the column's own
+authored markdown properties, lowest to highest precedence:
+
+```
+type properties  <  named definition properties  <  authored markdown properties
+```
+
+The merged result is `column.config` — what triggers, helpers, stats and validation consult. The
+authored layer alone is kept separately as `column.markdown_config`, which is what the writer
+serialises by default (see `write_full_config_to_markdown` below), so type-derived properties
+change behaviour without being written back into the user's file.
+
+### `type:` in a column config comment
+
+```md
+###### Done
+<!-- column:config type: completion -->
+```
+
+An explicit `type:` always wins over a named definition or a pattern match for that column.
+
+### Short `config` comment syntax
+
+Inside a column, the `column:` prefix is optional as long as the comment immediately follows the
+column header — `config` alone is equivalent to `column:config`:
+
+```md
+###### In Progress
+<!-- config wip_limit: 4, type: wip -->
+```
+
+is parsed the same as:
+
+```md
+###### In Progress
+<!-- column:config wip_limit: 4, type: wip -->
+```
+
+### Requiring properties on a type (`requires_*`)
+
+A type definition can declare `requires_<property> = true` for any property name; the engine
+checks it on every column that resolves to that type:
+
+```lua
+types.wip = {
+  properties = { is_active_state = true },
+  requires_wip_limit = true,   -- checks column.config.wip_limit
+  patterns = { "progress", "doing", "working" },
+}
+```
+
+What happens when the required property is missing is controlled by `missing_property_requirement`:
+
+| Value | Effect |
+|---|---|
+| `"none"` | Silent — no validation |
+| `"warning"` (default) | `notify()` at warn level |
+| `"error"` | Raises a Lua error out of `parse()` — it does **not** call `notify()`, so a host must `pcall` around `parse()` to report it itself |
+
+A column whose `type:` names something not defined in `column_config.types` always warns via
+`notify()`, whatever `missing_property_requirement` is set to.
+
+### Writing resolved config back (`write_full_config_to_markdown`)
+
+By default (`write_full_config_to_markdown = false`) the writer serialises only
+`column.markdown_config` — the properties the user actually authored — so implicit, type-derived
+properties are never injected into the file. Set it to `true` to write the fully resolved
+`column.config` (type defaults + definition + markdown, merged) instead:
+
+```lua
+kanban.setup({ write_full_config_to_markdown = true })
+```
+
+Either way, the config comment is always written back under the `column:config` prefix, regardless
+of whether it was originally authored with the short `config` form.
+
+### Type-declared triggers
+
+A type can bundle triggers that are auto-registered on every column resolving to it:
+
+```lua
+types.completion = {
+  triggers = {
+    on_entry = {
+      { module = "my.triggers", function_name = "mark_done", name = "mark_done", args = { 30 } },
+    },
+  },
+}
+```
+
+`module` is `require`d, `function_name` is called as a factory with `args` (empty when absent), and
+the function it returns is registered under `name`. If the module can't be loaded or the named
+field isn't a function, registration raises naming the type, the trigger and the module — it is
+never skipped silently.
 
 ## Properties System
 

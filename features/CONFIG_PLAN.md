@@ -3,7 +3,7 @@
 ## Overview
 Implement a flexible column type system where column types are user-defined in config, not hardcoded. The system will resolve column types through a priority chain and auto-register triggers based on type definitions.
 
-**Implementation Status**: 🟡 Partially Complete (structure defined, resolver implementation pending)
+**Implementation Status**: ✅ Complete (all core features implemented and tested)
 
 ## Progress Summary
 
@@ -12,24 +12,29 @@ Implement a flexible column type system where column types are user-defined in c
 - All config options fully documented with inline comments
 - `column_config` structure with `types` and `definitions`
 - `missing_property_requirement` validation option
-- `write_full_config_to_markdown` future enhancement flag
+- `write_full_config_to_markdown` flag added to config
+- Writer support for `write_full_config_to_markdown = true` (implemented in writer_mixin.lua)
+- `column_type_resolver.lua` module implemented with all functions
+- Unit tests for resolver (comprehensive coverage of all functions)
+- Integration tests for end-to-end flow (pattern matching, definitions, triggers, etc.)
+- Parser integration (type resolution and property merging)
+- Column.lua type field addition
+- Board.lua trigger registration enhancements (`register_type_triggers()` method)
+- Trigger auto-registration from type definitions
+- Validation of required properties via `validate_requirements()`
+- All 1111 tests passing
 
 ### In Progress 🚧
 - None currently
 
 ### Pending ⬜
-- `column_type_resolver.lua` module implementation
-- Unit tests for resolver
-- Integration tests for end-to-end flow
-- Parser integration
-- Column.lua type field addition
-- Board.lua trigger registration enhancements
+- None currently (all core features implemented and tested)
 
 ### Future 🔮
-- Writer support for `write_full_config_to_markdown = true`
-- Type inheritance
-- Computed properties
-- Column type transition validation
+- Type inheritance (types inheriting from parent types)
+- Computed properties (property values as functions)
+- Transition validation (restricting card movement between column types)
+- UI indicators (showing column type visually)
 
 ## Core Principles
 - **No hardcoded types** - all types (including "archive", "completion", etc.) use the same mechanism available to users
@@ -75,13 +80,13 @@ When a column has both type-inherited properties AND explicit markdown propertie
 ### Files to Create
 
 #### 1. `lua/kanban-md/column_type_resolver.lua` (NEW)
-- [ ] Create file
-- [ ] Implement `resolve_type()` function
-- [ ] Implement `get_type_definition()` function
-- [ ] Implement `merge_properties()` function
-- [ ] Implement `validate_requirements()` function
-- [ ] Implement `get_type_triggers()` function
-- [ ] Add comprehensive inline documentation
+- [x] Create file
+- [x] Implement `resolve_type()` function
+- [x] Implement `get_type_definition()` function
+- [x] Implement `merge_properties()` function
+- [x] Implement `validate_requirements()` function
+- [x] Implement `get_type_triggers()` function
+- [x] Add comprehensive inline documentation
 
 ### 1. `lua/kanban-md/column_type_resolver.lua` (NEW)
 
@@ -140,12 +145,12 @@ return ColumnTypeResolver
 - All functions are pure (no side effects, no global state modification)
 
 #### 2. `tests/unit/column_type_resolver_spec.lua` (NEW)
-- [ ] Create file
-- [ ] Test `resolve_type()` with all priority levels
-- [ ] Test `merge_properties()` with all combinations
-- [ ] Test `validate_requirements()` warning/error modes
-- [ ] Test `get_type_triggers()` function
-- [ ] Test edge cases (nil values, empty configs)
+- [x] Create file
+- [x] Test `resolve_type()` with all priority levels
+- [x] Test `merge_properties()` with all combinations
+- [x] Test `validate_requirements()` warning/error modes
+- [x] Test `get_type_triggers()` function
+- [x] Test edge cases (nil values, empty configs)
 
 ### 2. `tests/unit/column_type_resolver_spec.lua` (NEW)
 
@@ -175,12 +180,12 @@ Comprehensive unit tests for type resolution logic.
   - Returns empty table if no triggers
 
 #### 3. `tests/integration/column_type_spec.lua` (NEW)
-- [ ] Create file
-- [ ] Test end-to-end type resolution from markdown
-- [ ] Test trigger auto-registration from types
-- [ ] Test property inheritance and merging
-- [ ] Test backwards compatibility
-- [ ] Test error handling (missing triggers, missing properties)
+- [x] Create file
+- [x] Test end-to-end type resolution from markdown
+- [x] Test trigger auto-registration from types
+- [x] Test property inheritance and merging
+- [x] Test backwards compatibility
+- [x] Test error handling (missing triggers, missing properties)
 
 ### 3. `tests/integration/column_type_spec.lua` (NEW)
 
@@ -208,9 +213,7 @@ End-to-end tests for column type parsing and trigger registration.
 
 ### 1. `lua/kanban-md/config.lua`
 
-**Status**: ✅ Complete
-
-Add to `default_config` table (around line 12):
+**Status**: ✅ Complete - All config options added and documented
 
 ```lua
 -- Column type system
@@ -240,16 +243,14 @@ write_full_config_to_markdown = false, -- when true, write resolved types back
 ```
 
 #### 2. `lua/kanban-md/parser.lua`
-- [ ] Modify column config parsing to call resolver
-- [ ] Set `column.type` field after resolution
-- [ ] Merge properties using resolver
-- [ ] Support both `<!-- column:config -->` and `<!-- config -->` syntax
+- [x] Modify column config parsing to call resolver
+- [x] Set `column.type` field after resolution
+- [x] Merge properties using resolver
+- [x] Support both `<!-- column:config -->` and `<!-- config -->` syntax
 
 ### 2. `lua/kanban-md/parser.lua`
 
-**Status**: ⬜ Not Started
-
-**Modify column config parsing** (around line 241-245):
+**Status**: ✅ Complete - Parser integrated with resolver for type resolution and property merging
 
 Current code:
 ```lua
@@ -298,14 +299,12 @@ comment_single = "<!%-%-%s*(.-)%s*%-%->",
 ```
 
 #### 3. `lua/kanban-md/column.lua`
-- [ ] Add `type` field to `Column:new()` constructor
-- [ ] Update constructor documentation
+- [x] Add `type` field to `Column:new()` constructor
+- [x] Update constructor documentation
 
 ### 3. `lua/kanban-md/column.lua`
 
-**Status**: ⬜ Not Started
-
-**Add `type` field** to `Column:new()` (around line 9-17):
+**Status**: ✅ Complete - `type` field added to Column constructor
 
 ```lua
 function Column:new(id, name)
@@ -323,16 +322,14 @@ end
 ```
 
 #### 4. `lua/kanban-md/board.lua`
-- [ ] Enhance `Board:auto_register_triggers()` to call `register_type_triggers()`
-- [ ] Add validation call for column requirements
-- [ ] Implement new `Board:register_type_triggers(column)` method
-- [ ] Add error handling for missing trigger registrations
+- [x] Enhance `Board:auto_register_triggers()` to call `register_type_triggers()`
+- [x] Add validation call for column requirements
+- [x] Implement new `Board:register_type_triggers(column)` method
+- [x] Add error handling for missing trigger registrations
 
 ### 4. `lua/kanban-md/board.lua`
 
-**Status**: ⬜ Not Started
-
-**Enhance `Board:auto_register_triggers()`** (around line 221-243):
+**Status**: ✅ Complete - Type trigger registration and validation integrated
 
 After the existing column loop, add type-based trigger registration:
 
@@ -406,20 +403,19 @@ end
 ```
 
 #### 5. `lua/kanban-md/writer_mixin.lua`
-- [ ] (Future) Implement `write_full_config_to_markdown = true` support
-- [ ] (Future) Detect which properties came from markdown vs type
-- [ ] (Future) Only write back explicit properties or all resolved properties
+- [x] Implement `write_full_config_to_markdown = true` support
+- [x] Detect which properties came from markdown vs type
+- [x] Write back explicit properties or all resolved properties (controlled by config flag)
 
 ### 5. `lua/kanban-md/writer_mixin.lua`
 
-**Status**: ⬜ Future Work
+**Status**: ✅ Complete - Writer support fully implemented and tested
 
-**Future work** - when `write_full_config_to_markdown = true`:
-- Check if column has explicit `type` set in original markdown
-- If yes, write it back
-- If no (resolved via patterns), keep implicit
-
-**For now**: No changes needed, keep current behavior (implicit types).
+**Implementation** - when `write_full_config_to_markdown = true`:
+- Selects resolved column.config for writing instead of authored markdown_config
+- Preserves default behaviour (markdown_config only) when flag is false
+- Supports both global and board-level config overrides
+- Tested via column_config_layers_spec.lua (lines 151-192)
 
 ## Example Configurations
 
@@ -545,17 +541,17 @@ Result: `type = "completion"` (from definitions), `wip_limit = 10` (from definit
 ## Implementation Order
 
 ### Phase 1: Foundation (Tests First)
-- [ ] 1. Write unit tests for `column_type_resolver.lua`
-  - [ ] Test `resolve_type()` priority chain
-  - [ ] Test `merge_properties()` combinations
-  - [ ] Test `validate_requirements()` modes
-  - [ ] Test `get_type_triggers()`
+- [x] 1. Write unit tests for `column_type_resolver.lua` ✅
+  - [x] Test `resolve_type()` priority chain
+  - [x] Test `merge_properties()` combinations
+  - [x] Test `validate_requirements()` modes
+  - [x] Test `get_type_triggers()`
 
-- [ ] 2. Write integration tests for end-to-end flow
-  - [ ] Test type resolution from markdown
-  - [ ] Test trigger auto-registration
-  - [ ] Test backwards compatibility
-  - [ ] Test error scenarios
+- [x] 2. Write integration tests for end-to-end flow ✅
+  - [x] Test type resolution from markdown
+  - [x] Test trigger auto-registration
+  - [x] Test backwards compatibility
+  - [x] Test error scenarios
 
 ### Phase 2: Core Implementation
 - [x] 3. Add config schema to `lua/kanban-md/config.lua` ✅
@@ -564,37 +560,55 @@ Result: `type = "completion"` (from definitions), `wip_limit = 10` (from definit
   - [x] Add `write_full_config_to_markdown`
   - [x] Document all options with inline comments
 
-- [ ] 4. Create `lua/kanban-md/column_type_resolver.lua`
-  - [ ] Implement `resolve_type()`
-  - [ ] Implement `get_type_definition()`
-  - [ ] Implement `merge_properties()`
-  - [ ] Implement `validate_requirements()`
-  - [ ] Implement `get_type_triggers()`
-  - [ ] Add comprehensive documentation
+- [x] 4. Create `lua/kanban-md/column_type_resolver.lua` ✅
+  - [x] Implement `resolve_type()`
+  - [x] Implement `get_type_definition()`
+  - [x] Implement `merge_properties()`
+  - [x] Implement `validate_requirements()`
+  - [x] Implement `get_type_triggers()`
+  - [x] Add comprehensive documentation
 
 ### Phase 3: Integration
-- [ ] 5. Update `lua/kanban-md/column.lua`
-  - [ ] Add `type` field to constructor
+- [x] 5. Update `lua/kanban-md/column.lua` ✅
+  - [x] Add `type` field to constructor
 
-- [ ] 6. Update existing tests for type field
-  - [ ] Add `type` expectations where needed
-  - [ ] Ensure backwards compatibility
+- [x] 6. Update existing tests for type field ✅
+  - [x] Add `type` expectations where needed
+  - [x] Ensure backwards compatibility
 
-- [ ] 7. Integrate resolver into `lua/kanban-md/parser.lua`
-  - [ ] Call resolver during column config parsing
-  - [ ] Set `column.type` field
-  - [ ] Merge properties using resolver
+- [x] 7. Integrate resolver into `lua/kanban-md/parser.lua` ✅
+  - [x] Call resolver during column config parsing
+  - [x] Set `column.type` field
+  - [x] Merge properties using resolver
 
-- [ ] 8. Enhance `lua/kanban-md/board.lua`
-  - [ ] Add `Board:register_type_triggers(column)` method
-  - [ ] Integrate into `Board:auto_register_triggers()`
-  - [ ] Add requirement validation call
-  - [ ] Add error handling for missing triggers
+- [x] 8. Enhance `lua/kanban-md/board.lua` ✅
+  - [x] Add `Board:register_type_triggers(column)` method
+  - [x] Integrate into `Board:auto_register_triggers()`
+  - [x] Add requirement validation call
+  - [x] Add error handling for missing triggers
+
+- [x] 9. Implement `write_full_config_to_markdown = true` in writer ✅
+  - [x] Detect property sources (markdown_config vs resolved config)
+  - [x] Select appropriate config layer based on flag
+  - [x] Support global and board-level config overrides
+  - [x] Tested via column_config_layers_spec.lua
 
 ### Phase 4: Future Enhancements
-- [ ] 9. (Future) Implement `write_full_config_to_markdown = true` in writer
-  - [ ] Detect property sources
-  - [ ] Write resolved types back to markdown
+- [ ] 10. (Future) Type inheritance
+  - [ ] Support `type_parent` field for type definitions
+  - [ ] Merge properties through inheritance chain
+
+- [ ] 11. (Future) Computed properties
+  - [ ] Allow property values to be functions
+  - [ ] Evaluate at resolution time
+
+- [ ] 12. (Future) Transition validation
+  - [ ] Restrict card movement between column types
+  - [ ] Define allowed source/target type pairs
+
+- [ ] 13. (Future) UI indicators
+  - [ ] Virtual text showing column type
+  - [ ] Highlight columns by type in editor
 
 
 
@@ -636,22 +650,22 @@ All existing boards continue to work:
 
 ## Future Enhancements
 
-### Write Full Config Back (when `write_full_config_to_markdown = true`)
-- Detect which properties came from markdown vs type/definition
-- Only write back properties that were explicit in markdown
-- OR write all resolved properties (user choice via config)
-
-### Type Inheritance
+### Phase 4a: Type Inheritance
 - Allow types to inherit from other types: `type_parent: "base_wip"`
 - Merge properties through inheritance chain
+- Enables DRY configurations for related column types
 
-### Computed Properties
+### Phase 4b: Computed Properties
 - Allow property values to be functions: `wip_limit: function(column) return #column.cards * 2 end`
+- Evaluate computed properties at resolution time
+- Enables dynamic, context-aware column configuration
 
-### Column Type Validation
+### Phase 4c: Transition Validation
 - Validate type transitions: "cards can only move from wip → completion"
-- Define allowed source/target types per type
+- Define allowed source/target types per type (e.g., `allowed_sources: { "wip", "blocked" }`)
+- Enables workflow enforcement via the type system
 
-### UI Indicators
+### Phase 4d: UI Indicators
 - Virtual text showing column type: `## Done [completion]`
 - Highlight columns by type in UI
+- Supports Neovim and web-based interfaces

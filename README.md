@@ -142,6 +142,35 @@ This board tracks our current sprint. Updated daily.
 
 Cards are plain unordered list items (`- Task name`) — the engine does **not** use checkbox syntax (`- [ ]`/`- [x]`). Completion is tracked by which column a card is in, not by checkbox state.
 
+### Multi-line Cards
+
+A card can span several lines. Any line indented by **two or more spaces** (or one or more tabs)
+that immediately follows the card's first line — with no blank line in between — is a
+**continuation line** and belongs to that card, preserved exactly as authored, indentation
+included:
+
+```md
+###### Backlog
+
+Column notes before any cards.
+- Write the specification
+  The continuation lines are preserved exactly as authored,
+  including their indentation.
+- Simple card
+
+More column notes (blank line above, no bullet).
+
+###### Done
+```
+
+Here `Write the specification` is a two-line card; `Simple card` is a single-line card as usual.
+A blank line, or a non-indented line that isn't a new list item, ends the card. That's how column
+prose coexists with cards in the same column: text that isn't attached to a card (either before the
+first card, or after a card and separated from it by a blank line) is preserved verbatim as
+column-level Markdown rather than being pulled into `card.text` — this is what lets a column carry
+a short "how to use this lane" note alongside its cards. Both fragments above round-trip through
+`board:parse()` → `board:write()` unchanged.
+
 ### Rationale
 
 - HTML comments are invisible in Obsidian's preview and won't break rendering

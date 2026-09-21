@@ -175,6 +175,27 @@ local function is_continuation_line(line)
 	return line:match("^  +") or line:match("^\t+")  -- 2+ spaces or 1+ tabs at start
 end
 
+-- Detect a bullet marker with nothing after it (an empty list item), e.g.
+-- "-", "- " or "-   ". CommonMark allows this and would treat any following
+-- indented lines as that item's continuation; kanban-md declines to (an
+-- empty first line gives a card no usable text), and instead reports it
+-- through the adapter and leaves the line as column documentation -- see
+-- features/multiline-lists.md, "Empty Cards".
+local function is_empty_list_item(line)
+	return line:match("^%s*%-%s*$") ~= nil
+end
+
+-- Report a warning through the registered adapter, if any. Silent when no
+-- adapter is registered, following the same pattern as column_type_resolver.lua
+-- and type_converter.lua -- the parser must never reach for io.*/vim.* itself
+-- (SPEC.md section 8/9).
+local function notify(message)
+	local adapter_registry = require("kanban-md.adapter_registry")
+	if adapter_registry.has_adapter() then
+		adapter_registry.get_adapter():notify(message, "warn")
+	end
+end
+
 -- Opening delimiter of a fenced code block (three or more backticks or
 -- tildes), or nil. Everything between an opening fence and its matching close
 -- is literal markdown, not kanban syntax.
@@ -643,6 +664,15 @@ function ParserMixin:parse(content)
 				local is_blank = line:match("^%s*$")
 				local is_task = line:match(patterns.task_item)
 				local is_continuation = is_continuation_line(line)
+
+				-- An empty list item ("-" with nothing after it, or only
+				-- trailing whitespace) gives a card no usable text. Report it
+				-- and let the line fall through to whichever branch it would
+				-- otherwise take (see features/multiline-lists.md, "Empty
+				-- Cards", and SPEC.md section 7.4).
+				if not is_blank and is_empty_list_item(line) then
+					notify("List items may not start with a blank line")
+				end
 
 				-- Handle blank lines
 				if is_blank then

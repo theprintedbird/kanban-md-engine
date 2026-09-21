@@ -1,6 +1,8 @@
 require('polyfills.vim')
 
 local Board = require('kanban-md.board')
+local adapter_registry = require('kanban-md.adapter_registry')
+local CLIAdapter = require('kanban-md.adapters.cli')
 
 describe("Parser - Multi-line list items", function()
   describe("Single-line cards (no regression)", function()
@@ -378,6 +380,110 @@ Not a continuation (blank line above)
       local card = board:get_column_by_name("TODO").cards[1]
       local expected = "- Card with continuation\n  line 2\n  line 3"
       assert.equals(expected, card:get_full_text())
+    end)
+  end)
+
+  describe("Edge case: empty list item", function()
+    -- features/multiline-lists.md, "Empty Cards": a bullet with nothing after
+    -- it is CommonMark-valid but gives a card no usable text. The decision
+    -- was to break with CommonMark, keep the line as documentation rather
+    -- than a card (unchanged parsing behaviour), and report it through the
+    -- adapter at warn level. CLAUDE.md is explicit that this must be asserted
+    -- as the exact emitted string, including the CLI adapter's emoji prefix,
+    -- not merely that parsing did not error.
+    local old_stderr
+    local captured_err
+    local previous_adapter
+
+    before_each(function()
+      captured_err = {}
+      old_stderr = io.stderr
+      io.stderr = {
+        write = function(_, msg) table.insert(captured_err, msg) end,
+        flush = function() end,
+      }
+
+      previous_adapter = adapter_registry.has_adapter() and adapter_registry.get_adapter() or nil
+      adapter_registry.set_adapter(CLIAdapter)
+    end)
+
+    after_each(function()
+      io.stderr = old_stderr
+      adapter_registry.set_adapter(previous_adapter)
+    end)
+
+    local function stderr_output()
+      return table.concat(captured_err, "")
+    end
+
+    it("warns with the exact adapter-prefixed string for a bare dash", function()
+      local content = [[
+# Test Board
+
+###### TODO
+
+-
+  continuation
+
+]]
+      local board = Board:new()
+      board:parse(content)
+
+      assert.equals("⚠️ List items may not start with a blank line\n", stderr_output())
+    end)
+
+    it("warns for a dash followed only by whitespace", function()
+      local content = [[
+# Test Board
+
+###### TODO
+
+-
+  continuation
+
+]]
+      local board = Board:new()
+      board:parse(content)
+
+      assert.equals("⚠️ List items may not start with a blank line\n", stderr_output())
+    end)
+
+    it("keeps the bare-dash line as column documentation, not a card", function()
+      local content = [[
+# Test Board
+
+###### TODO
+
+-
+  continuation
+
+- Real card
+]]
+      local board = Board:new()
+      board:parse(content)
+
+      local todo_col = board:get_column_by_name("TODO")
+      assert.equals(1, #todo_col.cards)
+      assert.equals("Real card", todo_col.cards[1].text)
+    end)
+
+    it("says nothing when no adapter is registered", function()
+      adapter_registry.set_adapter(nil)
+
+      local content = [[
+# Test Board
+
+###### TODO
+
+-
+  continuation
+]]
+      local board = Board:new()
+
+      assert.has_no.errors(function()
+        board:parse(content)
+      end)
+      assert.equals("", stderr_output())
     end)
   end)
 end)

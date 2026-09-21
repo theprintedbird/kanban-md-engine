@@ -366,6 +366,12 @@ to the card:
 
 A blank line ends the card. A non-indented, non-list line ends the card and becomes prose.
 
+A bullet marker with nothing after it — `-` alone, or followed only by whitespace — is valid
+CommonMark but gives a card no usable text. kanban-md breaks with CommonMark here: the line is
+left as column documentation rather than becoming a card (so any indented lines that follow it are
+themselves column documentation, not continuation lines), and the parser reports it through
+`notify()` at `"warn"` level (§9) with the message `List items may not start with a blank line`.
+
 ### 7.5 Properties
 
 Properties ride in HTML comments, which keeps them invisible in a rendered view.

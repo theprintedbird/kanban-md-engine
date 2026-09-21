@@ -4,7 +4,6 @@
 
 ###### Backlog
 
-- Test type-defined triggers end to end: auto_register_triggers registers a column type's triggers on a parsed board, and a missing trigger module raises the 'could not be registered' error <!-- backlog: 1789774469, id: card_01M2VDY68B65CB0DCA984KYWJZ, tags: [Opus] -->
 - Assert column-type warnings through auto_register_triggers: the invalid-type-reference and missing-required-property notify() strings, at every missing_property_requirement level, via a captured adapter (tests/integration/column_type_spec.lua only checks column.type today) <!-- backlog: 1789774469, id: card_01M2VDY6R08S37N6VJMMD73YRE, tags: [Sonnet] -->
 - Document column types in README.md: column_config types/definitions/patterns, type: in a column config, the short 'config' comment syntax without the column: prefix, requires_* with missing_property_requirement, write_full_config_to_markdown, and the type path in Completion Tracking <!-- backlog: 1789774469, id: card_01M2VDY69VXK4JJ5HWV5Z1RJYX, tags: [Sonnet] -->
 - Make pattern-matching statements accurate: SPEC 10.5 should say matching is case-insensitive with longest pattern then alphabetical type name as tie-break; rename the misleading tests 'matches first pattern when multiple patterns exist' and '(case-sensitive)' in the column type specs <!-- backlog: 1789774469, id: card_01M2VDY60WYYWB26PJE5MXW1NN, tags: [Haiku] -->
@@ -23,7 +22,9 @@
 
 
 
+
 ###### In Progress
+
 
 
 
@@ -85,3 +86,4 @@
 - Add engine spec: board config enabling a default-off boolean registers its trigger <!-- backlog: 1789543830, done: 1789634770, id: card_01M2MHZN53KDY18VMY5Y6NMTYX, in_progress: 1789634558, ready: 1789632174, tags: [phase5] -->
 - Fix kanban-md.nvim test_helper.lua path: lib/kanban-md -> lib/kanban-md-engine <!-- backlog: 1789543830, done: 1789634906, id: card_01M2MHZMHY1BHC38DTWKPA97GN, tags: [phase5] -->
 - An update-version script, so that the number is changed in all the right places (SPEC.md and lua/kanban-md/version.lua). <!-- backlog: 1789604497, done: 1789636043, id: card_01M2PBV1ZWA3JCJPRED1PHG8HF, in_progress: 1789635236, ready: 1789634964 -->
+- Test type-defined triggers end to end: auto_register_triggers registers a column type's triggers on a parsed board, and a missing trigger module raises the 'could not be registered' error <!-- backlog: 1789774469, done: 1789974375, id: card_01M2VDY68B65CB0DCA984KYWJZ, in_progress: 1789971680, ready: 1789971574, tags: [Opus] -->

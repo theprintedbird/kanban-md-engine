@@ -9,6 +9,10 @@ local WriterMixin = require('kanban-md.writer_mixin')
 local TblUtils = require("kanban-md.utils.table")
 local clock = require('kanban-md.helpers.clock')
 
+-- Lua 5.1 and LuaJIT have unpack as a global; 5.2 onwards moved it to
+-- table.unpack. The engine targets both, so resolve it once here.
+local unpack = table.unpack or unpack
+
 -- Board class with stats calculation and parsing capabilities
 local Board = {}
 Board.__index = Board

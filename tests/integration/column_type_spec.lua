@@ -1,5 +1,6 @@
 require('polyfills.vim')
 local Parser = require("kanban-md.parser")
+local Board = require("kanban-md.board")
 local Config = require("kanban-md.config")
 local singletons = require("helpers.singletons")
 
@@ -23,8 +24,15 @@ describe("Column Type System Integration", function()
               auto_archive_days = 30
             },
             triggers = {
+              -- A module that exists and exports these factories: the
+              -- registration path require()s the module and calls the named
+              -- field, so a placeholder name here would make every parse of a
+              -- completion column raise.
               on_entry = {
-                { module = "kanban-md.triggers", function_name = "mark_complete", name = "mark_complete" }
+                { module = "fixtures.type_triggers", function_name = "record_entry", name = "record_entry" }
+              },
+              on_exit = {
+                { module = "fixtures.type_triggers", function_name = "record_exit", name = "record_exit" }
               }
             },
             patterns = { "done", "complete", "finished" }
@@ -368,41 +376,179 @@ describe("Column Type System Integration", function()
   end)
 
   describe("Trigger registration from type definitions", function()
-    it("auto-registers triggers defined in column type", function()
-      local content = [[
+    -- These parse through Board:new(), not Parser:parse(). Parser is the bare
+    -- mixin table: it has no auto_register_triggers, so parse() ends without
+    -- registering anything and a test of registration would assert nothing.
+
+    local function parse(content)
+      local board = Board:new()
+      board:parse(content)
+      return board
+    end
+
+    local BOARD = [[
 # Test Board
 
-###### Done
+###### Backlog
 - Task 1
+
+###### Done
 ]]
 
-      local board = Parser:parse(content)
+    it("registers a type's triggers on every column resolving to that type", function()
+      local board = parse([[
+# Test Board
 
-      -- Register triggers (this would normally happen in auto_register_triggers)
-      -- For now, we just verify the type has trigger definitions
-      local column = board.columns[1]
-      assert.are.equals("completion", column.type)
+###### Backlog
+- Task 1
 
-      -- Verify type has triggers defined (actual registration tested separately)
-      local Config = require("kanban-md.config")
-      local type_def = Config.get().column_config.types.completion
-      assert.is_not_nil(type_def.triggers)
-      assert.is_not_nil(type_def.triggers.on_entry)
+###### Done
+
+###### Completed
+]])
+
+      local backlog, done, completed = board.columns[1], board.columns[2], board.columns[3]
+
+      assert.are.equals("completion", done.type)
+      assert.are.equals("completion", completed.type)
+
+      for _, column in ipairs({ done, completed }) do
+        assert.is_function(column.triggers.on_entry.record_entry,
+          column.name .. " should have the type's on_entry trigger registered")
+        assert.is_function(column.triggers.on_exit.record_exit,
+          column.name .. " should have the type's on_exit trigger registered")
+      end
+
+      -- Backlog matches no type, so it gets the basic triggers and nothing else
+      assert.is_nil(backlog.type)
+      assert.is_nil(backlog.triggers.on_entry.record_entry)
+      assert.is_nil((backlog.triggers.on_exit or {}).record_exit)
+    end)
+
+    it("runs a registered type trigger when a card enters and leaves the column", function()
+      local board = parse(BOARD)
+      local backlog, done = board.columns[1], board.columns[2]
+      local card = backlog.cards[1]
+
+      assert.is_nil(card.properties.entered_via_type)
+
+      board:move_card(card, backlog, done)
+      assert.are.equals("Done", card.properties.entered_via_type)
+
+      board:move_card(card, done, backlog)
+      assert.are.equals("Done", card.properties.left_via_type)
+    end)
+
+    it("registers a type's triggers alongside the basic ones", function()
+      local board = parse(BOARD)
+      local done = board.columns[2]
+
+      -- auto_timestamp is on by default, so the type's trigger must not
+      -- displace the timestamp trigger registered for every column
+      assert.is_function(done.triggers.on_entry.add_timestamp)
+      assert.is_function(done.triggers.on_entry.record_entry)
+    end)
+
+    it("passes a trigger's configured args to its factory", function()
+      Config.reset()
+      Config.setup({
+        column_config = {
+          types = {
+            completion = {
+              triggers = {
+                on_entry = {
+                  {
+                    module = "fixtures.type_triggers",
+                    function_name = "stamp",
+                    name = "stamp",
+                    args = { "stamped_by", "completion" }
+                  }
+                }
+              },
+              patterns = { "done" }
+            }
+          }
+        }
+      })
+
+      local board = parse(BOARD)
+      local backlog, done = board.columns[1], board.columns[2]
+      local card = backlog.cards[1]
+
+      board:move_card(card, backlog, done)
+
+      assert.are.equals("completion", card.properties.stamped_by)
     end)
 
     it("handles types without triggers gracefully", function()
-      local content = [[
+      local board = parse([[
 # Test Board
 
 ###### Blocked
 - Task 1
-]]
-
-      local board = Parser:parse(content)
+]])
       local column = board.columns[1]
 
       assert.are.equals("blocked", column.type)
-      -- Type "blocked" has no triggers defined - should not error
+      assert.is_nil(column.triggers.on_entry.record_entry)
+    end)
+
+    it("raises naming the type, trigger and module when the module cannot be loaded", function()
+      Config.reset()
+      Config.setup({
+        column_config = {
+          types = {
+            completion = {
+              triggers = {
+                on_entry = {
+                  { module = "kanban-md.no_such_triggers", function_name = "record_entry", name = "record_entry" }
+                }
+              },
+              patterns = { "done" }
+            }
+          }
+        }
+      })
+
+      local ok, err = pcall(parse, BOARD)
+
+      assert.is_false(ok, "parsing a column whose type names a missing module should raise")
+      err = tostring(err)
+      assert.is_truthy(err:find(
+        "Column type 'completion' requires trigger 'record_entry' but it could not be registered",
+        1, true), "unexpected message: " .. err)
+      assert.is_truthy(err:find("Failed to load trigger module 'kanban-md.no_such_triggers'", 1, true),
+        "message should name the module that failed to load: " .. err)
+      assert.is_truthy(err:find("Check that the trigger module 'kanban-md.no_such_triggers' is loaded", 1, true),
+        "unexpected message: " .. err)
+    end)
+
+    it("raises when the module loads but does not export the named function", function()
+      Config.reset()
+      Config.setup({
+        column_config = {
+          types = {
+            completion = {
+              triggers = {
+                on_entry = {
+                  { module = "fixtures.type_triggers", function_name = "mark_complete", name = "mark_complete" }
+                }
+              },
+              patterns = { "done" }
+            }
+          }
+        }
+      })
+
+      local ok, err = pcall(parse, BOARD)
+
+      assert.is_false(ok, "parsing a column whose type names a missing function should raise")
+      err = tostring(err)
+      assert.is_truthy(err:find(
+        "Column type 'completion' requires trigger 'mark_complete' but it could not be registered",
+        1, true), "unexpected message: " .. err)
+      assert.is_truthy(err:find("Trigger function 'mark_complete' not found in module 'fixtures.type_triggers'",
+        1, true), "message should name the missing function: " .. err)
     end)
   end)
 

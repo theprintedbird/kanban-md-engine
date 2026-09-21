@@ -7,6 +7,10 @@ local column_helpers = require("kanban-md.helpers.column")
 local TblUtils = require("kanban-md.utils.table")
 local adapter_registry = require("kanban-md.adapter_registry")
 
+-- Lua 5.1 and LuaJIT have unpack as a global; 5.2 onwards moved it to
+-- table.unpack. The engine targets both, so resolve it once here.
+local unpack = table.unpack or unpack
+
 -- Writer mixin that can be applied to Board instances
 local WriterMixin = {}
 

@@ -821,6 +821,24 @@ There are no built-in column types: `column_config.types` is empty by default, a
 contains no hardcoded name patterns. A board with no `column_config` is resolved entirely by
 explicit properties and the positional fallbacks in §6.3.
 
+**Type-declared triggers.** A type may declare triggers, keyed by trigger point:
+
+```lua
+types.completion = {
+  triggers = {
+    on_entry = {
+      { module = "my.triggers", function_name = "mark_done", name = "mark_done", args = { 30 } },
+    },
+  },
+}
+```
+
+`auto_register_triggers()` **MUST** register each of them on every column resolving to that type
+(§6.2). `module` is `require`d, `function_name` is called as a factory with `args` (empty when
+absent) and the function it returns is registered under `name`. A trigger that cannot be
+registered — the module does not load, or the named field is not a function — **MUST** raise an
+error naming the type, the trigger and the module; it **MUST NOT** be skipped silently.
+
 **Requirement validation.** A type may declare `requires_wip_limit = true`. When a column of that
 type has no `wip_limit`, `missing_property_requirement` decides what happens: `"none"` is silent,
 `"warning"` (the default) emits a warning, `"error"` raises.

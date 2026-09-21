@@ -355,8 +355,10 @@ describe("ColumnTypeResolver", function()
         ColumnTypeResolver.validate_requirements, make_column("In Progress", "wip", {}), test_config)
 
       assert.is_false(ok)
-      assert.is_truthy(tostring(err):find(
-        "Column 'In Progress' of type 'wip' requires wip_limit but none is set", 1, true))
+      -- Raised with error(message, 0), so the message reaches the host with no
+      -- "file:line:" prefix and can be shown to a user unedited. Assert
+      -- equality, not a substring, or that stays true only by accident.
+      assert.equals("Column 'In Progress' of type 'wip' requires wip_limit but none is set", err)
       assert.same({}, warnings)
     end)
 

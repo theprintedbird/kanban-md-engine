@@ -1,14 +1,14 @@
 --- Column Type Resolver
 --
--- The ColumnTypeResolver maps Kanban column names to reusable "types" that define behavior,
--- properties, and validation rules. This allows you to configure column behaviors once (e.g.,
+-- The ColumnTypeResolver maps Kanban column names to reusable "types" that define behaviour,
+-- properties, and validation rules. This allows you to configure column behaviours once (e.g.,
 -- "completion columns auto-archive after 30 days") and apply them to multiple columns through
 -- either explicit assignment, named definitions, or pattern matching. Properties merge through
 -- a three-layer priority system where markdown config (highest) overrides named definitions,
 -- which override type defaults (lowest).
 --
 -- Example:
---   -- Define a completion type with auto-archive behavior
+--   -- Define a completion type with auto-archive behaviour
 --   config.column_config.types.completion = {
 --     properties = { is_completion_state = true, auto_archive_days = 30 },
 --     patterns = { "done", "complete", "finished" }
@@ -205,7 +205,9 @@ function ColumnTypeResolver.validate_requirements(column, global_config)
         )
 
         if requirement_level == "error" then
-          error(message)
+          -- Level 0: the host catching this gets the message alone, with no
+          -- "file:line:" prefix to strip before showing it to a user.
+          error(message, 0)
         elseif requirement_level == "warning" then
           notify(message)
         end

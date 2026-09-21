@@ -843,6 +843,14 @@ error naming the type, the trigger and the module; it **MUST NOT** be skipped si
 type has no `wip_limit`, `missing_property_requirement` decides what happens: `"none"` is silent,
 `"warning"` (the default) emits a warning, `"error"` raises.
 
+`"error"` raises a Lua error out of `parse()`; it does **NOT** call `notify()`, so nothing reaches
+the adapter and a host cannot route or style it. A host that wants to report the fault rather than
+crash **MUST** `pcall` around `parse()` and notify itself. The raised message carries no
+`file:line:` prefix, so it may be shown to a user as-is. This is the one validation fault the
+engine signals by raising rather than by reporting through §9; an invalid type *reference* — a
+column naming a type that is not defined — always warns through `notify()` instead, whatever
+`missing_property_requirement` is set to.
+
 ### 10.6 Host-owned keys
 
 Some defaults in `config.lua` are consumed by hosts rather than by the engine — `use_telescope`,

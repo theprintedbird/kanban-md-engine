@@ -3,6 +3,7 @@ local Parser = require("kanban-md.parser")
 local Board = require("kanban-md.board")
 local Config = require("kanban-md.config")
 local singletons = require("helpers.singletons")
+local adapter_registry = require("kanban-md.adapter_registry")
 
 describe("Column Type System Integration", function()
   local restore_config
@@ -662,6 +663,130 @@ describe("Column Type System Integration", function()
 
       assert.are.equals("wip", column.type)
       -- Missing wip_limit - validation should catch this (tested separately)
+    end)
+  end)
+
+  describe("Notify output through auto_register_triggers()", function()
+    -- The tests above only check `column.type`; they never look at what
+    -- validate_requirements() actually reports. Board:parse() runs
+    -- auto_register_triggers() automatically (parser.lua), which is the real
+    -- host path -- so drive these through Board:new():parse(), not
+    -- Parser:parse(), and capture notify() through the adapter, the same
+    -- mock shape tests/unit/column_type_resolver_spec.lua uses.
+    local warnings
+    local previous_adapter
+
+    local function parse(content)
+      local board = Board:new()
+      board:parse(content)
+      return board
+    end
+
+    before_each(function()
+      warnings = {}
+      previous_adapter = adapter_registry.has_adapter() and adapter_registry.get_adapter() or nil
+
+      adapter_registry.set_adapter({
+        notify = function(_, message, level)
+          table.insert(warnings, { message = message, level = level })
+        end,
+      })
+    end)
+
+    after_each(function()
+      adapter_registry.set_adapter(previous_adapter)
+    end)
+
+    local function setup_config(missing_property_requirement)
+      Config.reset()
+      Config.setup({
+        column_config = {
+          types = {
+            wip = {
+              properties = { is_active_state = true },
+              requires_wip_limit = true,
+              patterns = { "progress" }
+            }
+          },
+          definitions = {}
+        },
+        missing_property_requirement = missing_property_requirement
+      })
+    end
+
+    for _, level in ipairs({ "none", "warning", "error" }) do
+      it("warns about an undefined type reference regardless of missing_property_requirement = '"
+        .. level .. "'", function()
+        setup_config(level)
+
+        local board = parse([[
+# Test Board
+
+###### Custom
+<!-- config type: nonexistent_type -->
+- Task 1
+]])
+
+        assert.are.equals("nonexistent_type", board.columns[1].type)
+        assert.equals(1, #warnings)
+        assert.equals(
+          "Column 'Custom' references type 'nonexistent_type' which is not defined in config",
+          warnings[1].message
+        )
+        assert.equals("warn", warnings[1].level)
+      end)
+    end
+
+    it("says nothing about a missing required property when missing_property_requirement = 'none'", function()
+      setup_config("none")
+
+      local board = parse([[
+# Test Board
+
+###### In Progress Now
+- Task 1
+]])
+
+      assert.are.equals("wip", board.columns[1].type)
+      assert.same({}, warnings)
+    end)
+
+    it("warns about a missing required property when missing_property_requirement = 'warning'", function()
+      setup_config("warning")
+
+      local board = parse([[
+# Test Board
+
+###### In Progress Now
+- Task 1
+]])
+
+      assert.are.equals("wip", board.columns[1].type)
+      assert.equals(1, #warnings)
+      assert.equals(
+        "Column 'In Progress Now' of type 'wip' requires wip_limit but none is set",
+        warnings[1].message
+      )
+      assert.equals("warn", warnings[1].level)
+    end)
+
+    it("raises instead of notifying when missing_property_requirement = 'error'", function()
+      setup_config("error")
+
+      local ok, err = pcall(parse, [[
+# Test Board
+
+###### In Progress Now
+- Task 1
+]])
+
+      -- validate_requirements() calls error(), not notify() at "error"
+      -- level, so this is a raise the host must pcall around, and nothing
+      -- reaches the adapter. It is raised with level 0, so the message
+      -- arrives without a "file:line:" prefix and a host can show it as-is.
+      assert.is_false(ok, "parsing a column missing a required property should raise")
+      assert.equals("Column 'In Progress Now' of type 'wip' requires wip_limit but none is set", err)
+      assert.same({}, warnings)
     end)
   end)
 

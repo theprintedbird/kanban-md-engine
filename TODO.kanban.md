@@ -4,7 +4,6 @@
 
 ###### Backlog
 
-- Writer drops a blank line before the first card when a column has prose: with a blank line both after the column header and before the first card, the writer trims the latter and does not restore it, so that form does not round-trip. Found while documenting multi-line cards (SPEC 7.4) <!-- backlog: 1789983158, id: card_01M31MYVV295BESHRMVPW7QXD3 -->
 
 
 
@@ -17,7 +16,9 @@
 
 
 
+
 ###### In Progress
+
 
 
 
@@ -96,3 +97,4 @@
 - Audit the 13 spec files that still call os.time(): any assertion on ordering or duration between column transitions is passing by coincidence at second resolution. Route those through tests/helpers/clock.lua with real deltas (Testing Improvements, time-dependent assertions) <!-- backlog: 1789775117, done: 1789982723, id: card_01M2VEHYPE8W9GYMNVEP0ETP0B, in_progress: 1789982389, ready: 1789981961, tags: [Sonnet] -->
 - Document multi-line cards in README.md: continuation lines indented by two or more spaces with no blank line, and column prose separated from cards by a blank line. multiline-lists.md ticks this as done but README.md has no mention; SPEC 7.4 is the source <!-- backlog: 1789775117, done: 1789982748, id: card_01M2VEHYZD9FK31Q10Q9K9G1MF, in_progress: 1789982389, ready: 1789981968, tags: [Sonnet] -->
 - Implement the multiline-lists.md decision on empty list items: a dash with nothing after it followed by continuation lines is currently kept silently as prose. Parser should notify() at warn level that list items may not start with a blank line; assert the emitted string in a test and state the rule in SPEC 7.4 <!-- backlog: 1789775117, done: 1789983198, id: card_01M2VEHZE8KB4V17EP3DWPET6V, in_progress: 1789982389, ready: 1789981973, tags: [Sonnet] -->
+- Writer drops a blank line before the first card when a column has prose: with a blank line both after the column header and before the first card, the writer trims the latter and does not restore it, so that form does not round-trip. Found while documenting multi-line cards (SPEC 7.4) <!-- backlog: 1789983158, done: 1789984040, id: card_01M31MYVV295BESHRMVPW7QXD3, in_progress: 1789983891, ready: 1789983836 -->

@@ -703,27 +703,11 @@ function ParserMixin:parse(content)
 					else
 						-- This is the first card in the column
 						if not column_has_cards and #markdown_buffer > 0 then
-							-- Store accumulated markdown as column header markdown
-							-- Trim trailing blank lines ONLY if there's non-blank content
-							local trimmed_buffer = TblUtils.deepcopy(markdown_buffer)
-							local has_non_blank = false
-							for _, buffered_line in ipairs(trimmed_buffer) do
-								if not buffered_line:match("^%s*$") then
-									has_non_blank = true
-									break
-								end
-							end
-
-							-- Only trim trailing blanks if there's actual content
-							if has_non_blank then
-								while #trimmed_buffer > 0 and trimmed_buffer[#trimmed_buffer]:match("^%s*$") do
-									table.remove(trimmed_buffer)
-								end
-							end
-
-							if #trimmed_buffer > 0 then
-								current_column.header_markdown = trimmed_buffer
-							end
+							-- Store accumulated markdown verbatim as column header markdown.
+							-- Trailing blank lines are part of the authored layout: the blank
+							-- line separating prose from the first card has to survive the
+							-- round trip, so nothing is trimmed here.
+							current_column.header_markdown = TblUtils.deepcopy(markdown_buffer)
 							markdown_buffer = {}
 						else
 							-- Flush markdown buffer before starting new card

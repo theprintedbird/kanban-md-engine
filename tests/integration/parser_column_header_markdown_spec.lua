@@ -33,11 +33,12 @@ Language-Agnostic Infrastructure
     local backlog = board:get_column_by_name("Backlog")
     assert.is_not_nil(backlog)
     assert.is_not_nil(backlog.header_markdown)
-    assert.are.equal(4, #backlog.header_markdown)
+    assert.are.equal(5, #backlog.header_markdown)
     assert.are.equal("", backlog.header_markdown[1])  -- blank line
     assert.are.equal("To Do - Medium Term", backlog.header_markdown[2])
     assert.are.equal("", backlog.header_markdown[3])  -- blank line
     assert.are.equal("Language-Agnostic Infrastructure", backlog.header_markdown[4])
+    assert.are.equal("", backlog.header_markdown[5])  -- blank line before the first card
 
     -- Check that cards are parsed correctly
     assert.are.equal(2, #backlog.cards)

@@ -329,6 +329,22 @@ otherwise, degrades gracefully in any renderer, and makes an accidental collisio
 
 Column order in `board.columns` is document order.
 
+Lines between a column header and its first card are that column's documentation, held on
+`column.header_markdown` and written back verbatim. That includes the blank lines at either end,
+so a column whose prose is separated from its first card by a blank line keeps it:
+
+```markdown
+###### Backlog
+
+Everything that is not yet ready to start.
+
+- First card
+```
+
+`blank_line_after_column_header` (§7.8) inserts a blank line after the header only when the
+documentation does not already begin with one, so the setting cannot double a blank line the
+author wrote.
+
 ### 7.3 Special sections
 
 A column name wrapped in double underscores is a special section:

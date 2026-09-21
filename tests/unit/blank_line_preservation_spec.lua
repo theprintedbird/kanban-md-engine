@@ -177,6 +177,34 @@ describe("Blank line preservation", function()
 
       assert.equals(#output, #output2)
     end)
+
+    it("should preserve the blank line between column prose and the first card", function()
+      config_module.setup({
+        blank_line_after_column_header = true,
+        blank_lines_between_sections = false,
+        blank_line_after_title = false,
+      })
+
+      local input = {
+        "# Board",
+        "###### Col A",
+        "",
+        "Some prose about this column.",
+        "",
+        "- Task 1",
+      }
+
+      local board = Board:new()
+      board:parse(input)
+      local output = board:write()
+
+      assert.same(input, output)
+
+      -- Round-trip should be stable
+      local board2 = Board:new()
+      board2:parse(output)
+      assert.same(output, board2:write())
+    end)
   end)
 
   describe("interaction with config settings", function()

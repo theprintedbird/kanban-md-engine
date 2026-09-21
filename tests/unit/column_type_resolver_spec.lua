@@ -77,7 +77,7 @@ describe("ColumnTypeResolver", function()
       assert.equals("blocked", result)
     end)
 
-    it("matches first pattern when multiple patterns exist", function()
+    it("matches any pattern from a type's patterns array", function()
       local markdown_config = {}
       -- Should match "pattern1"
       local result = ColumnTypeResolver.resolve_type("This has pattern1 in it", markdown_config, sample_config)

@@ -803,8 +803,9 @@ A column's configuration is resolved when it is parsed, from three sources:
 
 1. An explicit `type` in the column's own config comment.
 2. A named definition: `column_config.definitions[column_name].type`.
-3. A pattern: the column name matched against each `column_config.types[*].patterns`. Where more
-   than one pattern matches, the longest — most specific — wins.
+3. A pattern: the column name matched against each `column_config.types[*].patterns` (case-insensitive). Where more
+   than one pattern matches, the longest — most specific — wins. If multiple patterns of equal length match,
+   the type name that sorts first alphabetically wins.
 4. No match: the column is untyped.
 
 **Property merging**, lowest to highest precedence:

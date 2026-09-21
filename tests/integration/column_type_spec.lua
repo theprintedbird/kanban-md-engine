@@ -95,7 +95,7 @@ describe("Column Type System Integration", function()
       assert.are.equals(30, column.config.auto_archive_days)
     end)
 
-    it("matches pattern anywhere in column name (case-sensitive)", function()
+    it("matches pattern anywhere in column name (case-insensitive)", function()
       local content = [[
 # Test Board
 

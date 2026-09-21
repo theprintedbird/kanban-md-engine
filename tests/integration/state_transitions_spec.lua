@@ -216,7 +216,7 @@ describe("Full state machine integration", function()
         return { success = true }
       end)
       
-      local done_trigger = mocks.create_mock_trigger("mark_complete", function(context)
+      local done_trigger = mocks.create_mock_trigger("record_completion", function(context)
         table.insert(cascade_log, "marked_complete")
         context.card.properties.completed = true
         context.card.properties.completed_at = os.time()
@@ -224,7 +224,7 @@ describe("Full state machine integration", function()
       end)
       
       column1:register_trigger("on_entry", "mark_reviewed", review_trigger)
-      column2:register_trigger("on_entry", "mark_complete", done_trigger)
+      column2:register_trigger("on_entry", "record_completion", done_trigger)
       
       -- Add card with passing review
       local card = Card:new("card-1", "Test task", { review_status = "pass" })

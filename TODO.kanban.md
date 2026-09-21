@@ -14,7 +14,6 @@
 - Audit the 13 spec files that still call os.time(): any assertion on ordering or duration between column transitions is passing by coincidence at second resolution. Route those through tests/helpers/clock.lua with real deltas (Testing Improvements, time-dependent assertions) <!-- backlog: 1789775117, id: card_01M2VEHYPE8W9GYMNVEP0ETP0B, tags: [Sonnet] -->
 - Document multi-line cards in README.md: continuation lines indented by two or more spaces with no blank line, and column prose separated from cards by a blank line. multiline-lists.md ticks this as done but README.md has no mention; SPEC 7.4 is the source <!-- backlog: 1789775117, id: card_01M2VEHYZD9FK31Q10Q9K9G1MF, tags: [Sonnet] -->
 - Implement the multiline-lists.md decision on empty list items: a dash with nothing after it followed by continuation lines is currently kept silently as prose. Parser should notify() at warn level that list items may not start with a blank line; assert the emitted string in a test and state the rule in SPEC 7.4 <!-- backlog: 1789775117, id: card_01M2VEHZE8KB4V17EP3DWPET6V, tags: [Sonnet] -->
-- kanban-md.triggers.mark_complete no longer exists, remove references to it in tests. <!-- backlog: 1789974228, id: card_01M31CEBBPGRZM5WVP7MQ5X5NY -->
 
 
 ###### Ready
@@ -23,7 +22,9 @@
 
 
 
+
 ###### In Progress
+
 
 
 
@@ -87,3 +88,4 @@
 - Fix kanban-md.nvim test_helper.lua path: lib/kanban-md -> lib/kanban-md-engine <!-- backlog: 1789543830, done: 1789634906, id: card_01M2MHZMHY1BHC38DTWKPA97GN, tags: [phase5] -->
 - An update-version script, so that the number is changed in all the right places (SPEC.md and lua/kanban-md/version.lua). <!-- backlog: 1789604497, done: 1789636043, id: card_01M2PBV1ZWA3JCJPRED1PHG8HF, in_progress: 1789635236, ready: 1789634964 -->
 - Test type-defined triggers end to end: auto_register_triggers registers a column type's triggers on a parsed board, and a missing trigger module raises the 'could not be registered' error <!-- backlog: 1789774469, done: 1789974375, id: card_01M2VDY68B65CB0DCA984KYWJZ, in_progress: 1789971680, ready: 1789971574, tags: [Opus] -->
+- kanban-md.triggers.mark_complete no longer exists, remove references to it in tests. <!-- backlog: 1789974228, done: 1789974550, id: card_01M31CEBBPGRZM5WVP7MQ5X5NY, in_progress: 1789974473, ready: 1789974433 -->

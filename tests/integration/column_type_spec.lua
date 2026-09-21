@@ -531,7 +531,7 @@ describe("Column Type System Integration", function()
             completion = {
               triggers = {
                 on_entry = {
-                  { module = "fixtures.type_triggers", function_name = "mark_complete", name = "mark_complete" }
+                  { module = "fixtures.type_triggers", function_name = "no_such_function", name = "no_such_function" }
                 }
               },
               patterns = { "done" }
@@ -545,9 +545,9 @@ describe("Column Type System Integration", function()
       assert.is_false(ok, "parsing a column whose type names a missing function should raise")
       err = tostring(err)
       assert.is_truthy(err:find(
-        "Column type 'completion' requires trigger 'mark_complete' but it could not be registered",
+        "Column type 'completion' requires trigger 'no_such_function' but it could not be registered",
         1, true), "unexpected message: " .. err)
-      assert.is_truthy(err:find("Trigger function 'mark_complete' not found in module 'fixtures.type_triggers'",
+      assert.is_truthy(err:find("Trigger function 'no_such_function' not found in module 'fixtures.type_triggers'",
         1, true), "message should name the missing function: " .. err)
     end)
   end)

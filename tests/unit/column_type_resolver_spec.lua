@@ -17,7 +17,7 @@ describe("ColumnTypeResolver", function()
             },
             triggers = {
               on_entry = {
-                { module = "kanban-md.triggers", function_name = "mark_complete", name = "mark_complete" }
+                { module = "kanban-md.triggers", function_name = "timestamp", name = "timestamp" }
               }
             },
             patterns = { "done", "complete", "finished" }
@@ -388,7 +388,7 @@ describe("ColumnTypeResolver", function()
       assert.is_not_nil(result)
       assert.is_not_nil(result.on_entry)
       assert.equals(1, #result.on_entry)
-      assert.equals("mark_complete", result.on_entry[1].name)
+      assert.equals("timestamp", result.on_entry[1].name)
       assert.equals("kanban-md.triggers", result.on_entry[1].module)
     end)
 

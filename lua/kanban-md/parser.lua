@@ -258,6 +258,13 @@ local function apply_column_config(column, config_content)
 	column.config = TypeConverter:new(final_config)
 end
 
+-- Split a task line into its text and its trailing property comment.
+-- The property block is the *last* HTML comment on the line, so a card whose
+-- text contains a literal HTML comment of its own is no longer truncated at it.
+local function split_property_comment(text)
+	return text:match("^(.*)%s*<!%-%-%s*(.-)%s*%-%->%s*$")
+end
+
 -- Parse a task line and extract properties
 local function parse_task(line)
 	local task = {
@@ -276,7 +283,7 @@ local function parse_task(line)
 
 	-- Check for inline comment with properties
 	-- e.g. - Complex task <!-- backlog: 1735862400, in_progress: 1735948800, complexity: 3 -->
-	local task_text, comment = text:match("^(.-)%s*<!%-%-%s*(.-)%s*%-%->%s*$")
+	local task_text, comment = split_property_comment(text)
 
 	if task_text and comment then
 		task.text = task_text:gsub("^%s+", ""):gsub("%s+$", "")
@@ -325,7 +332,7 @@ local function finalize_card(column, card_data)
 	-- Note: parse_task has already extracted inline properties, but we need to
 	-- clean the text and update content_lines. We merge (not replace) so that
 	-- pending_config and inline properties can coexist -- see PLAN-config-fixes.md Task 6
-	local task_text, comment = text:match("^(.-)%s*<!%-%-%s*(.-)%s*%-%->%s*$")
+	local task_text, comment = split_property_comment(text)
 	if task_text and comment then
 		card_data.text = task_text:gsub("^%s+", ""):gsub("%s+$", "")
 		-- Merge inline comment properties into existing properties (don't replace)

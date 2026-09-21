@@ -380,6 +380,18 @@ A property comment on its own line, inside a column, attaches to the card it acc
 property comment that belongs to no card — one sitting between columns, for example — is
 discarded.
 
+A card's property block is the **last** HTML comment on the line, and it must close at the end of
+the line. Any earlier comment is part of the card's text and is preserved verbatim, so a card may
+talk about the syntax without being truncated:
+
+```markdown
+- Explain the <!-- kanban:config --> comment <!-- id: card_01H…, complexity: 2 -->
+```
+
+Here the text is `Explain the <!-- kanban:config --> comment` and only `id` and `complexity` are
+read as properties. A card whose only comment is a literal one keeps it in its text, provided the
+comment does not sit at the end of the line — there, it is read as the property block.
+
 **Board configuration**, conventionally just after the title:
 
 ```markdown

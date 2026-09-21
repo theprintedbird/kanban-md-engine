@@ -15,11 +15,13 @@ local Card = require('kanban-md.card')
 local Column = require('kanban-md.column')
 local adapter_registry = require('kanban-md.adapter_registry')
 local virtual_text = require('kanban-md.virtual_text')
+local test_clock = require('helpers.clock')
 
 describe("virtual_text", function()
   local mock_calls = {}
   local mock_adapter
   local previous_adapter
+  local clock
 
   -- Helper to find text in extmark calls
   local function find_extmark_text(calls)
@@ -95,6 +97,7 @@ describe("virtual_text", function()
 
   before_each(function()
     mock_calls = {}
+    clock = test_clock.install()
 
     mock_adapter = {
       supports_virtual_text = function(self) return true end,
@@ -118,6 +121,10 @@ describe("virtual_text", function()
     }
 
     adapter_registry.set_adapter(mock_adapter)
+  end)
+
+  after_each(function()
+    clock.restore()
   end)
 
   it("displays WIP warning when limit exceeded", function()
@@ -169,8 +176,8 @@ describe("virtual_text", function()
 
     -- Add completed cards with timestamps and line numbers
     local card1 = Card:new("card-1", "Completed card", {
-      to_do = os.time() - 86400 * 5,  -- 5 days ago
-      done = os.time(),
+      to_do = clock.now() - 86400 * 5,  -- 5 days ago
+      done = clock.now(),
     })
     card1.line_number = 4  -- Set line number so virtual text knows where to display
     table.insert(done.cards, card1)
@@ -206,9 +213,9 @@ describe("virtual_text", function()
     it("displays the cycle time alongside the lead time", function()
       local board, _, _, _, done = metrics_board()
       add_card(done, {
-        backlog = os.time() - 10 * DAY,
-        in_progress = os.time() - 4 * DAY,
-        done = os.time(),
+        backlog = clock.now() - 10 * DAY,
+        in_progress = clock.now() - 4 * DAY,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)
@@ -220,8 +227,8 @@ describe("virtual_text", function()
     it("reports N/A when the card never reached the start column", function()
       local board, _, _, _, done = metrics_board()
       add_card(done, {
-        backlog = os.time() - 3 * DAY,
-        done = os.time(),
+        backlog = clock.now() - 3 * DAY,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)
@@ -233,10 +240,10 @@ describe("virtual_text", function()
     it("breaks out active and blocked time when a blocked column was visited", function()
       local board, _, _, _, done = metrics_board()
       add_card(done, {
-        backlog = os.time() - 10 * DAY,
-        in_progress = os.time() - 4 * DAY,
-        blocked = os.time() - 3 * DAY,
-        done = os.time(),
+        backlog = clock.now() - 10 * DAY,
+        in_progress = clock.now() - 4 * DAY,
+        blocked = clock.now() - 3 * DAY,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)
@@ -248,9 +255,9 @@ describe("virtual_text", function()
     it("omits the breakdown when no blocked column was visited", function()
       local board, _, _, _, done = metrics_board()
       add_card(done, {
-        backlog = os.time() - 10 * DAY,
-        in_progress = os.time() - 4 * DAY,
-        done = os.time(),
+        backlog = clock.now() - 10 * DAY,
+        in_progress = clock.now() - 4 * DAY,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)
@@ -264,9 +271,9 @@ describe("virtual_text", function()
     it("defaults to whole days", function()
       local board, _, _, _, done = metrics_board()
       add_card(done, {
-        backlog = os.time() - 2 * DAY - 3600,
-        in_progress = os.time() - 2 * DAY,
-        done = os.time(),
+        backlog = clock.now() - 2 * DAY - 3600,
+        in_progress = clock.now() - 2 * DAY,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)
@@ -277,9 +284,9 @@ describe("virtual_text", function()
     it("singularises the unit for a duration of exactly one", function()
       local board, _, _, _, done = metrics_board()
       add_card(done, {
-        backlog = os.time() - DAY,
-        in_progress = os.time() - DAY,
-        done = os.time(),
+        backlog = clock.now() - DAY,
+        in_progress = clock.now() - DAY,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)
@@ -292,9 +299,9 @@ describe("virtual_text", function()
       local board, _, _, _, done = metrics_board()
       board.config.cycle_time_unit = "hours"
       add_card(done, {
-        backlog = os.time() - 5 * 3600,
-        in_progress = os.time() - 3 * 3600,
-        done = os.time(),
+        backlog = clock.now() - 5 * 3600,
+        in_progress = clock.now() - 3 * 3600,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)
@@ -307,9 +314,9 @@ describe("virtual_text", function()
       local board, _, _, _, done = metrics_board()
       board.config.cycle_time_unit = "hours"
       add_card(done, {
-        backlog = os.time() - 3600,
-        in_progress = os.time() - 3600,
-        done = os.time(),
+        backlog = clock.now() - 3600,
+        in_progress = clock.now() - 3600,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)
@@ -322,9 +329,9 @@ describe("virtual_text", function()
       local board, _, _, _, done = metrics_board()
       board.config.cycle_time_unit = "seconds"
       add_card(done, {
-        backlog = os.time() - 90,
-        in_progress = os.time() - 90,
-        done = os.time(),
+        backlog = clock.now() - 90,
+        in_progress = clock.now() - 90,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)
@@ -336,10 +343,10 @@ describe("virtual_text", function()
       local board, _, _, _, done = metrics_board()
       board.config.cycle_time_unit = "hours"
       add_card(done, {
-        backlog = os.time() - 10 * 3600,
-        in_progress = os.time() - 4 * 3600,
-        blocked = os.time() - 3 * 3600,
-        done = os.time(),
+        backlog = clock.now() - 10 * 3600,
+        in_progress = clock.now() - 4 * 3600,
+        blocked = clock.now() - 3 * 3600,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)
@@ -354,9 +361,9 @@ describe("virtual_text", function()
       board.archive = Column:new("__ARCHIVE__", "__ARCHIVE__")
       board.archive.is_archive = true
       add_card(board.archive, {
-        backlog = os.time() - 8 * DAY,
-        in_progress = os.time() - 2 * DAY,
-        done = os.time(),
+        backlog = clock.now() - 8 * DAY,
+        in_progress = clock.now() - 2 * DAY,
+        done = clock.now(),
       }, 9)
 
       local text = rendered_text(board)
@@ -370,9 +377,9 @@ describe("virtual_text", function()
       board.archive = Column:new("__ARCHIVE__", "__ARCHIVE__")
       board.archive.is_archive = true
       local card = add_card(board.archive, {
-        backlog = os.time() - 8 * DAY,
-        in_progress = os.time() - 2 * DAY,
-        done = os.time(),
+        backlog = clock.now() - 8 * DAY,
+        in_progress = clock.now() - 2 * DAY,
+        done = clock.now(),
       })
       card.line_number = nil
 
@@ -386,9 +393,9 @@ describe("virtual_text", function()
       board.config.show_stats_virtual_text = false
       board.config.wip_limit = 0
       add_card(done, {
-        backlog = os.time() - 2 * DAY,
-        in_progress = os.time() - DAY,
-        done = os.time(),
+        backlog = clock.now() - 2 * DAY,
+        in_progress = clock.now() - DAY,
+        done = clock.now(),
       })
 
       assert.equals("", rendered_text(board))
@@ -398,9 +405,9 @@ describe("virtual_text", function()
       local board, _, _, _, done = metrics_board()
       board.config.show_lead_time = false
       add_card(done, {
-        backlog = os.time() - 2 * DAY,
-        in_progress = os.time() - DAY,
-        done = os.time(),
+        backlog = clock.now() - 2 * DAY,
+        in_progress = clock.now() - DAY,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)
@@ -413,9 +420,9 @@ describe("virtual_text", function()
       local board, _, _, _, done = metrics_board()
       board.config.show_cycle_time = false
       add_card(done, {
-        backlog = os.time() - 2 * DAY,
-        in_progress = os.time() - DAY,
-        done = os.time(),
+        backlog = clock.now() - 2 * DAY,
+        in_progress = clock.now() - DAY,
+        done = clock.now(),
       })
 
       local text = rendered_text(board)

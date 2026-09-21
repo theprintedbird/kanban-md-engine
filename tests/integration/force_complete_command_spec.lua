@@ -2,6 +2,7 @@
 -- Integration tests for KanbanForceCompleteCard command
 
 require('polyfills.vim')
+local test_clock = require('helpers.clock')
 
 describe("Force Complete Command", function()
   local Board = require("kanban-md.board")
@@ -9,6 +10,7 @@ describe("Force Complete Command", function()
   local Card = require("kanban-md.card")
   local config = require("kanban-md.config")
   local column_helper = require("kanban-md.helpers.column")
+  local clock
 
   -- config is a module singleton and config.setup() merges rather than
   -- replaces, so without the reset either side these strict validation modes
@@ -22,10 +24,12 @@ describe("Force Complete Command", function()
       auto_timestamp = true,
       confirm_destructive = false, -- Disable confirmation for tests
     })
+    clock = test_clock.install()
   end)
 
   after_each(function()
     config.reset()
+    clock.restore()
   end)
 
   describe("Command finds completion column correctly", function()
@@ -334,16 +338,18 @@ describe("Force Complete Command", function()
       todo:add_card(dep)
       todo:add_card(dependent)
 
-      -- Manually add timestamp (simulating command behavior)
-      local before_time = os.time()
-      dependent.properties.done = os.time()
+      -- Let the timestamp trigger (registered by auto_register_triggers above)
+      -- set the completion timestamp; advance the clock first so "recent" is
+      -- an exact, deliberate delta rather than a same-second coincidence.
+      local before_time = clock.now()
+      clock.advance(test_clock.HOUR)
 
       -- Force complete
       board:move_card_with_bypass(dependent, todo, done, {"dependency"})
 
-      -- Verify timestamp exists and is recent
+      -- Verify timestamp exists and reflects the trigger firing after the advance
       assert.is_not_nil(dependent.properties.done)
-      assert.is_true(dependent.properties.done >= before_time)
+      assert.are.equal(before_time + test_clock.HOUR, dependent.properties.done)
     end)
   end)
 

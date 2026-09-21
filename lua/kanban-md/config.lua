@@ -88,7 +88,7 @@ local default_config = {
   -- "days": Time displayed in days (e.g., "5 days")
   -- "hours": Time displayed in hours (e.g., "120 hours")
   -- "seconds": Time displayed in seconds (e.g., "432000 seconds")
-  -- Used by: lua/kanban-md/stats.lua, lua/kanban-md/virtual_text.lua, lua/kanban-md/commands.lua
+  -- Used by: lua/kanban-md/stats.lua, lua/kanban-md/virtual_text.lua
   cycle_time_unit = "days",
 
   -- stats_time_format (string: "precise" | "decimal" | "compact")
@@ -125,7 +125,6 @@ local default_config = {
 
   -- dependency_marking_hl (string)
   -- Neovim highlight group used for visual feedback during dependency marking
-  -- Used by: commands.lua:add_dependency() for visual selection
   dependency_marking_hl = "Visual",
 
   ----------------------------
@@ -144,7 +143,6 @@ local default_config = {
   --   "extension" - Only parse files with .kanban.md extension
   --   "auto"      - Auto-detect based on H6 headers (######) (legacy, may parse non-board files)
   --   "both"      - Accept either marker OR .kanban.md extension
-  -- Used by: commands.lua autocommand for BufEnter/BufWritePost
   -- Recommended: "marker" or "both" (prevents accidental parsing of documentation/README files)
   detection_strategy = "marker",
 
@@ -163,7 +161,6 @@ local default_config = {
   -- Used by:
   --   - board.lua:register_basic_triggers() - trigger registration
   --   - triggers.lua:create_timestamp_trigger() - timestamp setting logic
-  --   - commands.lua - manual command handling
   auto_timestamp = true,
 
   -- auto_id (boolean) [CORE FEATURE] [BOARD-OVERRIDABLE]
@@ -223,14 +220,9 @@ local default_config = {
   -- Card property format:
   --   <!-- depends_on: card_abc123, card_def456 -->
   --
-  -- Related commands:
-  --   :KanbanAddDependency - Two-step process to add dependency between cards
-  --   :KanbanForceCompleteCard - Bypass dependency validation
-  --
   -- Used by:
   --   - board.lua:auto_register_triggers() - trigger registration
   --   - extras/subtasks_triggers.lua - validation implementation
-  --   - commands.lua:add_dependency() - dependency creation
   --   - board.lua:validate_dependencies() - full validation with circular dependency detection
   dependency_validation = false,
 
@@ -256,7 +248,6 @@ local default_config = {
   -- Used by:
   --   - board.lua:auto_register_triggers() - trigger registration
   --   - extras/subtasks_triggers.lua - validation implementation
-  --   - commands.lua:force_complete_card() - bypass logic
   subtask_validation = false,
 
   ----------------------------
@@ -267,7 +258,6 @@ local default_config = {
   -- Validate all dependencies when loading a board (check for missing/circular dependencies)
   -- When true: Shows errors/warnings for dependency issues on board load
   -- When false: Only validates dependencies during card movements
-  -- Used by: commands.lua:get_current_board() - board loading
   dependency_check_on_parse = false,
 
   ----------------------------
@@ -282,13 +272,11 @@ local default_config = {
   -- use_telescope (boolean)
   -- Use Telescope picker for card selection (if available)
   -- Falls back to vim.ui.select if Telescope not installed
-  -- Used by: commands.lua for card/column selection UI
 	-- TODO make this specific to Neovim
   use_telescope = true,
 
   -- use_input (boolean)
   -- Use vim.ui.input (or the relevant adapter's input) for text input in commands
-  -- Used by: commands.lua for card/column name input
   use_input = true,
 
   -- confirm_destructive (boolean) [CORE SAFETY FEATURE]
@@ -296,14 +284,12 @@ local default_config = {
   -- Currently used for:
   --   - :KanbanForceCompleteCard - confirms before bypassing validation
   -- Future use: delete cards, delete columns, bulk operations
-  -- Used by: commands.lua:force_complete_card()
   confirm_destructive = true,
 
   -- column_flow (table of strings)
   -- Ordered list of column names defining the standard workflow
   -- Used for "move to next/previous column" commands
   -- Special column "__ARCHIVE__" is the archive column
-  -- Used by: actions.lua for column navigation commands
   column_flow = { "Backlog", "Ready", "In Progress", "Done", "__ARCHIVE__" },
 
   ----------------------------
@@ -470,7 +456,6 @@ local default_config = {
   --   - board.lua - dependency validation, archiving
   --   - stats.lua - completed task counts, lead time and cycle time calculations
   --   - extras/subtasks_triggers.lua - subtask/dependency validation
-  --   - commands.lua:complete_card() - finding completion column
   --
   -- is_start_state (boolean) [CORE COLUMN PROPERTY FOR CYCLE TIME]
   -- Marks a column as the "start state" where active work begins
@@ -534,7 +519,6 @@ local default_config = {
   --   - stats.lua:validate() - WIP limit validation during statistics
   --   - virtual_text.lua - displays WIP limit warnings inline
   --   - workflow_engine.lua - auto-registers WIP triggers
-  --   - commands.lua:new_column() - prompts for WIP limit
 }
 
 -- Current configuration (starts as copy of defaults)

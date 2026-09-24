@@ -73,10 +73,14 @@ of check - dependencies, say - while still enforcing WIP limits and everything e
 skill**, not by editing the Markdown by hand:
 
 ```bash
-K=~/.claude/skills/kanban-md/scripts/kanban.lua
-lua $K show TODO.kanban.md
-lua $K move TODO.kanban.md --card "<substring>" --to "In Progress"
+lua /Users/iainb/.claude/skills/kanban-md/scripts/kanban.lua show TODO.kanban.md
+lua /Users/iainb/.claude/skills/kanban-md/scripts/kanban.lua move TODO.kanban.md \
+  --card "<substring>" --to "In Progress"
 ```
+
+Write the path out in full, rather than holding it in a shell variable: a
+tilde or a variable is only resolved at runtime, so the permission rules
+cannot see what the command will touch and every invocation asks.
 
 The skill drives the engine, so triggers set the column timestamps and WIP
 limits are enforced. Hand-editing skips all of that and silently produces a

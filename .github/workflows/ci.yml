@@ -11,7 +11,7 @@ jobs:
     name: Luacheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: leafo/gh-actions-lua@v10
         with:
@@ -35,9 +35,9 @@ jobs:
       matrix:
         # 5.1 and LuaJIT are what Neovim embeds, so they are the versions the
         # engine has to keep working on; 5.3 and 5.4 cover standalone use.
-        lua: ["5.1", "5.3", "5.4", "luajit"]
+        lua: ["5.1", "5.3", "5.4", "luajit-2.1"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: leafo/gh-actions-lua@v10
         with:

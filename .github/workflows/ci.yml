@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [dev, master]
   pull_request:
   workflow_dispatch:
 
@@ -13,11 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: leafo/gh-actions-lua@v10
+      - uses: leafo/gh-actions-lua@v13
         with:
           luaVersion: "5.4"
 
-      - uses: leafo/gh-actions-luarocks@v4
+      - uses: leafo/gh-actions-luarocks@v6
 
       - name: Install the test toolchain
         # The rockspec's test_dependencies are the single declaration of the
@@ -39,11 +39,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: leafo/gh-actions-lua@v10
+      - uses: leafo/gh-actions-lua@v13
         with:
           luaVersion: ${{ matrix.lua }}
 
-      - uses: leafo/gh-actions-luarocks@v4
+      - uses: leafo/gh-actions-luarocks@v6
 
       - name: Install the test toolchain
         # busted, luacov and luacheck all come from the rockspec's

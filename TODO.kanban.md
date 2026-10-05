@@ -8,6 +8,7 @@
 
 
 
+
 ###### Ready
 
 
@@ -19,7 +20,9 @@
 
 
 
+
 ###### In Progress
+
 
 
 
@@ -102,3 +105,4 @@
 - Implement the multiline-lists.md decision on empty list items: a dash with nothing after it followed by continuation lines is currently kept silently as prose. Parser should notify() at warn level that list items may not start with a blank line; assert the emitted string in a test and state the rule in SPEC 7.4 <!-- backlog: 1789775117, done: 1789983198, id: card_01M2VEHZE8KB4V17EP3DWPET6V, in_progress: 1789982389, ready: 1789981973, tags: [Sonnet] -->
 - Writer drops a blank line before the first card when a column has prose: with a blank line both after the column header and before the first card, the writer trims the latter and does not restore it, so that form does not round-trip. Found while documenting multi-line cards (SPEC 7.4) <!-- backlog: 1789983158, done: 1789984040, id: card_01M31MYVV295BESHRMVPW7QXD3, in_progress: 1789983891, ready: 1789983836 -->
 - Remove duplicate tests from kanban-md consumer project. <!-- backlog: 1789985079, done: 1790227358, id: card_01M31PSGDYF875Z4RXH1MTFNB9, in_progress: 1790226591, ready: 1790226199 -->
+- Update leafo/gh-actions-lua to v13 and leafo/gh-actions-luarocks to v6 <!-- backlog: 1791183501, done: 1791183672, id: card_01M45DPDY2E5F9QMMBEETWWQGY, in_progress: 1791183521, ready: 1791183506 -->

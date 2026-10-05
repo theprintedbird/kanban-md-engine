@@ -79,6 +79,9 @@ end
 --- resolution and a single GC step are the same size as the measurement.
 M.TARGET_BATCH_SECONDS = 0.005
 
+--- How long fn() is run untimed before anything is measured, in seconds.
+M.WARMUP_SECONDS = 2 * M.TARGET_BATCH_SECONDS
+
 --- Time a single call to fn(), in seconds.
 ---
 --- The batch size is worked out rather than fixed: fn() is run in a growing
@@ -88,7 +91,15 @@ M.TARGET_BATCH_SECONDS = 0.005
 --- 15ms sample under Lua 5.3 and an unmeasurable 0.2ms under LuaJIT, which
 --- is how this arrived at a scaling ratio of 12x for an O(n) operation.
 --- Sizing the batch to the clock instead makes every sample real, on any
---- interpreter, and the sizing runs double as JIT warm-up.
+--- interpreter.
+---
+--- Every operation is warmed up first, for WARMUP_SECONDS. The sizing runs
+--- cannot be relied on for that: an operation that already costs more than
+--- TARGET_BATCH_SECONDS gets a batch of one and no sizing runs at all, so it
+--- would be timed on its first calls, before LuaJIT has compiled them. The
+--- cheap operation it is compared against was warmed by its sizing runs, so
+--- the cold one alone carried the warm-up cost -- which is how
+--- calculate_stats measured 11x for 6x the cards under LuaJIT on CI.
 --- @param samples number how many batches to run (the fastest one wins)
 --- @param fn function the operation to time
 --- @return number seconds per single call
@@ -100,6 +111,11 @@ function M.per_call(samples, fn)
     end
     return os.clock() - started
   end
+
+  local warmup_started = os.clock()
+  repeat
+    fn()
+  until os.clock() - warmup_started >= M.WARMUP_SECONDS
 
   local repeats = 1
   local batch = time_batch(repeats)

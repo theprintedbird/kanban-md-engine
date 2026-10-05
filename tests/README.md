@@ -247,7 +247,11 @@ measurements rather than re-timing anything.
   batch takes at least 5ms, then divides. Operations costing microseconds cannot be timed one at a
   time — they are the same size as the clock's resolution and a single GC step. A *fixed* batch
   size does not work either: 50 calls of `find_task()` is a healthy 15ms sample under Lua 5.3 and
-  an unmeasurable 0.2ms under LuaJIT. The sizing runs double as JIT warm-up.
+  an unmeasurable 0.2ms under LuaJIT.
+- Every operation is **warmed up** for 10ms, untimed, before it is measured. The batch sizing cannot
+  stand in for this: an operation already slower than 5ms gets a batch of one and no sizing runs,
+  so it would be timed cold while the cheaper operation it is compared against was warm. Under
+  LuaJIT that asymmetry alone took `calculate_stats` from 6x to 11x for 6x the cards.
 - Budgets are milliseconds measured on a reference machine, **scaled by a calibration factor**
   taken from a fixed pure-Lua workload run in-process. A machine half the speed gets twice the
   budget, which is what lets one set of figures hold across Lua 5.1, 5.3, 5.4 and LuaJIT.

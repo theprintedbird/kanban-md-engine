@@ -173,4 +173,43 @@ describe("Round-trip fidelity: parse(write(parse(x))) == parse(x)", function()
       assert.are.equal("Board Title", parsed1.title)
     end)
   end)
+
+  describe("plain HTML comments outside columns", function()
+    it("keeps the kanban-board marker above the title", function()
+      local x = "<!-- kanban-board -->\n# Board\n<!-- kanban:config wip_limit: 5 -->\n\n###### Todo\n\n- Task\n\n###### Done\n"
+
+      local parsed1, _, written = assert_round_trips(x)
+
+      assert.are.equal("<!-- kanban-board -->", written:match("^[^\n]*"))
+      assert.are.equal(5, parsed1.config.wip_limit)
+      assert.are.equal("Board", parsed1.title)
+    end)
+
+    it("keeps the kanban-board marker below the title", function()
+      local x = "# Board\n<!-- kanban-board -->\n\n###### Todo\n\n- Task\n"
+
+      local parsed1, _, written = assert_round_trips(x)
+
+      assert.is_not_nil(written:find("<!-- kanban-board -->", 1, true))
+      assert.are.equal(1, #parsed1.columns[1].cards)
+    end)
+
+    it("keeps multi-line comments outside columns verbatim", function()
+      local x = "# Board\n<!--\nA note\n###### Not a column\n-->\n\n###### Todo\n\n- Task\n"
+
+      local parsed1, _, written = assert_round_trips(x)
+
+      assert.is_not_nil(written:find("<!--\nA note\n###### Not a column\n-->", 1, true))
+      assert.are.equal(1, #parsed1.columns)
+    end)
+
+    it("still attaches comments inside a column to the card", function()
+      local x = "# Board\n\n###### Todo\n\n- Task\n<!-- complexity: 2 -->\n"
+
+      local parsed1, _, written = assert_round_trips(x)
+
+      assert.are.equal(2, parsed1.columns[1].cards[1].properties.complexity)
+      assert.is_nil(written:find("\n<!-- complexity", 1, true))
+    end)
+  end)
 end)

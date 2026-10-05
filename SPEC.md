@@ -402,6 +402,11 @@ A property comment on its own line, inside a column, attaches to the card it acc
 property comment that belongs to no card — one sitting between columns, for example — is
 discarded.
 
+A comment outside any column — before the first column header, or after an unrecognised `__X__`
+section — is not kanban syntax unless it is a `kanban:config` comment. It is preserved verbatim as
+Markdown, single-line or multi-line, so the `<!-- kanban-board -->` marker a host may use to
+recognise boards survives every write.
+
 A card's property block is the **last** HTML comment on the line, and it must close at the end of
 the line. Any earlier comment is part of the card's text and is preserved verbatim, so a card may
 talk about the syntax without being truncated:

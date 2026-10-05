@@ -402,7 +402,7 @@ function ParserMixin:parse(content)
 	local comment_buffer = ""
 	local line_number = 0
 	local pending_config = nil
-	local config_type = nil  -- "board" or "column"
+	local config_type = nil  -- "board", "column", "task" or "markdown"
 
 	-- Content block tracking
 	local markdown_buffer = {}
@@ -460,7 +460,8 @@ function ParserMixin:parse(content)
 				end
 			-- Handle multi-line comment blocks
 			elseif in_comment_block then
-				add_to_markdown = false
+				-- Plain comments outside any column are preserved verbatim
+				add_to_markdown = config_type == "markdown"
 				local ending = line:match(patterns.comment_block_end)
 				if ending then
 					comment_buffer = comment_buffer .. " " .. ending
@@ -519,6 +520,10 @@ function ParserMixin:parse(content)
 					elseif current_column then
 						-- Could be task-related, store for next task
 						pending_config = { properties = parse_properties(comment_content) }
+					else
+						-- Plain comment outside any column (e.g. the
+						-- <!-- kanban-board --> detection marker): keep it verbatim
+						add_to_markdown = true
 					end
 				else
 					-- Multi-line comment
@@ -530,8 +535,11 @@ function ParserMixin:parse(content)
 						config_type = "board"
 					elseif comment_start:match("column:config") or (current_column and comment_start:match("^%s*config%s")) then
 						config_type = "column"
-					else
+					elseif current_column then
 						config_type = "task"
+					else
+						config_type = "markdown"
+						add_to_markdown = true
 					end
 				end
 			-- Parse board title

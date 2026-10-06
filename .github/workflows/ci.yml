@@ -17,6 +17,12 @@ jobs:
   lint:
     name: Luacheck
     runs-on: ubuntu-latest
+    # Every job has a timeout, so a hung luarocks or busted is killed rather
+    # than holding a runner for the 6-hour default. Each is about ten times
+    # the job's usual run time, which leaves room for a cold cache (Lua and
+    # the rocks built from source) on a slow shared runner. Luacheck usually
+    # takes under a minute.
+    timeout-minutes: 10
     steps:
       # Actions are pinned to full commit SHAs, with the release in a comment:
       # a tag can be moved to point at other code, a SHA cannot. That matters
@@ -45,6 +51,8 @@ jobs:
   lint-workflows:
     name: Workflow lint
     runs-on: ubuntu-latest
+    # Two pipx downloads and two quick scans; most of any delay is PyPI.
+    timeout-minutes: 10
     env:
       # Both tools come from PyPI through pipx, which the runner image already
       # carries, so the versions are pinned here rather than in a third-party
@@ -72,6 +80,10 @@ jobs:
   test:
     name: Tests (Lua ${{ matrix.lua }})
     runs-on: ubuntu-latest
+    # Applies to each matrix leg on its own. A leg usually takes one to two
+    # minutes, 5.4 the longest because it also runs the per-file specs and
+    # the coverage report.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:

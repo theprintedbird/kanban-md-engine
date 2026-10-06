@@ -1,7 +1,7 @@
 # Makefile for Kanban plugin
 
 .PHONY: test test-standalone test-unit test-integration test-e2e test-file \
-	test-container container-build ci-local ci-local-list test-shuffle test-tap test-perf coverage lint lint-container \
+	test-container container-build ci-local ci-local-list test-shuffle test-tap test-perf coverage lint lint-container lint-workflows \
 	test-each-file smoke clean check-deps version help
 
 # Container engine used by the test-container targets. Podman is preferred;
@@ -106,6 +106,27 @@ lint:
 # when the host toolchain cannot build luacheck's C dependencies.
 lint-container: container-build
 	@$(CONTAINER_ENGINE) run --rm -v "$(CURDIR)":/src:ro -w /src $(CONTAINER_IMAGE) luacheck lua scripts tests
+
+# Lint the GitHub Actions workflows: zizmor for security findings, actionlint
+# for expression/type errors and (when shellcheck is on PATH) the run: blocks.
+# Both run even if the first fails, so one pass reports everything. CI pins
+# the versions in .github/workflows/ci.yml.
+lint-workflows:
+	@missing=""; \
+	for tool in zizmor actionlint; do \
+		command -v $$tool >/dev/null 2>&1 || missing="$$missing $$tool"; \
+	done; \
+	if [ -n "$$missing" ]; then \
+		echo "Error: not found on PATH:$$missing"; \
+		echo "       (pipx install zizmor actionlint-py, or your package manager)"; \
+		exit 1; \
+	fi
+	@command -v shellcheck >/dev/null 2>&1 || \
+		echo "Note: shellcheck not found; actionlint will skip the run: blocks"
+	@status=0; \
+	zizmor --offline .github || status=1; \
+	actionlint || status=1; \
+	exit $$status
 
 # Run only unit tests
 test-unit:
@@ -233,11 +254,10 @@ help:
 	@echo "  smoke             - Run the CLI example end to end (LUA=<interpreter>)"
 	@echo "  lint              - Run luacheck"
 	@echo "  lint-container    - Run luacheck inside the Alpine test image"
+	@echo "  lint-workflows    - Lint the GitHub Actions workflows with zizmor and actionlint"
 	@echo "  test-file FILE=<path> - Run a specific test file"
 	@echo "  container-build   - Build the Alpine test image (LUA_VERSION=5.1|5.3|5.4|jit)"
 	@echo "  test-container    - Run the full suite inside the Alpine test image"
-	@echo "  ci-local          - Run the GitHub Actions workflows locally with act"
-	@echo "  ci-local-list     - List the jobs act can see"
 	@echo "  ci-local          - Run the GitHub Actions workflows locally with act"
 	@echo "  ci-local-list     - List the jobs act can see"
 	@echo "  version VERSION=<x.y.z> - Set the version in every file that records it (DRY_RUN=1 to preview)"

@@ -35,6 +35,36 @@ jobs:
       - name: Lint
         run: luacheck lua tests
 
+  lint-workflows:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    # Reading the repository is all this job does; nothing is uploaded.
+    permissions:
+      contents: read
+    env:
+      # Both tools come from PyPI through pipx, which the runner image already
+      # carries, so the versions are pinned here rather than in a third-party
+      # action. actionlint-py wraps the upstream actionlint binary.
+      ZIZMOR_VERSION: "1.30.1"
+      ACTIONLINT_VERSION: "1.7.12.25"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: zizmor
+        # Security audit: unpinned actions, credential persistence, template
+        # injection, excessive permissions and the like. Offline mode, so it
+        # needs no token; findings at the default persona fail the job.
+        run: pipx run "zizmor==$ZIZMOR_VERSION" --offline .github
+
+      - name: actionlint
+        # Expression and type errors, plus shellcheck over every run: block
+        # (shellcheck is preinstalled on the runner image). Runs even if
+        # zizmor failed, so one push reports both.
+        if: success() || failure()
+        run: pipx run --spec "actionlint-py==$ACTIONLINT_VERSION" actionlint -color
+
   test:
     name: Tests (Lua ${{ matrix.lua }})
     runs-on: ubuntu-latest

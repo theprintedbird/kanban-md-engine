@@ -524,6 +524,19 @@ Shared options live in `.actrc`. Under Podman the Makefile points act at the
 machine's API socket automatically; an existing `DOCKER_HOST` is left alone.
 The podman machine has to be running (`podman machine start`).
 
+The workflows themselves are linted by the `lint-workflows` job, and locally by:
+
+```bash
+make lint-workflows                  # zizmor, then actionlint
+```
+
+[zizmor](https://docs.zizmor.sh/) audits them for security problems (unpinned
+actions, persisted credentials, template injection, excessive permissions) and
+[actionlint](https://github.com/rhysd/actionlint) checks expressions and types,
+plus every `run:` block with shellcheck when it is on `PATH`. Install them with
+`pipx install zizmor actionlint-py` or your package manager; CI pins both
+versions in `.github/workflows/ci.yml`. Run it after any change under `.github/`.
+
 ## Releasing
 
 The version number is recorded in more than one place -- `lua/kanban-md/version.lua`

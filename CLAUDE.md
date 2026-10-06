@@ -101,6 +101,10 @@ Tests use `tests/polyfills/vim.lua` for a pure Lua stand-in for the `vim` utilit
 up by `.busted`. `tests/README.md` has the rationale for the suite's layout and for the performance
 specs in particular, including the `KANBAN_SKIP_PERF` / `KANBAN_PERF_TOLERANCE` escape hatches.
 
+After any change under `.github/`, run `make lint-workflows` (zizmor and actionlint); CI runs the
+same pair in the `lint-workflows` job, at the versions pinned in `.github/workflows/ci.yml`. Keep
+every `uses:` pinned to a full commit SHA with a `# vX.Y.Z` comment.
+
 **Important:**
 
 - **DO NOT use git commands (stash, reset, etc.) for testing or temporary state management.**

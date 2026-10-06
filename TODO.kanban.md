@@ -4,7 +4,6 @@
 
 ###### Backlog
 
-- CI 4: add top-level permissions: contents: read to .github/workflows/ci.yml so neither job gets a write-scoped GITHUB_TOKEN by default (zizmor --persona pedantic reports 3 excessive-permissions); widen per job only if a step ever needs it; verify with zizmor .github and actionlint <!-- backlog: 1791250477, id: card_01M47DJCPRN8QV2W13TZ25HE9M -->
 - CI 5: add timeout-minutes to every job in .github/workflows/ci.yml (lint and each test matrix leg) so a hung busted or luarocks run is killed rather than burning the 6-hour default; size each from recent run times with headroom for a slow shared runner; verify with actionlint <!-- backlog: 1791251220, id: card_01M47E92EZXWZ0H06TXEHF93YS -->
 - CI 6: add a concurrency group to .github/workflows/ci.yml keyed on workflow and ref (e.g. group: ci-${{ github.workflow }}-${{ github.ref }}) with cancel-in-progress true for pull_request only, so a new push to a PR cancels the superseded run but pushes to dev and master always finish; clears zizmor's concurrency-limits finding; verify with zizmor .github and actionlint <!-- backlog: 1791251228, id: card_01M47E99BA0MV0TWXTRG078RAG -->
 - CI 7: fix the template-injection zizmor reports in the Run tests step of .github/workflows/ci.yml: the run block expands ${{ matrix.lua }} straight into the shell (tee busted-tap-...txt); pass it through env (LUA_VERSION: ${{ matrix.lua }}) and reference "$LUA_VERSION" instead; verify with zizmor .github and actionlint <!-- backlog: 1791251232, id: card_01M47E9D9JZZ0DX8SN91TH17P8 -->
@@ -15,7 +14,9 @@
 
 
 
+
 ###### In Progress
+
 
 
 
@@ -93,3 +94,4 @@
 - CI 1: harden .github/workflows/ci.yml checkouts and action refs: pin every uses: to a full commit SHA with a "# vX.Y.Z" comment - actions/checkout, leafo/gh-actions-lua and leafo/gh-actions-luarocks in both jobs, plus actions/upload-artifact (the 7 unpinned-uses zizmor reports); the leafo actions matter most as single-maintainer third-party code that runs with the job token; add persist-credentials: false to both checkouts so GITHUB_TOKEN is not left in .git/config (no step pushes or otherwise uses git credentials; clears the 2 artipacked findings); verify with make ci-local (act, using .actrc) <!-- backlog: 1791250545, done: 1791265835, id: card_01M47DMEN4Q50JKNZR8N8WCJAE, in_progress: 1791252795, ready: 1791252657 -->
 - CI 2: add workflow linting: a job in .github/workflows/ci.yml beside Luacheck (or a separate lint-workflows.yml triggered on changes to .github/**) running zizmor (zizmorcore/zizmor-action or pipx run zizmor .github; optionally upload SARIF to code scanning with security-events: write scoped to that job only) and actionlint (expression/type errors, shellcheck on run: blocks); needs CI 1 first or zizmor reports unpinned-uses and artipacked immediately; add a make lint-workflows target and list it in make help; document it in README beside the make ci-local section and in the CLAUDE.md Testing section <!-- backlog: 1791250598, depends_on: [card_01M47DMEN4Q50JKNZR8N8WCJAE], done: 1791266226, id: card_01M47DP2REKHEDZ3YTWNHPWVDS, in_progress: 1791265917, ready: 1791265847 -->
 - CI 3: add .github/dependabot.yml: github-actions ecosystem, weekly, grouped into one PR, so the SHA pins from CI 1 do not go stale (Dependabot updates the # vX.Y.Z comments with the SHA); target the dev branch, since master is the release branch; Dependabot has no luarocks ecosystem, so the rockspec's test_dependencies (busted, luacov, luacheck) stay unpinned and unwatched - note that in the file; needs CI 1 <!-- backlog: 1791250642, depends_on: [card_01M47DMEN4Q50JKNZR8N8WCJAE], done: 1791266745, id: card_01M47DQE1J1NCNB5A68HV69MRR, in_progress: 1791266330, ready: 1791266298 -->
+- CI 4: add top-level permissions: contents: read to .github/workflows/ci.yml so neither job gets a write-scoped GITHUB_TOKEN by default (zizmor --persona pedantic reports 3 excessive-permissions); widen per job only if a step ever needs it; verify with zizmor .github and actionlint <!-- backlog: 1791250477, done: 1791266891, id: card_01M47DJCPRN8QV2W13TZ25HE9M, in_progress: 1791266806, ready: 1791266783 -->

@@ -6,6 +6,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Every job only reads the repository: nothing pushes, comments or publishes
+# (upload-artifact uses the runtime token, not GITHUB_TOKEN). Without this
+# block GITHUB_TOKEN gets the repository's default scope, which may include
+# write. Widen it per job, not here, if a step ever needs more.
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Luacheck
@@ -38,9 +45,6 @@ jobs:
   lint-workflows:
     name: Workflow lint
     runs-on: ubuntu-latest
-    # Reading the repository is all this job does; nothing is uploaded.
-    permissions:
-      contents: read
     env:
       # Both tools come from PyPI through pipx, which the runner image already
       # carries, so the versions are pinned here rather than in a third-party

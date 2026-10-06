@@ -11,7 +11,6 @@
 - CI 5: add timeout-minutes to every job in .github/workflows/ci.yml (lint and each test matrix leg) so a hung busted or luarocks run is killed rather than burning the 6-hour default; size each from recent run times with headroom for a slow shared runner; verify with actionlint <!-- backlog: 1791251220, id: card_01M47E92EZXWZ0H06TXEHF93YS -->
 - CI 6: add a concurrency group to .github/workflows/ci.yml keyed on workflow and ref (e.g. group: ci-${{ github.workflow }}-${{ github.ref }}) with cancel-in-progress true for pull_request only, so a new push to a PR cancels the superseded run but pushes to dev and master always finish; clears zizmor's concurrency-limits finding; verify with zizmor .github and actionlint <!-- backlog: 1791251228, id: card_01M47E99BA0MV0TWXTRG078RAG -->
 - CI 7: fix the template-injection zizmor reports in the Run tests step of .github/workflows/ci.yml: the run block expands ${{ matrix.lua }} straight into the shell (tee busted-tap-...txt); pass it through env (LUA_VERSION: ${{ matrix.lua }}) and reference "$LUA_VERSION" instead; verify with zizmor .github and actionlint <!-- backlog: 1791251232, id: card_01M47E9D9JZZ0DX8SN91TH17P8 -->
-- CI 8: bump actions/upload-artifact in .github/workflows/ci.yml from v4 to the current major - it lags the other actions (checkout v7, gh-actions-lua v13, gh-actions-luarocks v6); check its changelog for breaking changes to name/path/if-no-files-found; do it alongside or before the SHA pinning so the pin targets the new release <!-- backlog: 1791251237, id: card_01M47E9JRETVC8KZ6Z0YAFMEN0 -->
 
 
 
@@ -30,7 +29,9 @@
 
 
 
+
 ###### In Progress
+
 
 
 
@@ -115,3 +116,4 @@
 - Writer drops a blank line before the first card when a column has prose: with a blank line both after the column header and before the first card, the writer trims the latter and does not restore it, so that form does not round-trip. Found while documenting multi-line cards (SPEC 7.4) <!-- backlog: 1789983158, done: 1789984040, id: card_01M31MYVV295BESHRMVPW7QXD3, in_progress: 1789983891, ready: 1789983836 -->
 - Remove duplicate tests from kanban-md consumer project. <!-- backlog: 1789985079, done: 1790227358, id: card_01M31PSGDYF875Z4RXH1MTFNB9, in_progress: 1790226591, ready: 1790226199 -->
 - Update leafo/gh-actions-lua to v13 and leafo/gh-actions-luarocks to v6 <!-- backlog: 1791183501, done: 1791183672, id: card_01M45DPDY2E5F9QMMBEETWWQGY, in_progress: 1791183521, ready: 1791183506 -->
+- CI 8: bump actions/upload-artifact in .github/workflows/ci.yml from v4 to the current major - it lags the other actions (checkout v7, gh-actions-lua v13, gh-actions-luarocks v6); check its changelog for breaking changes to name/path/if-no-files-found; do it alongside or before the SHA pinning so the pin targets the new release <!-- backlog: 1791251237, done: 1791252568, id: card_01M47E9JRETVC8KZ6Z0YAFMEN0, in_progress: 1791252483, ready: 1791252450 -->

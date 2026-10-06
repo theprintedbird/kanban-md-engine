@@ -10,7 +10,6 @@
 
 ###### Ready
 
-- Perf: skip the scaling assertions in tests/integration/performance_spec.lua under LuaJIT (detect via the jit global), keeping its budgets; write measured 10.6x for 6x the cards on CI because LuaJIT's per-card cost is cheap enough for cache/memory effects to dominate (locally 3.2 -> 4.4 us/card from 240 to 5760 cards, vs flat under 5.3), the same reason validate/find_task/move_card have no scaling check. A quadratic shows on every interpreter, so 5.1/5.3/5.4 still guard it. Update the spec comment and tests/README.md <!-- id: card_01M47Y3NFGWJ48MA1SZM98GBB2, ready: 1791267821 -->
 
 
 
@@ -18,6 +17,7 @@
 
 
 ###### In Progress
+
 
 
 
@@ -99,3 +99,4 @@
 - CI 3: add .github/dependabot.yml: github-actions ecosystem, weekly, grouped into one PR, so the SHA pins from CI 1 do not go stale (Dependabot updates the # vX.Y.Z comments with the SHA); target the dev branch, since master is the release branch; Dependabot has no luarocks ecosystem, so the rockspec's test_dependencies (busted, luacov, luacheck) stay unpinned and unwatched - note that in the file; needs CI 1 <!-- backlog: 1791250642, depends_on: [card_01M47DMEN4Q50JKNZR8N8WCJAE], done: 1791266745, id: card_01M47DQE1J1NCNB5A68HV69MRR, in_progress: 1791266330, ready: 1791266298 -->
 - CI 4: add top-level permissions: contents: read to .github/workflows/ci.yml so neither job gets a write-scoped GITHUB_TOKEN by default (zizmor --persona pedantic reports 3 excessive-permissions); widen per job only if a step ever needs it; verify with zizmor .github and actionlint <!-- backlog: 1791250477, done: 1791266891, id: card_01M47DJCPRN8QV2W13TZ25HE9M, in_progress: 1791266806, ready: 1791266783 -->
 - CI 5: add timeout-minutes to every job in .github/workflows/ci.yml (lint and each test matrix leg) so a hung busted or luarocks run is killed rather than burning the 6-hour default; size each from recent run times with headroom for a slow shared runner; verify with actionlint <!-- backlog: 1791251220, done: 1791267878, id: card_01M47E92EZXWZ0H06TXEHF93YS, in_progress: 1791266977, ready: 1791266955 -->
+- Perf: skip the scaling assertions in tests/integration/performance_spec.lua under LuaJIT (detect via the jit global), keeping its budgets; write measured 10.6x for 6x the cards on CI because LuaJIT's per-card cost is cheap enough for cache/memory effects to dominate (locally 3.2 -> 4.4 us/card from 240 to 5760 cards, vs flat under 5.3), the same reason validate/find_task/move_card have no scaling check. A quadratic shows on every interpreter, so 5.1/5.3/5.4 still guard it. Update the spec comment and tests/README.md <!-- done: 1791275487, id: card_01M47Y3NFGWJ48MA1SZM98GBB2, in_progress: 1791275112, ready: 1791267821 -->

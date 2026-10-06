@@ -234,6 +234,13 @@ the work sets the price: the small board stays in cache and the large one does n
 6.1x–7.7x under Lua 5.3 and 12.8x–15.2x under LuaJIT with no change to the engine, which is a wider
 spread than a quadratic would produce — so those three are left to their budgets.
 
+Under LuaJIT the same holds for the other three, so the scaling specs are marked pending there
+(detected through the `jit` global) and the small board is not timed at all; the budgets still
+run. LuaJIT makes the per-card work cheap enough for cache and memory effects to show: `write` runs
+at 3.2 µs/card on 240 cards and 4.4 µs/card on 5760 locally, where Lua 5.3 stays flat, and it
+measured 10.6x for 6x the cards on CI. A quadratic shows on every interpreter, so the Lua 5.1, 5.3
+and 5.4 runs still guard against one.
+
 Every operation is measured at both sizes once, in `setup()`; the assertions read those
 measurements rather than re-timing anything.
 

@@ -13,6 +13,17 @@ on:
 permissions:
   contents: read
 
+# A new push to a PR cancels the run it supersedes, since only the latest
+# commit's result matters there. Pushes to dev and master are never cancelled
+# mid-run, so every run that starts on them finishes and reports. A PR's ref
+# is refs/pull/<n>/merge, so PRs never share a group with each other or with
+# a branch. GitHub keeps at most one pending run per group, so if several
+# pushes land on a branch while a run is going, only the newest of them is
+# queued to run next.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     name: Luacheck

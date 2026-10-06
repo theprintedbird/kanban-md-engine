@@ -11,13 +11,21 @@ jobs:
     name: Luacheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      # Actions are pinned to full commit SHAs, with the release in a comment:
+      # a tag can be moved to point at other code, a SHA cannot. That matters
+      # most for the leafo actions, single-maintainer third-party code that
+      # runs with the job token.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes or otherwise uses git credentials, so the
+          # token is not left behind in .git/config.
+          persist-credentials: false
 
-      - uses: leafo/gh-actions-lua@v13
+      - uses: leafo/gh-actions-lua@6919171ccf181b826f44b9bca76307b577217377 # v13.0.0
         with:
           luaVersion: "5.4"
 
-      - uses: leafo/gh-actions-luarocks@v6
+      - uses: leafo/gh-actions-luarocks@35d062def313a7699a0d513e996bcf4352f05389 # v6.1.0
 
       - name: Install the test toolchain
         # The rockspec's test_dependencies are the single declaration of the
@@ -37,13 +45,15 @@ jobs:
         # engine has to keep working on; 5.3 and 5.4 cover standalone use.
         lua: ["5.1", "5.3", "5.4", "luajit-2.1"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: leafo/gh-actions-lua@v13
+      - uses: leafo/gh-actions-lua@6919171ccf181b826f44b9bca76307b577217377 # v13.0.0
         with:
           luaVersion: ${{ matrix.lua }}
 
-      - uses: leafo/gh-actions-luarocks@v6
+      - uses: leafo/gh-actions-luarocks@35d062def313a7699a0d513e996bcf4352f05389 # v6.1.0
 
       - name: Install the test toolchain
         # busted, luacov and luacheck all come from the rockspec's
@@ -89,7 +99,7 @@ jobs:
 
       - name: Upload TAP results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: tap-lua-${{ matrix.lua }}
           path: busted-tap-${{ matrix.lua }}.txt

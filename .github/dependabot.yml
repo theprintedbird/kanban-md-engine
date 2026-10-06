@@ -1,0 +1,34 @@
+version: 2
+
+updates:
+  # The workflows pin every action to a full commit SHA with the release in a
+  # "# vX.Y.Z" comment. A pin never moves on its own, so without this it would
+  # go stale silently; Dependabot bumps the SHA and rewrites the comment to
+  # match.
+  - package-ecosystem: github-actions
+    directory: /
+    # dev is the integration branch; master is the release branch and only
+    # takes changes by way of dev. Dependabot reads this file from the
+    # repository's default branch, so it has to be present there to apply.
+    target-branch: dev
+    schedule:
+      interval: weekly
+    # A release has a few days to be pulled or retagged before it is proposed.
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+    # One PR a week for all of the actions, rather than one per action.
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+# Not watched by Dependabot, so these need bumping by hand:
+#
+# - The rockspec's test_dependencies (busted, luacov, luacheck). Dependabot has
+#   no luarocks ecosystem; they are lower bounds, not pins, so CI takes
+#   whatever luarocks resolves on the day.
+# - ZIZMOR_VERSION and ACTIONLINT_VERSION in .github/workflows/ci.yml. They are
+#   PyPI packages run through pipx, and Dependabot's pip ecosystem does not
+#   read workflow env values.

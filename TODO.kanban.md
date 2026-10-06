@@ -4,23 +4,12 @@
 
 ###### Backlog
 
-- CI 7: fix the template-injection zizmor reports in the Run tests step of .github/workflows/ci.yml: the run block expands ${{ matrix.lua }} straight into the shell (tee busted-tap-...txt); pass it through env (LUA_VERSION: ${{ matrix.lua }}) and reference "$LUA_VERSION" instead; verify with zizmor .github and actionlint <!-- backlog: 1791251232, id: card_01M47E9D9JZZ0DX8SN91TH17P8 -->
 
 
 ###### Ready
 
 
-
-
-
-
-
-
 ###### In Progress
-
-
-
-
 
 
 
@@ -102,3 +91,4 @@
 - CI 5: add timeout-minutes to every job in .github/workflows/ci.yml (lint and each test matrix leg) so a hung busted or luarocks run is killed rather than burning the 6-hour default; size each from recent run times with headroom for a slow shared runner; verify with actionlint <!-- backlog: 1791251220, done: 1791267878, id: card_01M47E92EZXWZ0H06TXEHF93YS, in_progress: 1791266977, ready: 1791266955 -->
 - Perf: skip the scaling assertions in tests/integration/performance_spec.lua under LuaJIT (detect via the jit global), keeping its budgets; write measured 10.6x for 6x the cards on CI because LuaJIT's per-card cost is cheap enough for cache/memory effects to dominate (locally 3.2 -> 4.4 us/card from 240 to 5760 cards, vs flat under 5.3), the same reason validate/find_task/move_card have no scaling check. A quadratic shows on every interpreter, so 5.1/5.3/5.4 still guard it. Update the spec comment and tests/README.md <!-- done: 1791275487, id: card_01M47Y3NFGWJ48MA1SZM98GBB2, in_progress: 1791275112, ready: 1791267821 -->
 - CI 6: add a concurrency group to .github/workflows/ci.yml keyed on workflow and ref (e.g. group: ci-${{ github.workflow }}-${{ github.ref }}) with cancel-in-progress true for pull_request only, so a new push to a PR cancels the superseded run but pushes to dev and master always finish; clears zizmor's concurrency-limits finding; verify with zizmor .github and actionlint <!-- backlog: 1791251228, done: 1791275839, id: card_01M47E99BA0MV0TWXTRG078RAG, in_progress: 1791275653, ready: 1791275603 -->
+- CI 7: fix the template-injection zizmor reports in the Run tests step of .github/workflows/ci.yml: the run block expands ${{ matrix.lua }} straight into the shell (tee busted-tap-...txt); pass it through env (LUA_VERSION: ${{ matrix.lua }}) and reference "$LUA_VERSION" instead; verify with zizmor .github and actionlint <!-- backlog: 1791251232, done: 1791276088, id: card_01M47E9D9JZZ0DX8SN91TH17P8, in_progress: 1791275983, ready: 1791275928 -->

@@ -121,14 +121,18 @@ jobs:
         # Shuffled so order dependencies between specs show up. The seed is
         # echoed so a red run can be reproduced with
         # `busted --shuffle --seed=<seed>`. TAP output is kept as an artifact
-        # for anything that wants to parse the results.
+        # for anything that wants to parse the results. The Lua version comes
+        # in through env rather than being expanded into the script, so the
+        # shell never sees an expression's value as code.
         shell: bash
+        env:
+          LUA_VERSION: ${{ matrix.lua }}
         run: |
           set -o pipefail
           seed="${SEED:-$(date +%s)}"
           echo "Running with --shuffle --seed=$seed"
           busted --coverage --shuffle --seed="$seed" --output=TAP \
-            | tee "busted-tap-${{ matrix.lua }}.txt"
+            | tee "busted-tap-$LUA_VERSION.txt"
 
       - name: Spec files in isolation
         # Load-order dependencies between spec files are version-independent,

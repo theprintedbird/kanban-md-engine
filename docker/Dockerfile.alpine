@@ -34,8 +34,10 @@ RUN set -eux; \
     # right one before building any C rock.
     luarocks --lua-version="$rocks_version" config variables.LUA_INCDIR "$incdir"
 
-RUN luarocks install busted \
- && luarocks install luacheck \
+# busted and luacheck are pinned to the versions in the rockspec's
+# test_dependencies; keep the two in step when bumping either.
+RUN luarocks install busted 2.3.0-1 \
+ && luarocks install luacheck 1.2.0-1 \
  && luarocks install luacov
 
 WORKDIR /engine

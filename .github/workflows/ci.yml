@@ -24,6 +24,12 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# LuaRocks is pinned rather than left to gh-actions-luarocks' default, so a
+# Dependabot bump of that action cannot change it unannounced. It must be a
+# release listed at https://luarocks.github.io/luarocks/releases/.
+env:
+  LUAROCKS_VERSION: "3.13.0"
+
 jobs:
   lint:
     name: Luacheck
@@ -50,6 +56,8 @@ jobs:
           luaVersion: "5.4"
 
       - uses: leafo/gh-actions-luarocks@35d062def313a7699a0d513e996bcf4352f05389 # v6.1.0
+        with:
+          luaRocksVersion: ${{ env.LUAROCKS_VERSION }}
 
       - name: Install the test toolchain
         # The rockspec's test_dependencies are the single declaration of the
@@ -111,6 +119,8 @@ jobs:
           luaVersion: ${{ matrix.lua }}
 
       - uses: leafo/gh-actions-luarocks@35d062def313a7699a0d513e996bcf4352f05389 # v6.1.0
+        with:
+          luaRocksVersion: ${{ env.LUAROCKS_VERSION }}
 
       - name: Install the test toolchain
         # busted, luacov and luacheck all come from the rockspec's

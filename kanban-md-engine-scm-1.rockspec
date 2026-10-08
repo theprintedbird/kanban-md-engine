@@ -27,9 +27,9 @@ dependencies = {
 }
 
 test_dependencies = {
-   "busted >= 2.0",
+   "busted == 2.3.0-1",
    "luacov >= 0.15",
-   "luacheck >= 1.1",
+   "luacheck == 1.2.0-1",
 }
 
 test = {

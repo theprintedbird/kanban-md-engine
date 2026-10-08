@@ -27,8 +27,12 @@ updates:
 # Not watched by Dependabot, so these need bumping by hand:
 #
 # - The rockspec's test_dependencies (busted, luacov, luacheck). Dependabot has
-#   no luarocks ecosystem; they are lower bounds, not pins, so CI takes
-#   whatever luarocks resolves on the day.
+#   no luarocks ecosystem. busted and luacheck are pinned to exact versions,
+#   which docker/Dockerfile.alpine repeats, so bump both places together;
+#   luacov is a lower bound, so CI takes whatever luarocks resolves on the day.
 # - ZIZMOR_VERSION and ACTIONLINT_VERSION in .github/workflows/ci.yml. They are
 #   PyPI packages run through pipx, and Dependabot's pip ecosystem does not
 #   read workflow env values.
+# - LUAROCKS_VERSION in .github/workflows/ci.yml, passed to
+#   gh-actions-luarocks. Dependabot bumps that action but not this input; when
+#   it bumps the action, check whether the action's default LuaRocks moved.

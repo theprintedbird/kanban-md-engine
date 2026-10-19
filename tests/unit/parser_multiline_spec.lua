@@ -383,6 +383,84 @@ Not a continuation (blank line above)
     end)
   end)
 
+  describe("Nested lists", function()
+    -- An indented list item straight after a card is a nested list in the
+    -- card's content, not a new card. Before this was fixed each sub-item
+    -- became a card of its own, and saving the board gave every one of them
+    -- a fresh id.
+    local content = [[
+# Test Board
+<!-- kanban:config persist_card_ids: true -->
+
+###### TODO
+
+- Card with a nested list <!-- id: card_parent -->
+    The card's description:
+      - first sub-item
+      - second sub-item
+          - a deeper item
+    More description.
+- Next card <!-- id: card_next -->
+]]
+
+    it("keeps indented list items as continuation lines of the card", function()
+      local board = Board:new()
+      board:parse(content)
+
+      local todo_col = board:get_column_by_name("TODO")
+      assert.equals(2, #todo_col.cards)
+
+      local card = todo_col.cards[1]
+      assert.equals("Card with a nested list", card.text)
+      assert.equals("card_parent", card.properties.id)
+      assert.same({
+        "- Card with a nested list",
+        "    The card's description:",
+        "      - first sub-item",
+        "      - second sub-item",
+        "          - a deeper item",
+        "    More description.",
+      }, card.content_lines)
+
+      assert.equals("Next card", todo_col.cards[2].text)
+      assert.equals("card_next", todo_col.cards[2].properties.id)
+    end)
+
+    it("survives a write and re-parse without new cards or ids", function()
+      local board = Board:new()
+      board:parse(content)
+      local written = board:write()
+
+      local reparsed = Board:new()
+      reparsed:parse(written)
+
+      local todo_col = reparsed:get_column_by_name("TODO")
+      assert.equals(2, #todo_col.cards)
+      assert.equals("card_parent", todo_col.cards[1].properties.id)
+      assert.equals(6, #todo_col.cards[1].content_lines)
+      assert.equals("card_next", todo_col.cards[2].properties.id)
+      assert.same(written, reparsed:write())
+    end)
+
+    it("still reads an unindented list item after a nested list as a new card", function()
+      local board = Board:new()
+      board:parse([[
+# Test Board
+
+###### TODO
+
+- Card 1
+  - sub-item
+- Card 2
+]])
+
+      local todo_col = board:get_column_by_name("TODO")
+      assert.equals(2, #todo_col.cards)
+      assert.same({ "- Card 1", "  - sub-item" }, todo_col.cards[1].content_lines)
+      assert.equals("Card 2", todo_col.cards[2].text)
+    end)
+  end)
+
   describe("Edge case: empty list item", function()
     -- features/multiline-lists.md, "Empty Cards": a bullet with nothing after
     -- it is CommonMark-valid but gives a card no usable text. The decision
@@ -465,6 +543,25 @@ Not a continuation (blank line above)
       local todo_col = board:get_column_by_name("TODO")
       assert.equals(1, #todo_col.cards)
       assert.equals("Real card", todo_col.cards[1].text)
+    end)
+
+    it("does not warn for an empty item in a card's nested list", function()
+      local content = [[
+# Test Board
+
+###### TODO
+
+- Card with a nested list
+  - sub-item
+  -
+]]
+      local board = Board:new()
+      board:parse(content)
+
+      local todo_col = board:get_column_by_name("TODO")
+      assert.equals(1, #todo_col.cards)
+      assert.equals(3, #todo_col.cards[1].content_lines)
+      assert.equals("", stderr_output())
     end)
 
     it("says nothing when no adapter is registered", function()

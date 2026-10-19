@@ -707,15 +707,21 @@ function ParserMixin:parse(content)
 			-- Parse tasks with multi-line support
 			elseif current_column then
 				local is_blank = line:match("^%s*$")
-				local is_task = line:match(patterns.task_item)
 				local is_continuation = is_continuation_line(line)
+
+				-- An indented line straight after a card belongs to it, even
+				-- when it is itself a list item: a nested list is part of the
+				-- card's content, not a run of new cards (SPEC.md section 7.4).
+				local continues_card = current_card and is_continuation and not blank_line_seen
+				local is_task = not continues_card and line:match(patterns.task_item)
 
 				-- An empty list item ("-" with nothing after it, or only
 				-- trailing whitespace) gives a card no usable text. Report it
 				-- and let the line fall through to whichever branch it would
 				-- otherwise take (see features/multiline-lists.md, "Empty
-				-- Cards", and SPEC.md section 7.4).
-				if not is_blank and is_empty_list_item(line) then
+				-- Cards", and SPEC.md section 7.4). A nested one is just part
+				-- of a card's content, so it is not reported.
+				if not is_blank and not continues_card and is_empty_list_item(line) then
 					notify("List items may not start with a blank line")
 				end
 
@@ -770,7 +776,7 @@ function ParserMixin:parse(content)
 					column_has_cards = true  -- Mark that we've seen at least one card
 
 				-- Handle continuation lines
-				elseif current_card and is_continuation and not blank_line_seen then
+				elseif continues_card then
 					table.insert(current_card.content_lines, line)
 					add_to_markdown = false
 

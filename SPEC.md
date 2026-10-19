@@ -380,6 +380,18 @@ to the card:
   including their indentation.
 ```
 
+A continuation line may itself be a list item, so a card can carry a nested list. An indented
+list item that directly follows a card's line or one of its continuation lines is a continuation
+line; any other list item starts a new card:
+
+```markdown
+- Write the specification
+    Sections still to do:
+      - Cards
+      - Properties
+- Review the specification
+```
+
 A blank line ends the card. A non-indented, non-list line ends the card and becomes prose.
 
 A bullet marker with nothing after it — `-` alone, or followed only by whitespace — is valid
@@ -387,6 +399,8 @@ CommonMark but gives a card no usable text. kanban-md breaks with CommonMark her
 left as column documentation rather than becoming a card (so any indented lines that follow it are
 themselves column documentation, not continuation lines), and the parser reports it through
 `notify()` at `"warn"` level (§9) with the message `List items may not start with a blank line`.
+An empty bullet that is a continuation line, in a card's nested list, is card content and is not
+reported.
 
 ### 7.5 Properties
 

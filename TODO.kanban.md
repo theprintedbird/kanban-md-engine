@@ -23,10 +23,10 @@
 
 ###### Ready
 
-- Saving a board with nested lists splits a card into several cards with new ids; treat indented list items as continuation lines <!-- backlog: 1792374795, complexity: 3, depends_on: [card_01M59BT5FBHX95A51FZ32Y5P52], id: card_01M58XSXPV2HSF73HVEFTHC9YY -->
 
 
 ###### In Progress
+
 
 
 
@@ -112,3 +112,4 @@
 - CI 7: fix the template-injection zizmor reports in the Run tests step of .github/workflows/ci.yml: the run block expands ${{ matrix.lua }} straight into the shell (tee busted-tap-...txt); pass it through env (LUA_VERSION: ${{ matrix.lua }}) and reference "$LUA_VERSION" instead; verify with zizmor .github and actionlint <!-- backlog: 1791251232, done: 1791276088, id: card_01M47E9D9JZZ0DX8SN91TH17P8, in_progress: 1791275983, ready: 1791275928 -->
 - Update Busted and Luacheck to latest versions and pin them. <!-- backlog: 1791449034, done: 1791449241, id: card_01M4DAXVJ8ADQXY2RRVM8CYZSN, in_progress: 1791449133, ready: 1791449040 -->
 - Fix quoting <!-- backlog: 1792389486, done: 1792390880, id: card_01M59BT5FBHX95A51FZ32Y5P52, in_progress: 1792389929, ready: 1792389758 -->
+- Saving a board with nested lists splits a card into several cards with new ids; treat indented list items as continuation lines <!-- backlog: 1792374795, complexity: 3, depends_on: [card_01M59BT5FBHX95A51FZ32Y5P52], done: 1792391707, id: card_01M58XSXPV2HSF73HVEFTHC9YY, in_progress: 1792391567 -->

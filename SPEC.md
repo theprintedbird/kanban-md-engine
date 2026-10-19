@@ -263,8 +263,8 @@ be derived from the column it is in.
 
 Exceeding a WIP limit is a **warning** that sets `valid = false`; it does not raise.
 
-A `wip_limit` written as a quoted number (`wip_limit: "7"`) is parsed as the number 7 and written
-back unquoted.
+A `wip_limit` written as a quoted number (`wip_limit: "7"`) parses to the string `7` (§7.6), which
+config parsing coerces to the number 7, so it is enforced and written back unquoted.
 
 `ValidationResult` (`validation_result.lua`) is the return type for move validation, with three
 states — `approved`, `warning`, `denied` — constructed via `ValidationResult.success()`,
@@ -459,9 +459,22 @@ Keys match `[%w_]+` and their authored case is preserved. Values are converted b
 | `2024-03-04` or `2024-03-04T12:34:50Z` | number — converted to epoch seconds on parse |
 | `true` / `false` (any case) | boolean |
 | `[alpha, beta]` | array of strings, trimmed |
+| `"42"` or `'42'` | string, quotes removed, no conversion — `"  "` keeps its whitespace |
 | anything else | string |
 
-Commas separate properties, except inside brackets, so an array value may contain commas.
+Commas separate properties, except inside brackets or quotes, so an array or quoted value may
+contain commas. A value ends at a comma or at whitespace followed by the next `key:`; inside quotes
+neither ends it. A quoted value closes at the first matching quote character that is followed by
+the end of the value, so a quote of the same kind elsewhere is part of the string
+(`"say "hi" now"`). An unclosed or mismatched quote is kept as part of an ordinary string.
+
+The writer quotes a string exactly when it would not read back as the same string unquoted: when
+it is empty, has leading or trailing whitespace, contains a comma, whitespace followed by `word:`,
+or a bracket, begins with a quote, or would parse as another type (`42`, `1.5`, anything starting
+`YYYY-MM-DD`, `true`/`false` in any case). It uses double quotes, or single quotes when the string
+contains a double quote that would close the value early. There is no escape syntax, so a string
+that defeats both quote characters cannot round-trip; the writer emits it double-quoted and
+reports it through `notify()` at `"warn"` level. Array elements are not quoted.
 
 Timestamps are held internally as epoch seconds regardless of how they were authored.
 

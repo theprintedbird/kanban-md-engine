@@ -4,24 +4,26 @@
 
 ###### Backlog
 
-- Kanban writer ignores card.text  <!-- backlog: 1792331365, id: card_01M57MCESJEWQRG5HDWE8RCG8H, tags: [bug] -->
+- Kanban writer ignores card.text <!-- backlog: 1792331365, id: card_01M57MCESJEWQRG5HDWE8RCG8H, tags: [bug] -->
     The engine ignores card.text in the writer, in lua/kanban-md/writer_mixin.lua:
-      - writer_mixin.lua:126 checks if task.content_lines then. Any multi-line card goes down this path.
-      - writer_mixin.lua:128 uses local first_line = task.content_lines[1]. This is the line that skips task.text: the first line comes from content_lines, so an edit to card.text never reaches the file.
-      - writer_mixin.lua:143-145 writes the continuation lines from content_lines.
-      - writer_mixin.lua:147 returns early. Only single-line cards reach line 151 (string.format("%s- %s", config.task_indent, task.text)), the only place the writer reads task.text.
+      · writer_mixin.lua:126 checks if task.content_lines then. Any multi-line card goes down this path.
+      · writer_mixin.lua:128 uses local first_line = task.content_lines[1]. This is the line that skips task.text: the first line comes from content_lines, so an edit to card.text never reaches the file.
+      · writer_mixin.lua:143-145 writes the continuation lines from content_lines.
+      · writer_mixin.lua:147 returns early. Only single-line cards reach line 151 (string.format("%s- %s", config.task_indent, task.text)), the only place the writer reads task.text.
     The parser is where the two values get copied, after which nothing keeps them in step:
-      - parser.lua:284 sets content_lines[1] = "- " .. card_data.text. This is the only place they're made to match, and it happens once, at parse time.
-      - parser.lua:301-302 only sets card.content_lines when the card has more than one line. That's why single-line cards were never affected.
-      - card.lua:28 declares the content_lines field. Nothing in card.lua updates it when text changes.
-      - card.lua:105-106 is get_full_text(), which reads content_lines for multi-line cards. Anything that displays a card through it will show the old text after an edit, too.
+      · parser.lua:284 sets content_lines[1] = "- " .. card_data.text. This is the only place they're made to match, and it happens once, at parse time.
+      · parser.lua:301-302 only sets card.content_lines when the card has more than one line. That's why single-line cards were never affected.
+      · card.lua:28 declares the content_lines field. Nothing in card.lua updates it when text changes.
+      · card.lua:105-106 is get_full_text(), which reads content_lines for multi-line cards. Anything that displays a card through it will show the old text after an edit, too.
       Line 128 has a second difference: the multi-line path never applies config.task_indent, which the single-line path at line 151 does. With the default empty indent you wouldn't see it.
+- Quote array elements: parse_properties splits [a, b] on every comma and format_property_value writes elements with tostring, so an element containing a comma, bracket or leading/trailing space does not survive a round trip. Reuse the scalar quoting rules (SPEC.md 7.6) per element, on both sides. <!-- backlog: 1792390463, id: card_01M59CR0BKH1FZQJWV7WET9Z2K -->
+- Property values containing -->: parse_properties strips every <!-- and --+> before scanning (parser.lua:85), and a written --> ends the HTML comment early, so quoting does not protect such a value. Needs an escape or encoding the writer emits and the parser reverses; same question for newlines inside a value. <!-- backlog: 1792390465, id: card_01M59CR24KV1GZBPNY9AE0Q6KT -->
 
-- Saving a board with nested lists splits a card into several cards with new ids; treat indented list items as continuation lines <!-- backlog: 1792374795, complexity: 3, id: card_01M58XSXPV2HSF73HVEFTHC9YY -->
 
 
 ###### Ready
 
+- Saving a board with nested lists splits a card into several cards with new ids; treat indented list items as continuation lines <!-- backlog: 1792374795, complexity: 3, depends_on: [card_01M59BT5FBHX95A51FZ32Y5P52], id: card_01M58XSXPV2HSF73HVEFTHC9YY -->
 
 
 ###### In Progress
@@ -109,3 +111,4 @@
 - CI 6: add a concurrency group to .github/workflows/ci.yml keyed on workflow and ref (e.g. group: ci-${{ github.workflow }}-${{ github.ref }}) with cancel-in-progress true for pull_request only, so a new push to a PR cancels the superseded run but pushes to dev and master always finish; clears zizmor's concurrency-limits finding; verify with zizmor .github and actionlint <!-- backlog: 1791251228, done: 1791275839, id: card_01M47E99BA0MV0TWXTRG078RAG, in_progress: 1791275653, ready: 1791275603 -->
 - CI 7: fix the template-injection zizmor reports in the Run tests step of .github/workflows/ci.yml: the run block expands ${{ matrix.lua }} straight into the shell (tee busted-tap-...txt); pass it through env (LUA_VERSION: ${{ matrix.lua }}) and reference "$LUA_VERSION" instead; verify with zizmor .github and actionlint <!-- backlog: 1791251232, done: 1791276088, id: card_01M47E9D9JZZ0DX8SN91TH17P8, in_progress: 1791275983, ready: 1791275928 -->
 - Update Busted and Luacheck to latest versions and pin them. <!-- backlog: 1791449034, done: 1791449241, id: card_01M4DAXVJ8ADQXY2RRVM8CYZSN, in_progress: 1791449133, ready: 1791449040 -->
+- Fix quoting <!-- backlog: 1792389486, done: 1792390880, id: card_01M59BT5FBHX95A51FZ32Y5P52, in_progress: 1792389929, ready: 1792389758 -->

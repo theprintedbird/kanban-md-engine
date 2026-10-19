@@ -848,7 +848,8 @@ describe("WriterMixin serialization", function()
 
     it("only strips a leading underscore, not one anywhere in the key", function()
       local task = { text = "Task", properties = { due_date = "2026-01-01", _due = "x" } }
-      assert.are.equals("- Task <!-- due_date: 2026-01-01 -->", write_task(task, "Todo"))
+      -- The value is a string shaped like a date, so it is quoted to stay a string (SPEC.md 7.6)
+      assert.are.equals('- Task <!-- due_date: "2026-01-01" -->', write_task(task, "Todo"))
     end)
 
     it("drops them from kanban:config and column:config comments", function()

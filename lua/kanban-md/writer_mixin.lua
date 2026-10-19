@@ -31,6 +31,67 @@ local function format_timestamp(timestamp, config)
 	end
 end
 
+-- Would this string read back as something else if written without quotes?
+-- Each test mirrors a rule in parse_properties (parser.lua): the value is
+-- trimmed, ends at a comma or at " key:", counts brackets, strips a pair of
+-- quotes, and converts anything shaped like a number, date or boolean.
+local function needs_quoting(str)
+	local lower = str:lower()
+	return str == ""
+		or str:match("^%s") ~= nil
+		or str:match("%s$") ~= nil
+		or str:find(",", 1, true) ~= nil
+		or str:match("%s[%w_]+:") ~= nil
+		or str:match("[%[%]]") ~= nil
+		or str:match("^[\"']") ~= nil
+		or str:match("^%d+$") ~= nil
+		or str:match("^%d+%.%d+$") ~= nil
+		or str:match("^%d%d%d%d%-%d%d%-%d%d") ~= nil
+		or lower == "true"
+		or lower == "false"
+end
+
+-- Could `quote` wrap this string without closing early? The parser closes a
+-- quoted value at the first matching quote that is followed by a comma or by
+-- " key:", so the string must not contain one.
+local function can_wrap(str, quote)
+	local pos = 1
+	while true do
+		local found = str:find(quote, pos, true)
+		if not found then return true end
+		local ahead = str:sub(found + 1)
+		if ahead:match("^%s*,") or ahead:match("^%s+[%w_]+:") then
+			return false
+		end
+		pos = found + 1
+	end
+end
+
+-- Write a string so it parses back as the same string, quoting it only when it
+-- has to be. Double quotes are preferred; single quotes are used when the
+-- string itself would close a double-quoted value.
+local function format_string(str)
+	if not needs_quoting(str) then
+		return str
+	end
+
+	if can_wrap(str, '"') then
+		return '"' .. str .. '"'
+	elseif can_wrap(str, "'") then
+		return "'" .. str .. "'"
+	end
+
+	-- Both quote characters appear in positions that would close the value
+	-- early, and there is no escape syntax, so this string cannot round-trip.
+	if adapter_registry.has_adapter() then
+		adapter_registry.get_adapter():notify(
+			string.format("Property value cannot be written so it reads back unchanged: %s", str),
+			"warn"
+		)
+	end
+	return '"' .. str .. '"'
+end
+
 -- Format a property value for output
 -- @param value any
 -- @param key string - the property key (for determining if it's a timestamp)
@@ -54,8 +115,9 @@ local function format_property_value(value, key, timestamp_keys, config)
 			table.insert(items, tostring(item))
 		end
 		return "[" .. table.concat(items, ", ") .. "]"
+	elseif type(value) == "string" then
+		return format_string(value)
 	else
-		-- String
 		return tostring(value)
 	end
 end

@@ -77,6 +77,29 @@ local function iso_to_epoch(iso_string)
 	return days * 86400 + hour * 3600 + min * 60 + sec
 end
 
+-- Does the text at `pos` end a property value? True at the end of the text, at
+-- a comma, or at the start of the next "key:" -- each after optional whitespace.
+local function at_value_end(text, pos)
+	local ahead = text:sub(pos)
+	return ahead:match("^%s*$") ~= nil
+		or ahead:match("^%s*,") ~= nil
+		or ahead:match("^%s+[%w_]+:") ~= nil
+end
+
+-- Find the quote closing a value opened by `quote` at `open_pos`: the first
+-- matching quote character that is followed by the end of the value. A quote
+-- of the same kind anywhere else is part of the string, so `"say "hi" now"`
+-- reads as one value. Returns nil when the value is never closed.
+local function find_closing_quote(text, open_pos, quote)
+	local pos = open_pos + 1
+	while true do
+		local found = text:find(quote, pos, true)
+		if not found then return nil end
+		if at_value_end(text, found + 1) then return found end
+		pos = found + 1
+	end
+end
+
 -- Parse properties from a comment string
 local function parse_properties(comment_text)
 	local props = {}
@@ -100,6 +123,17 @@ local function parse_properties(comment_text)
 		local value_end = value_start
 		local bracket_count = 0
 
+		-- A value opening with a quote runs to its closing quote, so commas,
+		-- brackets and "word:" inside it are part of the value. An unclosed
+		-- quote is scanned like any other value and stays in the string.
+		local quote = comment_text:sub(value_start, value_start)
+		if quote == '"' or quote == "'" then
+			local closing = find_closing_quote(comment_text, value_start, quote)
+			if closing then
+				value_end = closing + 1
+			end
+		end
+
 		-- Scan for the end of the value, respecting brackets
 		while value_end <= #comment_text do
 			local char = comment_text:sub(value_end, value_end)
@@ -122,6 +156,7 @@ local function parse_properties(comment_text)
 
 		-- Extract and clean the value
 		local value = comment_text:sub(value_start, value_end - 1):gsub("^%s+", ""):gsub("%s+$", "")
+		local quoted = value:match('^"(.*)"$') or value:match("^'(.*)'$")
 
 		-- Preserve authored case of keys; they are used as-is
 		-- (Config keys like wip_limit, is_completion_state and timestamp keys
@@ -129,7 +164,10 @@ local function parse_properties(comment_text)
 		-- case the user writes -- see PLAN-config-fixes.md Task 5)
 
 		-- Type conversion
-		if value:match("^%d+$") then
+		if quoted then
+			-- Quoted string: the quotes go, and so does any type conversion
+			props[key] = quoted
+		elseif value:match("^%d+$") then
 			-- Integer (timestamps, numbers)
 			props[key] = tonumber(value)
 		elseif value:match("^%d+%.%d+$") then
@@ -219,10 +257,10 @@ end
 -- Apply column configuration with type resolution and property merging
 -- Handles both "column:config" and simplified "config" syntax
 -- Config keys the engine later compares as numbers. A board file is written by
--- hand, so `wip_limit: "7"` is entirely possible; a numeric-looking value is
--- coerced here so the comparison in calculate_stats() sees a number. A value
--- that is not a number at all is left exactly as authored -- dropping it would
--- lose it on the next write -- and validate() reports it instead.
+-- hand, so `wip_limit: "7"` is entirely possible; it parses to the string "7",
+-- which is coerced here so the comparison in calculate_stats() sees a number. A
+-- value that is not a number at all is left exactly as authored -- dropping it
+-- would lose it on the next write -- and validate() reports it instead.
 local NUMERIC_CONFIG_KEYS = { "wip_limit" }
 
 local function coerce_numeric_config(props)
@@ -230,8 +268,7 @@ local function coerce_numeric_config(props)
 		local value = props[key]
 
 		if type(value) == "string" then
-			-- Accept a quoted number as a number.
-			local number = tonumber((value:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")))
+			local number = tonumber(value)
 
 			if number then
 				props[key] = number

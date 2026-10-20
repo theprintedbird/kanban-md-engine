@@ -51,33 +51,53 @@ local function needs_quoting(str)
 		or lower == "false"
 end
 
+-- Would this array element read back as something else if written without
+-- quotes? Elements are never type-converted and " key:" does not end one, so
+-- only the structural rules in parse_properties' scan_array apply: trimming,
+-- comma separation, bracket counting and a leading quote.
+local function element_needs_quoting(str)
+	return str == ""
+		or str:match("^%s") ~= nil
+		or str:match("%s$") ~= nil
+		or str:find(",", 1, true) ~= nil
+		or str:match("[%[%]]") ~= nil
+		or str:match("^[\"']") ~= nil
+end
+
+-- Would text following a quote close a quoted property value? The parser
+-- closes one at a comma or at " key:".
+local function closes_value(ahead)
+	return ahead:match("^%s*,") ~= nil or ahead:match("^%s+[%w_]+:") ~= nil
+end
+
+-- Would text following a quote close a quoted array element? The parser
+-- closes one at a comma or at the closing bracket.
+local function closes_element(ahead)
+	return ahead:match("^%s*[,%]]") ~= nil
+end
+
 -- Could `quote` wrap this string without closing early? The parser closes a
--- quoted value at the first matching quote that is followed by a comma or by
--- " key:", so the string must not contain one.
-local function can_wrap(str, quote)
+-- quoted value at the first matching quote that `closes` accepts the text
+-- after, so the string must not contain one.
+local function can_wrap(str, quote, closes)
 	local pos = 1
 	while true do
 		local found = str:find(quote, pos, true)
 		if not found then return true end
-		local ahead = str:sub(found + 1)
-		if ahead:match("^%s*,") or ahead:match("^%s+[%w_]+:") then
+		if closes(str:sub(found + 1)) then
 			return false
 		end
 		pos = found + 1
 	end
 end
 
--- Write a string so it parses back as the same string, quoting it only when it
--- has to be. Double quotes are preferred; single quotes are used when the
--- string itself would close a double-quoted value.
-local function format_string(str)
-	if not needs_quoting(str) then
-		return str
-	end
-
-	if can_wrap(str, '"') then
+-- Wrap a string in quotes so it parses back unchanged. Double quotes are
+-- preferred; single quotes are used when the string itself would close a
+-- double-quoted value.
+local function quote_string(str, closes)
+	if can_wrap(str, '"', closes) then
 		return '"' .. str .. '"'
-	elseif can_wrap(str, "'") then
+	elseif can_wrap(str, "'", closes) then
 		return "'" .. str .. "'"
 	end
 
@@ -90,6 +110,25 @@ local function format_string(str)
 		)
 	end
 	return '"' .. str .. '"'
+end
+
+-- Write a string so it parses back as the same string, quoting it only when it
+-- has to be.
+local function format_string(str)
+	if not needs_quoting(str) then
+		return str
+	end
+	return quote_string(str, closes_value)
+end
+
+-- Write an array element so it parses back as the same string. The parser
+-- reads every element as a string, so a number is written as its digits.
+local function format_element(item)
+	local str = tostring(item)
+	if not element_needs_quoting(str) then
+		return str
+	end
+	return quote_string(str, closes_element)
 end
 
 -- Format a property value for output
@@ -112,7 +151,7 @@ local function format_property_value(value, key, timestamp_keys, config)
 		-- Array notation
 		local items = {}
 		for _, item in ipairs(value) do
-			table.insert(items, tostring(item))
+			table.insert(items, format_element(item))
 		end
 		return "[" .. table.concat(items, ", ") .. "]"
 	elseif type(value) == "string" then

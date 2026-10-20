@@ -488,7 +488,16 @@ or a bracket, begins with a quote, or would parse as another type (`42`, `1.5`, 
 `YYYY-MM-DD`, `true`/`false` in any case). It uses double quotes, or single quotes when the string
 contains a double quote that would close the value early. There is no escape syntax, so a string
 that defeats both quote characters cannot round-trip; the writer emits it double-quoted and
-reports it through `notify()` at `"warn"` level. Array elements are not quoted.
+reports it through `notify()` at `"warn"` level.
+
+Array elements follow the same quoting rules, judged against the array's own separators. A quoted
+element closes at the first matching quote followed by a comma or the closing bracket, and keeps
+its content verbatim (`["one, two", " x "]`). An unquoted element is trimmed and is never
+type-converted, so `[42, true]` is two strings; it ends at a comma or the closing bracket, counting
+nested bracket pairs, and an empty one is dropped (`[a,, b]` is two elements). Text after an
+array's closing bracket makes the whole value an ordinary string. The writer quotes an element
+when it is empty, has leading or trailing whitespace, contains a comma or a bracket, or begins with
+a quote, choosing and warning about quote characters as for any other string.
 
 Timestamps are held internally as epoch seconds regardless of how they were authored.
 

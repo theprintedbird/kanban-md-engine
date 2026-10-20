@@ -86,17 +86,78 @@ local function at_value_end(text, pos)
 		or ahead:match("^%s+[%w_]+:") ~= nil
 end
 
+-- Does the text at `pos` end an array element? True at a comma or at the
+-- closing bracket, each after optional whitespace.
+local function at_element_end(text, pos)
+	return text:sub(pos):match("^%s*[,%]]") ~= nil
+end
+
 -- Find the quote closing a value opened by `quote` at `open_pos`: the first
--- matching quote character that is followed by the end of the value. A quote
--- of the same kind anywhere else is part of the string, so `"say "hi" now"`
--- reads as one value. Returns nil when the value is never closed.
-local function find_closing_quote(text, open_pos, quote)
+-- matching quote character that is followed by the end of the value, as
+-- judged by `at_end`. A quote of the same kind anywhere else is part of the
+-- string, so `"say "hi" now"` reads as one value. Returns nil when the value
+-- is never closed.
+local function find_closing_quote(text, open_pos, quote, at_end)
 	local pos = open_pos + 1
 	while true do
 		local found = text:find(quote, pos, true)
 		if not found then return nil end
-		if at_value_end(text, found + 1) then return found end
+		if at_end(text, found + 1) then return found end
 		pos = found + 1
+	end
+end
+
+-- Read the array opened by `[` at `open_pos`. Elements are separated by
+-- commas and follow the scalar quoting rules: one opening with a quote runs to
+-- its closing quote (followed by a comma or the closing bracket) and keeps its
+-- content verbatim, so it may hold commas, brackets and outer whitespace. An
+-- unquoted element is trimmed, counts nested brackets, and is dropped when
+-- empty. Returns the elements and the position of the closing bracket, or nil
+-- when the array is never closed.
+local function scan_array(text, open_pos)
+	local elements = {}
+	local pos = open_pos + 1
+	while true do
+		pos = text:find("%S", pos)
+		if not pos then return nil end
+
+		local quote = text:sub(pos, pos)
+		local closing
+		if quote == '"' or quote == "'" then
+			closing = find_closing_quote(text, pos, quote, at_element_end)
+		end
+
+		if closing then
+			table.insert(elements, text:sub(pos + 1, closing - 1))
+			-- at_element_end guarantees a comma or bracket follows
+			pos = text:find("%S", closing + 1)
+		else
+			-- Unquoted, or an unclosed quote kept as part of the element
+			local start = pos
+			local depth = 0
+			while true do
+				local char = text:sub(pos, pos)
+				if char == "" then return nil end
+				if char == "[" then
+					depth = depth + 1
+				elseif char == "]" then
+					if depth == 0 then break end
+					depth = depth - 1
+				elseif char == "," and depth == 0 then
+					break
+				end
+				pos = pos + 1
+			end
+			local element = text:sub(start, pos - 1):gsub("^%s+", ""):gsub("%s+$", "")
+			if element ~= "" then
+				table.insert(elements, element)
+			end
+		end
+
+		if text:sub(pos, pos) == "]" then
+			return elements, pos
+		end
+		pos = pos + 1
 	end
 end
 
@@ -125,10 +186,16 @@ local function parse_properties(comment_text)
 
 		-- A value opening with a quote runs to its closing quote, so commas,
 		-- brackets and "word:" inside it are part of the value. An unclosed
-		-- quote is scanned like any other value and stays in the string.
+		-- quote is scanned like any other value and stays in the string. An
+		-- array runs to its closing bracket, skipping over quoted elements.
 		local quote = comment_text:sub(value_start, value_start)
 		if quote == '"' or quote == "'" then
-			local closing = find_closing_quote(comment_text, value_start, quote)
+			local closing = find_closing_quote(comment_text, value_start, quote, at_value_end)
+			if closing then
+				value_end = closing + 1
+			end
+		elseif quote == "[" then
+			local _, closing = scan_array(comment_text, value_start)
 			if closing then
 				value_end = closing + 1
 			end
@@ -163,6 +230,13 @@ local function parse_properties(comment_text)
 		-- are authored in lowercase by convention; custom keys preserve whatever
 		-- case the user writes -- see PLAN-config-fixes.md Task 5)
 
+		-- Array notation [item1, item2]; text after the closing bracket makes
+		-- the whole value an ordinary string
+		local array, array_close
+		if value:sub(1, 1) == "[" then
+			array, array_close = scan_array(value, 1)
+		end
+
 		-- Type conversion
 		if quoted then
 			-- Quoted string: the quotes go, and so does any type conversion
@@ -186,15 +260,7 @@ local function parse_properties(comment_text)
 			props[key] = true
 		elseif value:lower() == "false" then
 			props[key] = false
-		elseif value:match("^%[.*%]$") then
-			-- Array notation [item1, item2]
-			local array = {}
-			-- Remove the brackets and split by comma
-			local array_content = value:sub(2, -2)  -- Remove [ and ]
-			for element in array_content:gmatch("([^,]+)") do
-				element = element:gsub("^%s+", ""):gsub("%s+$", "")
-				table.insert(array, element)
-			end
+		elseif array_close == #value then
 			props[key] = array
 		else
 			-- String

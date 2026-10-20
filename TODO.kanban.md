@@ -16,8 +16,8 @@
       · card.lua:28 declares the content_lines field. Nothing in card.lua updates it when text changes.
       · card.lua:105-106 is get_full_text(), which reads content_lines for multi-line cards. Anything that displays a card through it will show the old text after an edit, too.
       Line 128 has a second difference: the multi-line path never applies config.task_indent, which the single-line path at line 151 does. With the default empty indent you wouldn't see it.
-- Quote array elements: parse_properties splits [a, b] on every comma and format_property_value writes elements with tostring, so an element containing a comma, bracket or leading/trailing space does not survive a round trip. Reuse the scalar quoting rules (SPEC.md 7.6) per element, on both sides. <!-- backlog: 1792390463, id: card_01M59CR0BKH1FZQJWV7WET9Z2K -->
 - Property values containing -->: parse_properties strips every <!-- and --+> before scanning (parser.lua:85), and a written --> ends the HTML comment early, so quoting does not protect such a value. Needs an escape or encoding the writer emits and the parser reverses; same question for newlines inside a value. <!-- backlog: 1792390465, id: card_01M59CR24KV1GZBPNY9AE0Q6KT -->
+- Add command for tagging. <!-- backlog: 1792460694, id: card_01M5BFQ981W2JF2GHRQBHVHSXB -->
 
 
 
@@ -25,7 +25,9 @@
 
 
 
+
 ###### In Progress
+
 
 
 
@@ -113,3 +115,4 @@
 - Update Busted and Luacheck to latest versions and pin them. <!-- backlog: 1791449034, done: 1791449241, id: card_01M4DAXVJ8ADQXY2RRVM8CYZSN, in_progress: 1791449133, ready: 1791449040 -->
 - Fix quoting <!-- backlog: 1792389486, done: 1792390880, id: card_01M59BT5FBHX95A51FZ32Y5P52, in_progress: 1792389929, ready: 1792389758 -->
 - Saving a board with nested lists splits a card into several cards with new ids; treat indented list items as continuation lines <!-- backlog: 1792374795, complexity: 3, depends_on: [card_01M59BT5FBHX95A51FZ32Y5P52], done: 1792391707, id: card_01M58XSXPV2HSF73HVEFTHC9YY, in_progress: 1792391567 -->
+- Quote array elements: parse_properties splits [a, b] on every comma and format_property_value writes elements with tostring, so an element containing a comma, bracket or leading/trailing space does not survive a round trip. Reuse the scalar quoting rules (SPEC.md 7.6) per element, on both sides. <!-- backlog: 1792390463, done: 1792461225, id: card_01M59CR0BKH1FZQJWV7WET9Z2K, in_progress: 1792460805, ready: 1792460762 -->

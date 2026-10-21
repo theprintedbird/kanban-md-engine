@@ -159,6 +159,58 @@ describe("Writer - Multi-line list items", function()
     end)
   end)
 
+  describe("Edited text on a multi-line card", function()
+    local original = [[
+# Test Board
+
+###### TODO
+
+- Old title <!-- priority: high -->
+  continuation
+]]
+
+    it("writes card.text rather than the parsed first line", function()
+      local board = Board:new()
+      board:parse(original)
+      local card = board:get_column_by_name("TODO").cards[1]
+      card.text = "New title"
+
+      local output_text = table.concat(board:write(), "\n")
+
+      assert.is_not_nil(output_text:find("- New title <!-- priority: high -->\n  continuation", 1, true))
+      assert.is_nil(output_text:find("Old title", 1, true))
+    end)
+
+    it("reflects the edit in get_full_text()", function()
+      local board = Board:new()
+      board:parse(original)
+      local card = board:get_column_by_name("TODO").cards[1]
+      card.text = "New title"
+
+      assert.equals("- New title\n  continuation", card:get_full_text())
+    end)
+
+    it("applies task_indent to the first line, as for a single-line card", function()
+      local board = Board:new()
+      board.title = "Test Board"
+      board.config.task_indent = "  "
+      local col = Column:new("TODO")
+      local card = Card:new(nil, "Multi", {})
+      card.content_lines = { "- Multi", "    continuation" }
+      col:add_card(card)
+      board:add_column(col)
+
+      local output = board:write()
+
+      local index
+      for i, line in ipairs(output) do
+        if line == "  - Multi" then index = i end
+      end
+      assert.is_not_nil(index)
+      assert.equals("    continuation", output[index + 1])
+    end)
+  end)
+
   describe("Round-trip fidelity", function()
     it("should preserve exact content through parse-write cycle", function()
       local original = [[

@@ -117,7 +117,10 @@ Keeping the two apart is what stops implicit, type-resolved properties being inj
 user's file (§7.5).
 
 A Card carries `id`, `text`, `properties`, `line_number`, `column`, `raw`, and `content_lines`
-when it spans more than one line.
+when it spans more than one line. `content_lines[1]` mirrors the first line as parsed, but `text`
+is authoritative: the writer and `get_full_text()` build the first line from `text` (the writer
+prefixing `task_indent`, as for a single-line card) and take only the continuation lines from
+`content_lines`, so an edit to `text` reaches the file whether or not the card spans lines.
 
 `Board.archive` being separate from `Board.columns` is load-bearing: statistics, completion
 detection and position-based column fallbacks all iterate `columns` only, so archived cards

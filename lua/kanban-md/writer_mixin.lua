@@ -300,10 +300,12 @@ local function write_task(task, column_name, config, timestamp_keys)
 	-- Build property comment
 	local comment = properties_to_comment(props_to_write, nil, config, timestamp_keys)
 
+	local first_line = string.format("%s- %s", config.task_indent, task.text)
+
 	-- Handle multi-line cards
 	if task.content_lines then
-		-- First line with properties
-		local first_line = task.content_lines[1]
+		-- The first line comes from task.text, not content_lines[1], so an edit
+		-- to the card's text reaches the file. Only the continuations are kept.
 		if comment then
 			if type(comment) == "table" then
 				table.insert(lines, first_line .. " " .. comment[1])
@@ -326,16 +328,15 @@ local function write_task(task, column_name, config, timestamp_keys)
 	end
 
 	-- Single-line card (existing behaviour)
-	local line = string.format("%s- %s", config.task_indent, task.text)
 	if comment then
 		if type(comment) == "table" then
-			return { line .. " " .. comment[1], unpack(comment, 2) }
+			return { first_line .. " " .. comment[1], unpack(comment, 2) }
 		else
-			return line .. " " .. comment
+			return first_line .. " " .. comment
 		end
 	end
 
-	return line
+	return first_line
 end
 
 -- Select which column config layer to serialise back to markdown.

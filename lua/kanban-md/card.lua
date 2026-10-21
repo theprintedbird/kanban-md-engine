@@ -34,7 +34,7 @@ function Card:new(id, text, properties)
   local obj = {
     id = id,
     text = text or "",
-    content_lines = nil,  -- Array of all lines (including first line) for multi-line cards
+    content_lines = nil,  -- Array of all lines (including first line) for multi-line cards; text wins over [1]
     properties = props,
     column = nil,
     triggers = {},
@@ -118,10 +118,16 @@ end
 
 -- Get the full text content of the card
 -- For single-line cards, returns card.text
--- For multi-line cards, returns all content_lines joined with newlines
+-- For multi-line cards, returns the first line and the continuation lines
+-- joined with newlines. The first line is built from card.text rather than
+-- read from content_lines[1], so it reflects an edit to the text.
 function Card:get_full_text()
   if self.content_lines then
-    return table.concat(self.content_lines, "\n")
+    local lines = { "- " .. self.text }
+    for i = 2, #self.content_lines do
+      table.insert(lines, self.content_lines[i])
+    end
+    return table.concat(lines, "\n")
   end
   return self.text
 end

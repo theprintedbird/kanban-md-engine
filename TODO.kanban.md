@@ -4,18 +4,6 @@
 
 ###### Backlog
 
-- Kanban writer ignores card.text <!-- backlog: 1792331365, id: card_01M57MCESJEWQRG5HDWE8RCG8H, tags: [bug] -->
-    The engine ignores card.text in the writer, in lua/kanban-md/writer_mixin.lua:
-      · writer_mixin.lua:126 checks if task.content_lines then. Any multi-line card goes down this path.
-      · writer_mixin.lua:128 uses local first_line = task.content_lines[1]. This is the line that skips task.text: the first line comes from content_lines, so an edit to card.text never reaches the file.
-      · writer_mixin.lua:143-145 writes the continuation lines from content_lines.
-      · writer_mixin.lua:147 returns early. Only single-line cards reach line 151 (string.format("%s- %s", config.task_indent, task.text)), the only place the writer reads task.text.
-    The parser is where the two values get copied, after which nothing keeps them in step:
-      · parser.lua:284 sets content_lines[1] = "- " .. card_data.text. This is the only place they're made to match, and it happens once, at parse time.
-      · parser.lua:301-302 only sets card.content_lines when the card has more than one line. That's why single-line cards were never affected.
-      · card.lua:28 declares the content_lines field. Nothing in card.lua updates it when text changes.
-      · card.lua:105-106 is get_full_text(), which reads content_lines for multi-line cards. Anything that displays a card through it will show the old text after an edit, too.
-      Line 128 has a second difference: the multi-line path never applies config.task_indent, which the single-line path at line 151 does. With the default empty indent you wouldn't see it.
 - Property values containing -->: parse_properties strips every <!-- and --+> before scanning (parser.lua:85), and a written --> ends the HTML comment early, so quoting does not protect such a value. Needs an escape or encoding the writer emits and the parser reverses; same question for newlines inside a value. <!-- backlog: 1792390465, id: card_01M59CR24KV1GZBPNY9AE0Q6KT -->
 - Add command for tagging. <!-- backlog: 1792460694, id: card_01M5BFQ981W2JF2GHRQBHVHSXB -->
 - Add versioning for SPEC and boards. <!-- backlog: 1792547679, id: card_01M5E2NTV4GT1PVG6AW2A9YCXM -->
@@ -28,7 +16,9 @@
 
 
 
+
 ###### In Progress
+
 
 
 
@@ -118,3 +108,15 @@
 - Fix quoting <!-- backlog: 1792389486, done: 1792390880, id: card_01M59BT5FBHX95A51FZ32Y5P52, in_progress: 1792389929, ready: 1792389758 -->
 - Saving a board with nested lists splits a card into several cards with new ids; treat indented list items as continuation lines <!-- backlog: 1792374795, complexity: 3, depends_on: [card_01M59BT5FBHX95A51FZ32Y5P52], done: 1792391707, id: card_01M58XSXPV2HSF73HVEFTHC9YY, in_progress: 1792391567 -->
 - Quote array elements: parse_properties splits [a, b] on every comma and format_property_value writes elements with tostring, so an element containing a comma, bracket or leading/trailing space does not survive a round trip. Reuse the scalar quoting rules (SPEC.md 7.6) per element, on both sides. <!-- backlog: 1792390463, done: 1792461225, id: card_01M59CR0BKH1FZQJWV7WET9Z2K, in_progress: 1792460805, ready: 1792460762 -->
+- Kanban writer ignores card.text <!-- backlog: 1792331365, done: 1792550921, id: card_01M57MCESJEWQRG5HDWE8RCG8H, in_progress: 1792549159, ready: 1792549078, tags: [bug] -->
+    The engine ignores card.text in the writer, in lua/kanban-md/writer_mixin.lua:
+      · writer_mixin.lua:126 checks if task.content_lines then. Any multi-line card goes down this path.
+      · writer_mixin.lua:128 uses local first_line = task.content_lines[1]. This is the line that skips task.text: the first line comes from content_lines, so an edit to card.text never reaches the file.
+      · writer_mixin.lua:143-145 writes the continuation lines from content_lines.
+      · writer_mixin.lua:147 returns early. Only single-line cards reach line 151 (string.format("%s- %s", config.task_indent, task.text)), the only place the writer reads task.text.
+    The parser is where the two values get copied, after which nothing keeps them in step:
+      · parser.lua:284 sets content_lines[1] = "- " .. card_data.text. This is the only place they're made to match, and it happens once, at parse time.
+      · parser.lua:301-302 only sets card.content_lines when the card has more than one line. That's why single-line cards were never affected.
+      · card.lua:28 declares the content_lines field. Nothing in card.lua updates it when text changes.
+      · card.lua:105-106 is get_full_text(), which reads content_lines for multi-line cards. Anything that displays a card through it will show the old text after an edit, too.
+      Line 128 has a second difference: the multi-line path never applies config.task_indent, which the single-line path at line 151 does. With the default empty indent you wouldn't see it.

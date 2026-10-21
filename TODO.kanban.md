@@ -18,6 +18,8 @@
       Line 128 has a second difference: the multi-line path never applies config.task_indent, which the single-line path at line 151 does. With the default empty indent you wouldn't see it.
 - Property values containing -->: parse_properties strips every <!-- and --+> before scanning (parser.lua:85), and a written --> ends the HTML comment early, so quoting does not protect such a value. Needs an escape or encoding the writer emits and the parser reverses; same question for newlines inside a value. <!-- backlog: 1792390465, id: card_01M59CR24KV1GZBPNY9AE0Q6KT -->
 - Add command for tagging. <!-- backlog: 1792460694, id: card_01M5BFQ981W2JF2GHRQBHVHSXB -->
+- Add versioning for SPEC and boards. <!-- backlog: 1792547679, id: card_01M5E2NTV4GT1PVG6AW2A9YCXM -->
+- Add versioning in the board config, so that collaborative editing can occur. <!-- backlog: 1792547703, id: card_01M5E2PJS9RHTSZX5ZPXTKR9NX -->
 
 
 

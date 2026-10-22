@@ -9,6 +9,7 @@
 - Add versioning for SPEC and boards. <!-- backlog: 1792547679, id: card_01M5E2NTV4GT1PVG6AW2A9YCXM -->
 - Add versioning in the board config, so that collaborative editing can occur. <!-- backlog: 1792547703, id: card_01M5E2PJS9RHTSZX5ZPXTKR9NX -->
 - Blank lines accumulate under a column heading each time a card moves in and back out of it. Moving one card A -> B -> A -> B -> A, saving after each move, leaves the blank lines under the headings growing 1 -> 2 -> 3, with the card written above the blank lines when it lands in an empty column. A plain parse and write is stable, so the move path is the likely culprit. Seen in TODO.kanban.md, where Ready and In Progress gain a line on every move. <!-- backlog: 1792645043, id: card_01M5GZH505V6K8YPYC73W0TGYQ, tags: [bug] -->
+- The spec, in 4.3 Identifiers doesn't explicitly specify where board and column identifiers are kept, if at all, be clearer on this  <!-- backlog: 1792647028, id: card_01M5H1DR0HWJ2WXTV4JKFDYK5A -->
 
 
 

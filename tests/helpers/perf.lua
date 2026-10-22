@@ -143,6 +143,49 @@ function M.per_call(samples, fn)
   return best / repeats
 end
 
+--- How many times a scaling measurement is taken, at most, before its ratio
+--- is accepted as over the limit.
+M.SCALING_ATTEMPTS = 3
+
+--- Time small_fn() and large_fn() for a scaling claim, re-measuring both
+--- while their ratio is over `max_ratio`, and return the pair with the
+--- lowest ratio.
+---
+--- Best-of-N on each size is not enough on its own. Each size is timed in
+--- its own stretch, so a noisy stretch -- another job on a shared runner, a
+--- frequency change -- lands on one side of the ratio only, and a ratio has
+--- no tolerance to absorb it: write measured 9.05x against a 9x limit on CI.
+--- Noise like that does not repeat on demand, whereas an accidental
+--- quadratic exceeds the limit on every attempt, so a retry tells the two
+--- apart without loosening the limit. A ratio within the limit is taken at
+--- once, so only a breach pays for the extra measurements.
+--- @param samples number passed to M.per_call() for each size
+--- @param small_fn function the operation on the small input
+--- @param large_fn function the operation on the large input
+--- @param max_ratio number the greatest acceptable time ratio
+--- @param attempts number|nil the most measurements to take (default
+---   M.SCALING_ATTEMPTS)
+--- @return number small seconds per call, from the best attempt
+--- @return number large seconds per call, from the best attempt
+function M.best_scaling(samples, small_fn, large_fn, max_ratio, attempts)
+  local best_small, best_large
+
+  for _ = 1, attempts or M.SCALING_ATTEMPTS do
+    local small = M.per_call(samples, small_fn)
+    local large = M.per_call(samples, large_fn)
+
+    if not best_small or large / small < best_large / best_small then
+      best_small, best_large = small, large
+    end
+
+    if best_large / best_small <= max_ratio then
+      break
+    end
+  end
+
+  return best_small, best_large
+end
+
 --- Why the performance specs should not run, or nil if they should.
 --- @return string|nil the reason, suitable for pending()
 function M.skip_reason()

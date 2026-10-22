@@ -242,7 +242,14 @@ measured 10.6x for 6x the cards on CI. A quadratic shows on every interpreter, s
 and 5.4 runs still guard against one.
 
 Every operation is measured at both sizes once, in `setup()`; the assertions read those
-measurements rather than re-timing anything.
+measurements rather than re-timing anything. The one exception is a scaling measurement whose ratio
+is over the limit: `perf.best_scaling()` times both sizes again, up to three attempts in all, and
+keeps the lowest ratio. Each size is timed in its own stretch, so a noisy stretch on a shared runner
+lands on one side of the ratio only — `write` once measured 9.05x against the 9x limit on CI. Noise
+like that does not repeat on demand and a quadratic fails every attempt, so the retry removes the
+flake without loosening the limit, and a passing run pays nothing for it.
+`KANBAN_PERF_TOLERANCE` deliberately does not widen the ratio limit: at `2` that would allow 18x,
+half way to the 36x a quadratic produces.
 
 `tests/helpers/perf.lua` is what keeps the bounds from flaking:
 

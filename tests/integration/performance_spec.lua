@@ -127,12 +127,17 @@ describe("performance", function()
     -- Both sizes, for the operations that make a scaling claim. The small
     -- board is not timed for the others, nor for any of them when scaling
     -- is not being checked: an unused measurement is just time added to the
-    -- suite.
+    -- suite. perf.best_scaling() re-measures a ratio over the limit, so a
+    -- single noisy stretch on a shared runner cannot fail the claim on its
+    -- own; the budget then reads the large timing from the same attempt.
     local function measure_both(name, samples, small_fn, large_fn)
-      measure_large(name, samples, large_fn)
-      if not SCALING_SKIP_REASON then
-        measured[name].small = perf.per_call(samples, small_fn)
+      if SCALING_SKIP_REASON then
+        measure_large(name, samples, large_fn)
+        return
       end
+
+      local small, large = perf.best_scaling(samples, small_fn, large_fn, MAX_SCALING_RATIO)
+      measured[name] = { small = small, large = large }
     end
 
     local function parse(markdown)

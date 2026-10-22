@@ -19,7 +19,10 @@ Card.trigger_order = {}
 -- without pulling in any dependency.
 local fallback_id_counter = 0
 
-function Card:new(id, text, properties)
+-- @param create_context table|nil - extra fields for the on_create context,
+--   e.g. { board = board, column = column } from the parser, so triggers can
+--   resolve board-file config for a card not yet attached to a column
+function Card:new(id, text, properties, create_context)
   -- If properties is already a TypeConverter, use it directly to avoid double-wrapping
   local props = properties
   if type(properties) == "table" and not properties.to_table then
@@ -43,10 +46,12 @@ function Card:new(id, text, properties)
   setmetatable(obj, Card)
 
   -- Fire on_create triggers (both class-level and instance-level)
-  local context = {
-    card = obj,
-    timestamp = clock.now()
-  }
+  local context = {}
+  for key, value in pairs(create_context or {}) do
+    context[key] = value
+  end
+  context.card = obj
+  context.timestamp = clock.now()
 
   -- Execute class-level triggers first (if any)
   if Card.triggers and Card.triggers["on_create"] then

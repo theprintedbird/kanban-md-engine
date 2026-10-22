@@ -13,6 +13,12 @@ contract, the `notify()` contract and configuration resolution. Read it rather t
 here. When a change alters observable behaviour, update `SPEC.md` in the same change - it is meant
 to be assertable against the test suite, so a statement there that no longer holds is a bug.
 
+## Task tracking for this project
+
+Work items live in `TODO.kanban.md`, a kanban-md board. Change it through the engine (the `kanban-md` skill or `kanban-board` agent), not by hand-editing. Each card gets a `complexity` property: `1` least complex (small, mechanical, one place), `2` moderate, `3` most complex (cross-cutting, needs design decisions or touches the engine).
+When starting work on a card, open a new `jj` change for it, and move the card to In Progress. When done, move it to Done. When handing off to an agent, choose an appropriate model based on the complexity. For work that can be done in parallel, use jj workspaces in the `.workspaces/` directory. Deal with conflicts in the kanban board upon merge/rebase, do not use possible conflicts in the board as a reason not to work concurrently.
+
+
 ## Implementation Notes
 
 When working with parser/writer:

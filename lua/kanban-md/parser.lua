@@ -447,7 +447,10 @@ local function add_structured_block(board, block)
 end
 
 -- Helper: Finalize a card and add it to the column
-local function finalize_card(column, card_data)
+-- The board is passed into the card's on_create context because the card is
+-- not yet attached when its triggers fire, and the id trigger needs the board
+-- to honour a board-file auto_id/persist_card_ids.
+local function finalize_card(board, column, card_data)
 	-- Extract text from first line
 	local first_line = card_data.content_lines[1]
 	local text = first_line:match(patterns.task_item)
@@ -472,7 +475,8 @@ local function finalize_card(column, card_data)
 	local card = Card:new(
 		card_data.properties.id,
 		card_data.text,
-		card_data.properties
+		card_data.properties,
+		{ board = board, column = column }
 	)
 
 	card.line_number = card_data.line_number
@@ -670,7 +674,7 @@ function ParserMixin:parse(content)
 						end
 						pending_config = nil
 					end
-					finalize_card(current_column, current_card)
+					finalize_card(self, current_column, current_card)
 					current_card = nil
 					blank_line_seen = false
 				end
@@ -707,7 +711,7 @@ function ParserMixin:parse(content)
 							end
 							pending_config = nil
 						end
-						finalize_card(current_column, current_card)
+						finalize_card(self, current_column, current_card)
 						current_card = nil
 						blank_line_seen = false
 					else
@@ -750,7 +754,7 @@ function ParserMixin:parse(content)
 							end
 							pending_config = nil
 						end
-						finalize_card(current_column, current_card)
+						finalize_card(self, current_column, current_card)
 						current_card = nil
 						blank_line_seen = false
 					else
@@ -815,7 +819,7 @@ function ParserMixin:parse(content)
 							pending_config = nil
 						end
 
-						finalize_card(current_column, current_card)
+						finalize_card(self, current_column, current_card)
 						current_card = nil
 					else
 						-- This is the first card in the column
@@ -858,7 +862,7 @@ function ParserMixin:parse(content)
 							pending_config = nil
 						end
 
-						finalize_card(current_column, current_card)
+						finalize_card(self, current_column, current_card)
 						current_card = nil
 					end
 
@@ -896,7 +900,7 @@ function ParserMixin:parse(content)
 				end
 				pending_config = nil
 			end
-			finalize_card(current_column, current_card)
+			finalize_card(self, current_column, current_card)
 			current_card = nil
 		end
 

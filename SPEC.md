@@ -79,8 +79,10 @@ sets `kanban.adapter` to the CLI adapter instance.
   directing the caller to `require('kanban-md').setup()`. This guard exists so a Neovim user
   cannot silently install the CLI adapter over the Neovim one.
 - `cli.setup()` delegates to `kanban-md.core.setup`, which **MUST**, in order: register the
-  adapter in `adapter_registry`; apply `user_config` via `config.setup()`; and, if `auto_id`
-  resolves true, register ULID `on_create` triggers on the `Board`, `Column` and `Card` classes.
+  adapter in `adapter_registry`; apply `user_config` via `config.setup()`; and register ULID
+  `on_create` triggers on the `Board`, `Column` and `Card` classes. Registration **MUST NOT**
+  depend on the global `auto_id`: the trigger resolves `auto_id` itself when it fires (§4.3), so
+  that a board file can turn identifiers on as well as off.
 - `core_setup.setup(user_config, adapter)` **MUST** error when called with no adapter.
 
 A host that is not the CLI supplies its own adapter (§8) and calls `core.setup` itself.
@@ -130,6 +132,13 @@ detection and position-based column fallbacks all iterate `columns` only, so arc
 
 With `auto_id` enabled (the default) and `setup()` called, boards, columns and cards receive
 ULID-based identifiers on creation: `board_01H…`, `column_01H…`, `card_01H…`.
+
+The trigger resolves `auto_id` and `persist_card_ids` through the owning board (board file >
+plugin config) when it can reach one, and through the plugin config otherwise. The parser passes
+the board into each card's `on_create` context, so a `kanban:config` that precedes the columns
+governs the cards parsed after it, in either direction. The board's own identifier is generated
+in `Board:new()`, before any file is parsed, so it follows the plugin config only; columns
+created by the parser keep the parser's positional identifiers.
 
 Without those triggers the engine still guarantees a non-nil `id`, falling back to a
 timestamp-derived value. Identifier *presence* is a contract; identifier *format* is only a

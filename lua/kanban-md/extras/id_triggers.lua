@@ -81,8 +81,9 @@ end
 -- Create ULID-based ID generation trigger
 local function create_ulid_id_trigger()
   return function(self, context)
-    -- Determine which object we're generating an ID for
-    local obj = context.board or context.column or context.card or self
+    -- Determine which object we're generating an ID for: the most specific
+    -- one, since a card's context may also carry its board and column
+    local obj = context.card or context.column or context.board or self
 
     -- Check if auto_id is enabled (board file config wins when reachable)
     if not resolve_config_value(obj, context, 'auto_id') then

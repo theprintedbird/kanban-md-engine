@@ -9,7 +9,6 @@
 - Add versioning for SPEC and boards. <!-- backlog: 1792547679, id: card_01M5E2NTV4GT1PVG6AW2A9YCXM -->
 - Add versioning in the board config, so that collaborative editing can occur. <!-- backlog: 1792547703, id: card_01M5E2PJS9RHTSZX5ZPXTKR9NX -->
 - Blank lines accumulate under a column heading each time a card moves in and back out of it. Moving one card A -> B -> A -> B -> A, saving after each move, leaves the blank lines under the headings growing 1 -> 2 -> 3, with the card written above the blank lines when it lands in an empty column. A plain parse and write is stable, so the move path is the likely culprit. Seen in TODO.kanban.md, where Ready and In Progress gain a line on every move. <!-- backlog: 1792645043, id: card_01M5GZH505V6K8YPYC73W0TGYQ, tags: [bug] -->
-- Register the ID trigger regardless of global auto_id, so a board-file `auto_id: true` can turn IDs on (core/setup.lua:28 gates registration on the global value; the trigger already checks auto_id itself) <!-- backlog: 1792645359, complexity: 2, id: card_01M5GZTT850SSG4K73CENGZYFQ -->
 
 
 
@@ -19,7 +18,9 @@
 
 
 
+
 ###### In Progress
+
 
 
 
@@ -122,3 +123,4 @@
       · card.lua:28 declares the content_lines field. Nothing in card.lua updates it when text changes.
       · card.lua:105-106 is get_full_text(), which reads content_lines for multi-line cards. Anything that displays a card through it will show the old text after an edit, too.
       Line 128 has a second difference: the multi-line path never applies config.task_indent, which the single-line path at line 151 does. With the default empty indent you wouldn't see it.
+- Register the ID trigger regardless of global auto_id, so a board-file `auto_id: true` can turn IDs on (core/setup.lua:28 gates registration on the global value; the trigger already checks auto_id itself) <!-- backlog: 1792645359, complexity: 3, done: 1792646926, id: card_01M5GZTT850SSG4K73CENGZYFQ, in_progress: 1792645910, ready: 1792645867 -->

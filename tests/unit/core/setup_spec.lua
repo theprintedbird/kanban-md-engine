@@ -3,7 +3,8 @@
 -- setup() that every entry point (cli.lua, the Neovim plugin's init.lua) calls
 -- once it has an adapter. Reached indirectly by tests/helpers/setup.lua, but
 -- its own contract -- adapter required, adapter registered, config merged, id
--- triggers registered only when auto_id is on -- was never asserted directly.
+-- triggers registered whatever the global auto_id, which the trigger checks
+-- itself -- was never asserted directly.
 --
 -- Everything it touches is a module singleton (the registry, config, and the
 -- class-level triggers on Board/Column/Card), so this file snapshots all of
@@ -161,19 +162,22 @@ describe("core.setup", function()
       assert.equals(id_trigger_on(Board), id_trigger_on(Card))
     end)
 
-    it("does not register them when auto_id is off", function()
+    it("registers them even when the global auto_id is off", function()
+      -- A board file may still turn auto_id on, and only a registered trigger
+      -- can honour that; the trigger checks auto_id itself.
       core_setup.setup({ auto_id = false }, stub_adapter())
 
       for name, class in pairs(CLASSES) do
-        assert.is_nil(id_trigger_on(class), name .. " registered a trigger with auto_id off")
+        assert.is_function(id_trigger_on(class), name .. " has no generate_ulid_id trigger with auto_id off")
       end
     end)
 
     it("leaves new cards on Card's own fallback id when auto_id is off", function()
       core_setup.setup({ auto_id = false }, stub_adapter())
 
-      -- Card:new() has a counter-based fallback of its own; with no ULID
-      -- trigger registered that is what a new card gets, not a ULID.
+      -- Card:new() has a counter-based fallback of its own; with no board to
+      -- consult, the trigger reads the global auto_id and steps aside, so
+      -- that fallback is what a new card gets, not a ULID.
       local id = Card:new(nil, "No ULID for me").id
 
       assert.matches("^card_%d+_%d+$", id)
@@ -203,6 +207,52 @@ describe("core.setup", function()
       end
 
       assert.equals(1, seen)
+    end)
+  end)
+
+  describe("board-file auto_id", function()
+    local ULID_CARD = "^card_[0-9A-HJKMNP-TV-Z]+$"
+    local FALLBACK_CARD = "^card_%d+_%d+$"
+
+    local function parse_with_auto_id(value)
+      local board = Board:new()
+      board:parse(table.concat({
+        "# B",
+        "<!-- kanban:config auto_id: " .. tostring(value) .. " -->",
+        "",
+        "###### Todo",
+        "",
+        "- A card",
+        "",
+      }, "\n"))
+      return board
+    end
+
+    it("turns ULIDs on for parsed cards when the global auto_id is off", function()
+      core_setup.setup({ auto_id = false }, stub_adapter())
+
+      local board = parse_with_auto_id(true)
+
+      assert.matches(ULID_CARD, board.columns[1].cards[1].id)
+    end)
+
+    it("turns ULIDs off for parsed cards when the global auto_id is on", function()
+      core_setup.setup({ auto_id = true }, stub_adapter())
+
+      local board = parse_with_auto_id(false)
+
+      assert.matches(FALLBACK_CARD, board.columns[1].cards[1].id)
+    end)
+
+    it("gives the id to the card, not to the board in its create context", function()
+      core_setup.setup(nil, stub_adapter())
+      local board = Board:new()
+      local board_id = board.id
+
+      local card = Card:new(nil, "Mine", nil, { board = board })
+
+      assert.equals(board_id, board.id)
+      assert.matches(ULID_CARD, card.id)
     end)
   end)
 end)

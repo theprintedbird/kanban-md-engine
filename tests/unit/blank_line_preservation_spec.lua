@@ -273,6 +273,101 @@ describe("Blank line preservation", function()
     end)
   end)
 
+  describe("moving a card in and out of a column", function()
+    -- Parse, move the first card found into `to`, and write: one save, as the
+    -- CLI or an editor would do it.
+    local function move_and_write(lines, to)
+      local board = Board:new()
+      board:parse(lines)
+      local card, from
+      for _, column in ipairs(board.columns) do
+        if #column.cards > 0 then
+          card, from = column.cards[1], column
+          break
+        end
+      end
+      board:move_card(card, from, board:get_column_by_name(to))
+      return board:write()
+    end
+
+    before_each(function()
+      config_module.setup({
+        blank_line_after_column_header = true,
+        blank_lines_between_sections = false,
+        blank_line_after_title = false,
+        -- A timestamp written on each move would hide the layout being compared.
+        auto_timestamp = false,
+      })
+    end)
+
+    it("leaves the file as it was after the card goes there and back", function()
+      local input = {
+        "# Board",
+        "###### Col A",
+        "",
+        "- Task 1",
+        "",
+        "",
+        "###### Col B",
+        "",
+        "",
+        "###### Col C",
+      }
+
+      local there = move_and_write(input, "Col B")
+      assert.same({
+        "# Board",
+        "###### Col A",
+        "",
+        "",
+        "###### Col B",
+        "",
+        "- Task 1",
+        "",
+        "",
+        "###### Col C",
+      }, there)
+
+      local back = move_and_write(there, "Col A")
+      assert.same(input, back)
+    end)
+
+    it("does not add a blank line on every move", function()
+      local lines = {
+        "# Board",
+        "###### Col A",
+        "",
+        "- Task 1",
+        "",
+        "###### Col B",
+        "",
+      }
+      local after_first_round_trip
+      for round = 1, 3 do
+        lines = move_and_write(lines, "Col B")
+        lines = move_and_write(lines, "Col A")
+        after_first_round_trip = after_first_round_trip or lines
+        assert.same(after_first_round_trip, lines, "round " .. round)
+      end
+    end)
+
+    it("keeps prose under an emptied column apart from its heading", function()
+      local input = {
+        "# Board",
+        "###### Col A",
+        "",
+        "Some prose about this column.",
+        "",
+        "- Task 1",
+        "###### Col B",
+      }
+
+      local output = move_and_write(input, "Col B")
+      assert.same({ "###### Col A", "", "Some prose about this column.", "" },
+        { output[2], output[3], output[4], output[5] })
+    end)
+  end)
+
   describe("edge cases", function()
     it("should handle column with no tasks", function()
       config_module.setup({

@@ -273,6 +273,17 @@ local function properties_to_comment(properties, prefix, config, timestamp_keys)
 	end
 end
 
+-- Is every line blank (empty or only whitespace)?
+-- @param lines table
+local function is_all_blank(lines)
+	for _, line in ipairs(lines) do
+		if not line:match("^%s*$") then
+			return false
+		end
+	end
+	return true
+end
+
 -- Write a task line
 -- @param task table
 -- @param column_name string
@@ -525,8 +536,18 @@ function WriterMixin:write_from_blocks()
 
 			-- Header markdown (content between column header and first card)
 			if column.header_markdown and #column.header_markdown > 0 then
-				for _, line in ipairs(column.header_markdown) do
-					table.insert(lines, line)
+				-- A card landing in an empty column gets the blank line above, which
+				-- reads back as header markdown. If that card leaves again and the
+				-- header markdown is nothing but blank lines, drop that one so the
+				-- column goes back to how it was; otherwise each round trip adds a line.
+				local first = 1
+				if config.blank_line_after_column_header
+					and not (column.cards and #column.cards > 0)
+					and is_all_blank(column.header_markdown) then
+					first = 2
+				end
+				for n = first, #column.header_markdown do
+					table.insert(lines, column.header_markdown[n])
 				end
 			end
 

@@ -8,8 +8,9 @@
 - Add command for tagging. <!-- backlog: 1792460694, id: card_01M5BFQ981W2JF2GHRQBHVHSXB -->
 - Add versioning for SPEC and boards. <!-- backlog: 1792547679, id: card_01M5E2NTV4GT1PVG6AW2A9YCXM -->
 - Add versioning in the board config, so that collaborative editing can occur. <!-- backlog: 1792547703, id: card_01M5E2PJS9RHTSZX5ZPXTKR9NX -->
-- Blank lines accumulate under a column heading each time a card moves in and back out of it. Moving one card A -> B -> A -> B -> A, saving after each move, leaves the blank lines under the headings growing 1 -> 2 -> 3, with the card written above the blank lines when it lands in an empty column. A plain parse and write is stable, so the move path is the likely culprit. Seen in TODO.kanban.md, where Ready and In Progress gain a line on every move. <!-- backlog: 1792645043, id: card_01M5GZH505V6K8YPYC73W0TGYQ, tags: [bug] -->
-- The spec, in 4.3 Identifiers doesn't explicitly specify where board and column identifiers are kept, if at all, be clearer on this  <!-- backlog: 1792647028, id: card_01M5H1DR0HWJ2WXTV4JKFDYK5A -->
+- The spec, in 4.3 Identifiers doesn't explicitly specify where board and column identifiers are kept, if at all, be clearer on this <!-- backlog: 1792647028, id: card_01M5H1DR0HWJ2WXTV4JKFDYK5A -->
+- Perf specs all report `performance_spec.lua @ 81` and a wrong skip location: `perf_it` calls `it()` itself, so busted records the wrapper's line for every spec; and `return pending(...)` is a tail call, which on Lua 5.1 shows as `(tail call):-1` and on 5.3+ as busted's `bin/busted:3`. Have each spec call `it()` itself (with a guard wrapper around its fn) and drop the `return`. <!-- backlog: 1792654280, complexity: 1, id: card_01M5H8B21CMXESDXBF6EVSZAB6 -->
+- Write scaling spec is flaky on CI: it measured 9.05x for 6x the cards against a 9.00x limit (linear is 6x, quadratic about 36x). `KANBAN_PERF_TOLERANCE` only scales the time budgets, not `MAX_SCALING_RATIO`, so the `=2` CI sets gives this assertion no slack. Options: take the best ratio of several runs, raise the limit to about 10, or let the tolerance widen the ratio limit too. <!-- backlog: 1792654523, complexity: 2, id: card_01M5H8JEP7T49VHSYN1ZPQDN9T -->
 
 
 
@@ -20,7 +21,9 @@
 
 
 
+
 ###### In Progress
+
 
 
 
@@ -125,3 +128,4 @@
       · card.lua:105-106 is get_full_text(), which reads content_lines for multi-line cards. Anything that displays a card through it will show the old text after an edit, too.
       Line 128 has a second difference: the multi-line path never applies config.task_indent, which the single-line path at line 151 does. With the default empty indent you wouldn't see it.
 - Register the ID trigger regardless of global auto_id, so a board-file `auto_id: true` can turn IDs on (core/setup.lua:28 gates registration on the global value; the trigger already checks auto_id itself) <!-- backlog: 1792645359, complexity: 3, done: 1792646926, id: card_01M5GZTT850SSG4K73CENGZYFQ, in_progress: 1792645910, ready: 1792645867 -->
+- Blank lines accumulate under a column heading each time a card moves in and back out of it. Moving one card A -> B -> A -> B -> A, saving after each move, leaves the blank lines under the headings growing 1 -> 2 -> 3, with the card written above the blank lines when it lands in an empty column. A plain parse and write is stable, so the move path is the likely culprit. Seen in TODO.kanban.md, where Ready and In Progress gain a line on every move. <!-- backlog: 1792645043, done: 1792649311, id: card_01M5GZH505V6K8YPYC73W0TGYQ, in_progress: 1792649301, ready: 1792647143, tags: [bug] -->

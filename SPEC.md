@@ -357,6 +357,11 @@ Everything that is not yet ready to start.
 documentation does not already begin with one, so the setting cannot double a blank line the
 author wrote.
 
+The setting also works in reverse, so moving a card into a column and back out leaves the file
+as it was. A card that lands in an empty column is written below a new blank line. When the
+column is empty again and its documentation is only blank lines, the writer leaves out the first
+of them. Documentation with any prose in it is written verbatim, with or without cards.
+
 ### 7.3 Special sections
 
 A column name wrapped in double underscores is a special section:

@@ -74,18 +74,25 @@ local MAX_SCALING_RATIO = 9
 local SCALING_SKIP_REASON = jit and
   "LuaJIT: memory effects outweigh the per-card work; scaling is checked on PUC Lua"
 
---- it(), but marked pending when timings cannot be trusted -- under luacov,
---- or when KANBAN_SKIP_PERF=1 asks for them to be skipped -- or when
---- `extra_skip_reason` gives another reason not to run.
-local function perf_it(description, fn, extra_skip_reason)
-  it(description, function()
+--- Wraps a spec's body so that it is marked pending when timings cannot be
+--- trusted -- under luacov, or when KANBAN_SKIP_PERF=1 asks for them to be
+--- skipped -- or when `extra_skip_reason` gives another reason not to run.
+---
+--- Each spec calls it() itself, with this around its body, because busted
+--- records the line it() was called from: an it() inside a helper would give
+--- every spec the helper's line. pending() raises, so fn() is not reached
+--- after it; it is called rather than returned because a tail call loses the
+--- caller's frame, and busted would report the skip as coming from
+--- `(tail call)` or its own launcher.
+local function perf_guard(fn, extra_skip_reason)
+  return function()
     local skip_reason = perf.skip_reason() or extra_skip_reason
     if skip_reason then
-      return pending(skip_reason)
+      pending(skip_reason)
     end
 
     fn()
-  end)
+  end
 end
 
 describe("performance", function()
@@ -170,7 +177,7 @@ describe("performance", function()
   end)
 
   describe("fixtures", function()
-    perf_it("builds the boards the bounds are measured against", function()
+    it("builds the boards the bounds are measured against", perf_guard(function()
       local function count_cards(board)
         local total = 0
         for _, column in ipairs(board.columns) do
@@ -189,33 +196,33 @@ describe("performance", function()
       -- being timed on a miss.
       assert.is_not_nil(big_board:find_task(
         large_board.last_card_id(COLUMNS, LARGE_CARDS_PER_COLUMN)))
-    end)
+    end))
   end)
 
   describe("budgets", function()
-    perf_it("parses a 1440-card board within budget", function()
+    it("parses a 1440-card board within budget", perf_guard(function()
       perf.assert_within("parse", 520, measured.parse.large)
-    end)
+    end))
 
-    perf_it("writes a 1440-card board within budget", function()
+    it("writes a 1440-card board within budget", perf_guard(function()
       perf.assert_within("write", 70, measured.write.large)
-    end)
+    end))
 
-    perf_it("calculates stats for a 1440-card board within budget", function()
+    it("calculates stats for a 1440-card board within budget", perf_guard(function()
       perf.assert_within("calculate_stats", 90, measured.calculate_stats.large)
-    end)
+    end))
 
-    perf_it("validates a 1440-card board within budget", function()
+    it("validates a 1440-card board within budget", perf_guard(function()
       perf.assert_within("validate", 1.5, measured.validate.large)
-    end)
+    end))
 
-    perf_it("finds the last card of a 1440-card board within budget", function()
+    it("finds the last card of a 1440-card board within budget", perf_guard(function()
       perf.assert_within("find_task (worst case)", 0.9, measured.find_task.large)
-    end)
+    end))
 
-    perf_it("moves a card on a 1440-card board within budget", function()
+    it("moves a card on a 1440-card board within budget", perf_guard(function()
       perf.assert_within("move_card (there and back)", 0.15, measured.move_card.large)
-    end)
+    end))
   end)
 
   describe("scaling", function()
@@ -227,16 +234,16 @@ describe("performance", function()
         SIZE_RATIO, MAX_SCALING_RATIO)
     end
 
-    perf_it("parse stays linear in the number of cards", function()
+    it("parse stays linear in the number of cards", perf_guard(function()
       assert_scales("parse")
-    end, SCALING_SKIP_REASON)
+    end, SCALING_SKIP_REASON))
 
-    perf_it("write stays linear in the number of cards", function()
+    it("write stays linear in the number of cards", perf_guard(function()
       assert_scales("write")
-    end, SCALING_SKIP_REASON)
+    end, SCALING_SKIP_REASON))
 
-    perf_it("calculate_stats stays linear in the number of cards", function()
+    it("calculate_stats stays linear in the number of cards", perf_guard(function()
       assert_scales("calculate_stats")
-    end, SCALING_SKIP_REASON)
+    end, SCALING_SKIP_REASON))
   end)
 end)

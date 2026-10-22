@@ -379,7 +379,7 @@ describe("CLIAdapter", function()
       probe:close()
 
       if not available then
-        return pending("no standalone " .. interpreter .. " interpreter on PATH")
+        pending("no standalone " .. interpreter .. " interpreter on PATH")
       end
 
       local command = string.format(
@@ -614,7 +614,7 @@ describe("CLIAdapter", function()
       probe:close()
 
       if not available then
-        return pending("no standalone " .. interpreter .. " interpreter on PATH")
+        pending("no standalone " .. interpreter .. " interpreter on PATH")
       end
 
       local script = table.concat({

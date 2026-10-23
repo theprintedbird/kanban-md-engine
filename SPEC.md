@@ -1,6 +1,6 @@
 # kanban-md-engine — behaviour specification
 
-Status: living document. Version: tracks `lua/kanban-md/version.lua` (currently `0.1.0`), kept in
+Status: living document. Version: tracks `lua/kanban-md/version.lua` (currently `0.2.0`), kept in
 step by `make version VERSION=<x.y.z>`.
 
 This document specifies the observable behaviour of the kanban-md engine: what it accepts, what

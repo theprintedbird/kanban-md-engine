@@ -255,4 +255,107 @@ describe("core.setup", function()
       assert.matches(ULID_CARD, card.id)
     end)
   end)
+
+  -- SPEC.md 4.3: where each identifier is kept. Board and column ids live
+  -- only on the in-memory object; only a card id can reach the file.
+  describe("identifier storage", function()
+    local ULID_BOARD = "^board_[0-9A-HJKMNP-TV-Z]+$"
+    local ULID_COLUMN = "^column_[0-9A-HJKMNP-TV-Z]+$"
+
+    local function to_text(output)
+      return type(output) == "table" and table.concat(output, "\n") or output
+    end
+
+    local function parse(lines)
+      local board = Board:new()
+      board:parse(table.concat(lines, "\n"))
+      return board
+    end
+
+    it("generates the board id in Board:new(), not from the file", function()
+      core_setup.setup(nil, stub_adapter())
+
+      local board = parse({
+        "# B",
+        "<!-- kanban:config id: board_authored -->",
+        "",
+        "###### Todo",
+        "",
+      })
+
+      assert.matches(ULID_BOARD, board.id)
+      assert.equals("board_authored", board.config.id)
+    end)
+
+    it("falls back to a timestamp board id when auto_id is off", function()
+      core_setup.setup({ auto_id = false }, stub_adapter())
+
+      assert.matches("^board_%d+$", Board:new().id)
+    end)
+
+    it("gives parsed columns positional ids, and the archive __ARCHIVE__", function()
+      core_setup.setup(nil, stub_adapter())
+
+      local board = parse({
+        "# B",
+        "",
+        "###### Todo",
+        "<!-- column:config id: column_authored -->",
+        "",
+        "###### Done",
+        "",
+        "###### __ARCHIVE__",
+        "",
+      })
+
+      assert.equals("column_1", board.columns[1].id)
+      assert.equals("column_2", board.columns[2].id)
+      assert.equals("__ARCHIVE__", board.archive.id)
+      assert.equals("column_authored", board.columns[1].config.id)
+    end)
+
+    it("renumbers parsed column ids when the columns are reordered", function()
+      core_setup.setup(nil, stub_adapter())
+
+      local board = parse({ "# B", "", "###### Done", "", "###### Todo", "" })
+
+      assert.equals("Todo", board.columns[2].name)
+      assert.equals("column_2", board.columns[2].id)
+    end)
+
+    it("gives a column added by name a ULID, or its name when auto_id is off", function()
+      core_setup.setup(nil, stub_adapter())
+      assert.matches(ULID_COLUMN, Board:new():add_column("Todo").id)
+
+      core_setup.setup({ auto_id = false }, stub_adapter())
+      assert.equals("Todo", Board:new():add_column("Todo").id)
+    end)
+
+    it("writes neither the board id nor any column id", function()
+      core_setup.setup(nil, stub_adapter())
+      local board = parse({ "# B", "", "###### Todo", "", "- A card", "" })
+      board:add_new_column("Added")
+
+      local text = to_text(board:write())
+
+      assert.is_nil(text:find(board.id, 1, true))
+      assert.is_nil(text:find("column_", 1, true))
+    end)
+
+    it("takes a card id authored in the file as the card's id", function()
+      core_setup.setup(nil, stub_adapter())
+
+      local board = parse({ "# B", "", "###### Todo", "", "- A card <!-- id: card_authored -->", "" })
+
+      assert.equals("card_authored", board.columns[1].cards[1].id)
+    end)
+
+    it("keeps an authored card id on write even with persist_card_ids off", function()
+      core_setup.setup({ persist_card_ids = false }, stub_adapter())
+
+      local board = parse({ "# B", "", "###### Todo", "", "- A card <!-- id: card_authored -->", "" })
+
+      assert.truthy(to_text(board:write()):find("id: card_authored", 1, true))
+    end)
+  end)
 end)

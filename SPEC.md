@@ -130,22 +130,44 @@ detection and position-based column fallbacks all iterate `columns` only, so arc
 
 ### 4.3 Identifiers
 
-With `auto_id` enabled (the default) and `setup()` called, boards, columns and cards receive
-ULID-based identifiers on creation: `board_01H…`, `column_01H…`, `card_01H…`.
+Every board, column and card has a non-nil `id` field on the in-memory object. Only a card's
+identifier can ever appear in the Markdown; board and column identifiers exist in memory only and
+are made afresh each time a file is parsed.
 
-The trigger resolves `auto_id` and `persist_card_ids` through the owning board (board file >
-plugin config) when it can reach one, and through the plugin config otherwise. The parser passes
-the board into each card's `on_create` context, so a `kanban:config` that precedes the columns
-governs the cards parsed after it, in either direction. The board's own identifier is generated
-in `Board:new()`, before any file is parsed, so it follows the plugin config only; columns
-created by the parser keep the parser's positional identifiers.
+| Object | Kept in | Read from the file | Written to the file | Stable across parses |
+|---|---|---|---|---|
+| Board | `board.id` | Never | Never | No |
+| Column | `column.id` | Never | Never | Only while the columns keep their order |
+| Card | `card.id`, and `card.properties.id` when persisted | Yes, the `id` property | When `persist_card_ids` resolves true, or the `id` was authored | Only when written to the file |
 
-Without those triggers the engine still guarantees a non-nil `id`, falling back to a
-timestamp-derived value. Identifier *presence* is a contract; identifier *format* is only a
-contract when `auto_id` is on.
+Where each identifier comes from:
 
-Card identifiers are ephemeral by default: they are generated on parse and **MUST NOT** be
-written back to the Markdown unless `persist_card_ids` resolves true (§7.4).
+- **Board.** Generated in `Board:new()`, before any file is parsed: `board_<ULID>` when `auto_id`
+  is on and `setup()` has been called, otherwise `board_<timestamp>`. It follows the plugin config
+  only, because no board file has been read yet. An `id` key in a `kanban:config` comment is an
+  ordinary config value in `board.config`; it does not set `board.id`.
+- **Column.** A column the parser creates is given a positional identifier, `column_1`,
+  `column_2` and so on, counting regular columns in document order. The `__ARCHIVE__` section is
+  given `__ARCHIVE__`. These are assigned before the `on_create` triggers run, so `auto_id` does
+  not replace them, and reordering the columns renumbers them. A column created in code without an
+  identifier (`board:add_column(name)`, `board:add_new_column(name)`) gets `column_<ULID>` when
+  `auto_id` is on, and falls back to its name otherwise. As with the board, an `id` key in a
+  `column:config` comment is a config value in `column.config`, not the column's identifier.
+- **Card.** An `id` property on the card in the Markdown becomes `card.id`. Without one, the card
+  gets `card_<ULID>` when `auto_id` is on, otherwise `card_<timestamp>_<counter>`.
+
+For cards, the trigger resolves `auto_id` and `persist_card_ids` through the owning board (board
+file > plugin config) when it can reach one, and through the plugin config otherwise. The parser
+passes the board into each card's `on_create` context, so a `kanban:config` that precedes the
+columns governs the cards parsed after it, in either direction.
+
+Identifier *presence* is a contract; identifier *format* is only a contract when `auto_id` is on.
+Because board and column identifiers are not persisted, nothing that outlives one parse should
+refer to them; refer to a column by its name.
+
+A generated card identifier is ephemeral by default and **MUST NOT** be written back to the
+Markdown unless `persist_card_ids` resolves true (§7.8). An identifier the user authored is an
+ordinary property, so it is written back either way.
 
 ### 4.4 Content blocks
 
@@ -552,9 +574,10 @@ normalisations apply:
   is itself content, is still written with the prefix alone.
 - **Comment placement.** A card's properties are re-emitted inline on the card's first line, even
   when they were authored in a standalone comment beneath it.
-- **Card identifiers.** Written only when `persist_card_ids` resolves true (§10). When it does, an
-  id the user authored in the Markdown wins over the in-memory `card.id`, so a generated id can
-  never overwrite an authored one.
+- **Card identifiers.** A generated id is written only when `persist_card_ids` resolves true
+  (§10). When it does, an id the user authored in the Markdown wins over the in-memory `card.id`,
+  so a generated id can never overwrite an authored one. An authored id is written back whatever
+  `persist_card_ids` says. Board and column identifiers are never written (§4.3).
 - **Column configuration.** Only the authored layer (`column.markdown_config`) is written, so
   properties inferred from a column type or pattern are not injected into the user's file. Setting
   `write_full_config_to_markdown` writes the fully resolved `column.config` instead.

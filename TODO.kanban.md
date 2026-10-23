@@ -4,11 +4,83 @@
 
 ###### Backlog
 
+- Add a linter, if appropriate <!-- backlog: 1792738201, id: card_01M5KRC47FW471FWV6JW46696H -->
 - Property values containing -->: parse_properties strips every <!-- and --+> before scanning (parser.lua:85), and a written --> ends the HTML comment early, so quoting does not protect such a value. Needs an escape or encoding the writer emits and the parser reverses; same question for newlines inside a value. <!-- backlog: 1792390465, id: card_01M59CR24KV1GZBPNY9AE0Q6KT -->
 - Add command for tagging. <!-- backlog: 1792460694, id: card_01M5BFQ981W2JF2GHRQBHVHSXB -->
 - Add versioning for SPEC and boards. <!-- backlog: 1792547679, id: card_01M5E2NTV4GT1PVG6AW2A9YCXM -->
 - Add versioning in the board config, so that collaborative editing can occur. <!-- backlog: 1792547703, id: card_01M5E2PJS9RHTSZX5ZPXTKR9NX -->
+- Add an on_update trigger point and Board:update_card so card text and property edits go through the engine
+<!-- complexity: 3, id: card_01M5XM5JDXD78Y24AVQV43NQ5K -->
+    **Why**
+    - Moving and adding cards go through the engine (move_card, add_card), so on_checking, on_entry and on_exit
+    triggers run. Editing a card does not. The only way to change a card's text or properties is to assign
+    card.text or card.properties[k] directly, so no trigger, validation or rule can see an edit.
+    - SPEC §6.1 lists five trigger points (on_create, on_checking, on_entry, on_exit, on_stay). None fires when
+    a card is edited in place.
+    - Every host reimplements editing. For example, the kanban-md skill's `set` command assigns fields directly
+    and can only warn when a column timestamp key is set by hand. That is the rule SPEC §6.2 states: "completion
+    timestamps MUST NOT be assigned by hand". The engine has no way to enforce it.
+    - Rules that ought to apply to edits cannot be written today. Examples: a capacity_points limit checked when
+    a card's complexity changes, required properties, an `updated` timestamp, or a refusal to give a card an id
+    that another card already has.
+    - board.validation goes stale after an edit until the next parse, so a host cannot report a WIP or
+    duplicate-id problem that the edit caused.
 
+    **What to build**
+    1. Triggerable: add register_on_update(name, fn, metadata), and add "on_update" to the TRIGGER EVENTS doc
+    comment in triggerable.lua.
+    2. Board:register_trigger_from_config: add an on_update branch, so board `triggers` config and type-declared
+    triggers (SPEC §10.5) can register one. Check that auto_register_triggers passes the key through.
+    3. Board:update_card(card, changes, context), with changes = { text = string|nil, set = { key = value }|nil,
+    unset = { key, ... }|nil }:
+       - Find the card's column (card.column holds the column id; the archive counts). Raise an error if the 
+    card is not on the board.
+       - Validate the input before running any trigger. text must be a non-empty single line (SPEC §7.4). Keys 
+    must match [%w_]+.
+       - Timestamp keys: refuse to set or unset archived or any normalised column name
+    (helpers.column.normalize_column_name) unless context.allow_timestamp_keys = true, which exists to correct
+    history. This is the design decision in this card. Record it in SPEC whichever way it goes.
+       - Copy-and-commit, as Column:add_card does: card:deep_copy(), apply the changes to the copy, then run the
+    column's on_update triggers on the copy. Context: { card = copy, original = card, column, board, changes, 
+    event_type = "update", timestamp = clock.now(), _bypass_categories }. A trigger refuses by raising an error or
+    by returning a result with success = false, as on_entry does. Honour bypassable/category metadata, as 
+    build_context_and_checking does.
+       - On success, copy text and properties back to the original card (the original object stays in
+    column.cards), then call calculate_stats() and validate(). On failure, raise an error and leave the original 
+    card untouched.
+       - Leave content_lines alone. SPEC §4.2 says text is authoritative for the first line.
+    4. Do NOT run the existing on_checking triggers for an update. They assume a move: wip_limit refuses when
+    #self.cards >= limit, so it would refuse every edit in a full column. on_update is a separate point.
+    5. Optional follow-up, to show the point is useful: a capacity_points on_update trigger that refuses a 
+    complexity change that would take the column over capacity.max_points. Register it in register_basic_triggers
+    alongside the on_checking version.
+
+    **SPEC.md changes (same change)**
+    - §6.1: add register_on_update to the table ("A card's text or properties are about to change; MAY block the
+    edit").
+    - New subsection under §6 for update_card: the changes shape, copy-and-commit, refusal semantics,
+    timestamp-key protection, that validation is refreshed afterwards, and that on_checking does not run.
+    - §6.2: if the capacity trigger is added, list it.
+
+    **Tests**
+    - A text-only edit, a set, an unset, and a combined edit, each round-tripping through write and parse.
+    - A refusing on_update trigger leaves the card and the written board unchanged.
+    - A timestamp key is refused by default and allowed with allow_timestamp_keys.
+    - A bypassable trigger is skipped only for its listed category.
+    - A full WIP column still allows edits (on_checking is not run).
+    - board.validation reflects a duplicate id introduced by an edit.
+    - A multi-line card keeps its continuation lines after a text edit.
+
+    **Also noticed**
+    - on_stay is registered (register_on_stay, register_trigger_from_config) but nothing ever fires it, although
+    SPEC §6.1 says it fires "when an attempted move left the card where it was". This is spec/implementation 
+    drift and needs its own card.
+
+    I scored it complexity 3: it adds a public engine API, a trigger point and a spec section. It also needs one
+    design decision, whether timestamp keys are locked by default. I've recommended locking them, because §6.2
+    already says those timestamps must not be set by hand.
+
+    The on_stay drift would be worth its own card on the engine board.
 
 ###### Ready
 
@@ -117,3 +189,4 @@
 - Perf specs all report `performance_spec.lua @ 81` and a wrong skip location: `perf_it` calls `it()` itself, so busted records the wrapper's line for every spec; and `return pending(...)` is a tail call, which on Lua 5.1 shows as `(tail call):-1` and on 5.3+ as busted's `bin/busted:3`. Have each spec call `it()` itself (with a guard wrapper around its fn) and drop the `return`. <!-- backlog: 1792654280, complexity: 1, done: 1792660538, id: card_01M5H8B21CMXESDXBF6EVSZAB6, in_progress: 1792660387, ready: 1792660042 -->
 - Write scaling spec is flaky on CI: it measured 9.05x for 6x the cards against a 9.00x limit (linear is 6x, quadratic about 36x). `KANBAN_PERF_TOLERANCE` only scales the time budgets, not `MAX_SCALING_RATIO`, so the `=2` CI sets gives this assertion no slack. Options: take the best ratio of several runs, raise the limit to about 10, or let the tolerance widen the ratio limit too. <!-- backlog: 1792654523, complexity: 2, done: 1792664004, id: card_01M5H8JEP7T49VHSYN1ZPQDN9T, in_progress: 1792663948, ready: 1792663891 -->
 - The spec, in 4.3 Identifiers doesn't explicitly specify where board and column identifiers are kept, if at all, be clearer on this <!-- backlog: 1792647028, done: 1792714897, id: card_01M5H1DR0HWJ2WXTV4JKFDYK5A, in_progress: 1792714828, ready: 1792714696 -->
+- Create CHANGELOG.md according to https://keepachangelog.com/en/1.1.0/ <!-- backlog: 1792724628, done: 1792724896, id: card_01M5KBDX8G597JP2DHEGR64CB4, in_progress: 1792724856, ready: 1792724668 -->

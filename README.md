@@ -4,9 +4,8 @@ The platform-agnostic Lua engine behind kanban-md: parses Kanban boards out of M
 
 ## The kanban-md project
 
-kanban-md used to be a single repository. It has since been split into three:
+kanban-md used to be a single repository. It has since been split up:
 
-- **[kanban-md](https://github.com/theprintedbird/kanban-md)** – defines the Markdown syntax/spec for kanban boards (columns, cards, properties, archive, configuration comments).
 - **kanban-md-engine** (this repo) – the platform-agnostic Lua engine: parsing, writing, the board/column/card model, triggers, statistics, validation, and dependency/subtask handling.
 - **[kanban-md.nvim](https://github.com/theprintedbird/kanban-md.nvim)** – the Neovim integration: user commands (`:KanbanNewCard`, `:KanbanMoveCard`, etc.), keymaps, buffer/cursor handling, and virtual text (WIP warnings, cycle time). It pulls this repo in as a git submodule and talks to it via the adapter interface below.
 

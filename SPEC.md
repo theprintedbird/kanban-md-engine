@@ -409,9 +409,11 @@ A column name wrapped in double underscores is a special section:
 A card is an unordered list item. There is no checkbox syntax: `- [ ]` and `- [x]` are not part of
 the format, and completion is decided by which column a card is in (§6.3).
 
-A card may span several lines. Lines indented by two or more spaces, or by one or more tabs, that
-follow the card's first line with no intervening blank line are **continuation lines** and belong
-to the card:
+A card may span several lines. Lines that follow the card's first line, indented by two or more
+spaces or by one or more tabs, and further than the card's own `-`, are **continuation lines** and
+belong to the card. A tab counts as indentation to the next multiple of four columns, as in
+CommonMark. Measuring against the card's own `-` keeps cards written with a `task_indent` as
+siblings:
 
 ```markdown
 - Write the specification
@@ -420,8 +422,8 @@ to the card:
 ```
 
 A continuation line may itself be a list item, so a card can carry a nested list. An indented
-list item that directly follows a card's line or one of its continuation lines is a continuation
-line; any other list item starts a new card:
+list item that follows a card's line or one of its continuation lines is a continuation line; any
+other list item starts a new card:
 
 ```markdown
 - Write the specification
@@ -431,7 +433,20 @@ line; any other list item starts a new card:
 - Review the specification
 ```
 
-A blank line ends the card. A non-indented, non-list line ends the card and becomes prose.
+Blank lines followed by a continuation line are part of the card, as in CommonMark, so a card can
+hold several paragraphs:
+
+```markdown
+- Write the specification
+    **Why**
+    - The behaviour is undocumented.
+
+    **Tests**
+    - Each statement is asserted.
+```
+
+Blank lines followed by anything else end the card and are not part of it. A non-indented,
+non-list line ends the card and becomes prose.
 
 A bullet marker with nothing after it — `-` alone, or followed only by whitespace — is valid
 CommonMark but gives a card no usable text. kanban-md breaks with CommonMark here: the line is

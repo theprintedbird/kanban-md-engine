@@ -461,6 +461,131 @@ Not a continuation (blank line above)
     end)
   end)
 
+  describe("Blank lines inside a card", function()
+    -- As in CommonMark, a blank line followed by an indented line does not end
+    -- the card, so a card can hold several paragraphs. Before this was fixed
+    -- the indented text after a blank line became column prose, any list item
+    -- in it became a new card with a fresh id, and the write moved the prose
+    -- below the column's last card.
+    local content = [[
+# Test Board
+<!-- kanban:config persist_card_ids: true -->
+
+###### TODO
+
+- Card with paragraphs <!-- id: card_parent -->
+    **Why**
+    - a reason
+
+    **What to build**
+    1. A step, with sub-steps:
+       - a sub-step
+
+    **Tests**
+    - a test
+- Next card <!-- id: card_next -->
+]]
+
+    it("keeps indented content after a blank line in the card", function()
+      local board = Board:new()
+      board:parse(content)
+
+      local todo_col = board:get_column_by_name("TODO")
+      assert.equals(2, #todo_col.cards)
+      assert.same({
+        "- Card with paragraphs",
+        "    **Why**",
+        "    - a reason",
+        "",
+        "    **What to build**",
+        "    1. A step, with sub-steps:",
+        "       - a sub-step",
+        "",
+        "    **Tests**",
+        "    - a test",
+      }, todo_col.cards[1].content_lines)
+      assert.equals("card_next", todo_col.cards[2].properties.id)
+    end)
+
+    it("writes the card back exactly as authored", function()
+      local board = Board:new()
+      board:parse(content)
+
+      assert.equals(content, table.concat(board:write(), "\n") .. "\n")
+    end)
+
+    it("leaves a blank line before the next card outside the card", function()
+      local board = Board:new()
+      board:parse([[
+# Test Board
+
+###### TODO
+
+- Card 1
+  continuation
+
+- Card 2
+]])
+
+      local todo_col = board:get_column_by_name("TODO")
+      assert.equals(2, #todo_col.cards)
+      assert.same({ "- Card 1", "  continuation" }, todo_col.cards[1].content_lines)
+    end)
+
+    it("still ends the card at an unindented line after a blank line", function()
+      local board = Board:new()
+      board:parse([[
+# Test Board
+
+###### TODO
+
+- Card 1
+
+Column prose
+  indented prose
+]])
+
+      local todo_col = board:get_column_by_name("TODO")
+      assert.equals(1, #todo_col.cards)
+      assert.is_nil(todo_col.cards[1].content_lines)
+    end)
+  end)
+
+  describe("Indented cards", function()
+    -- A card written with a task_indent is a sibling of the card above it,
+    -- not part of its content: continuation is judged against the card's own
+    -- indentation, not the left margin.
+    it("reads consecutive indented cards as separate cards", function()
+      local board = Board:new()
+      board:parse([[
+# Test Board
+
+###### TODO
+
+  - Card 1
+    continuation
+  - Card 2
+
+  - Card 3
+]])
+
+      local todo_col = board:get_column_by_name("TODO")
+      assert.equals(3, #todo_col.cards)
+      assert.same({ "  - Card 1", "    continuation" }, todo_col.cards[1].content_lines)
+      assert.equals("Card 2", todo_col.cards[2].text)
+      assert.equals("Card 3", todo_col.cards[3].text)
+    end)
+
+    it("counts a tab as indentation to the next multiple of four", function()
+      local board = Board:new()
+      board:parse("###### TODO\n\n  - Card 1\n\tcontinuation\n   - Card 2\n")
+
+      local todo_col = board:get_column_by_name("TODO")
+      assert.equals(1, #todo_col.cards)
+      assert.same({ "  - Card 1", "\tcontinuation", "   - Card 2" }, todo_col.cards[1].content_lines)
+    end)
+  end)
+
   describe("Edge case: empty list item", function()
     -- features/multiline-lists.md, "Empty Cards": a bullet with nothing after
     -- it is CommonMark-valid but gives a card no usable text. The decision

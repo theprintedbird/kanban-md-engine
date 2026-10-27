@@ -279,6 +279,27 @@ local function is_continuation_line(line)
 	return line:match("^  +") or line:match("^\t+")  -- 2+ spaces or 1+ tabs at start
 end
 
+-- Width of a line's leading whitespace, with a tab counted to the next
+-- multiple of four columns as CommonMark does.
+local function indent_width(line)
+	local width = 0
+	for char in line:match("^[ \t]*"):gmatch(".") do
+		if char == "\t" then
+			width = width + 4 - width % 4
+		else
+			width = width + 1
+		end
+	end
+	return width
+end
+
+-- Does `line` belong to the card whose first line is `card_line`? It must be a
+-- continuation line, and indented further than the card's own bullet, so that
+-- cards written with a task_indent are siblings rather than nested content.
+local function continues(card_line, line)
+	return is_continuation_line(line) and indent_width(line) > indent_width(card_line)
+end
+
 -- Detect a bullet marker with nothing after it (an empty list item), e.g.
 -- "-", "- " or "-   ". CommonMark allows this and would treat any following
 -- indented lines as that item's continuation; kanban-md declines to (an
@@ -777,12 +798,14 @@ function ParserMixin:parse(content)
 			-- Parse tasks with multi-line support
 			elseif current_column then
 				local is_blank = line:match("^%s*$")
-				local is_continuation = is_continuation_line(line)
 
-				-- An indented line straight after a card belongs to it, even
-				-- when it is itself a list item: a nested list is part of the
-				-- card's content, not a run of new cards (SPEC.md section 7.4).
-				local continues_card = current_card and is_continuation and not blank_line_seen
+				-- An indented line after a card belongs to it, even when it is
+				-- itself a list item: a nested list is part of the card's
+				-- content, not a run of new cards. Blank lines in between do
+				-- not end the card, as in CommonMark, so a card can hold
+				-- several paragraphs (SPEC.md section 7.4).
+				local continues_card = current_card and not is_blank
+					and continues(current_card.content_lines[1], line)
 				local is_task = not continues_card and line:match(patterns.task_item)
 
 				-- An empty list item ("-" with nothing after it, or only
@@ -847,6 +870,18 @@ function ParserMixin:parse(content)
 
 				-- Handle continuation lines
 				elseif continues_card then
+					-- Blank lines since the card's last line were buffered as
+					-- markdown in case the card had ended. It had not, so they
+					-- are the card's. The buffer holds nothing else: it is
+					-- emptied when a card starts, and any other line in between
+					-- would have ended the card.
+					if blank_line_seen then
+						for _, blank in ipairs(markdown_buffer) do
+							table.insert(current_card.content_lines, blank)
+						end
+						markdown_buffer = {}
+						blank_line_seen = false
+					end
 					table.insert(current_card.content_lines, line)
 					add_to_markdown = false
 
@@ -884,7 +919,7 @@ function ParserMixin:parse(content)
 				local opening = match_fence(line)
 				if opening then
 					fence_marker = opening
-					if current_card and is_continuation_line(line) then
+					if current_card and continues(current_card.content_lines[1], line) then
 						fence_card = current_card
 					end
 				end

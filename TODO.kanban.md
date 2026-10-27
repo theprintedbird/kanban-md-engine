@@ -9,8 +9,7 @@
 - Add command for tagging. <!-- backlog: 1792460694, id: card_01M5BFQ981W2JF2GHRQBHVHSXB -->
 - Add versioning for SPEC and boards. <!-- backlog: 1792547679, id: card_01M5E2NTV4GT1PVG6AW2A9YCXM -->
 - Add versioning in the board config, so that collaborative editing can occur. <!-- backlog: 1792547703, id: card_01M5E2PJS9RHTSZX5ZPXTKR9NX -->
-- Add an on_update trigger point and Board:update_card so card text and property edits go through the engine
-<!-- complexity: 3, id: card_01M5XM5JDXD78Y24AVQV43NQ5K -->
+- Add an on_update trigger point and Board:update_card so card text and property edits go through the engine <!-- complexity: 3, id: card_01M5XM5JDXD78Y24AVQV43NQ5K -->
     **Why**
     - Moving and adding cards go through the engine (move_card, add_card), so on_checking, on_entry and on_exit
     triggers run. Editing a card does not. The only way to change a card's text or properties is to assign
@@ -81,6 +80,7 @@
     already says those timestamps must not be set by hand.
 
     The on_stay drift would be worth its own card on the engine board.
+- Column prose between two cards is moved below the column's last card on write: the parser flushes it to a board-level markdown block after the column block, and write_from_blocks renders header_markdown then every card, so interleaved prose loses its place (SPEC 5.2 round-trip). Found while fixing the multi-paragraph card split. <!-- backlog: 1793070164, complexity: 3, id: card_01M5XMYT30BGR39Z9E57P6NGT5, tags: [bug] -->
 
 ###### Ready
 
@@ -190,3 +190,4 @@
 - Write scaling spec is flaky on CI: it measured 9.05x for 6x the cards against a 9.00x limit (linear is 6x, quadratic about 36x). `KANBAN_PERF_TOLERANCE` only scales the time budgets, not `MAX_SCALING_RATIO`, so the `=2` CI sets gives this assertion no slack. Options: take the best ratio of several runs, raise the limit to about 10, or let the tolerance widen the ratio limit too. <!-- backlog: 1792654523, complexity: 2, done: 1792664004, id: card_01M5H8JEP7T49VHSYN1ZPQDN9T, in_progress: 1792663948, ready: 1792663891 -->
 - The spec, in 4.3 Identifiers doesn't explicitly specify where board and column identifiers are kept, if at all, be clearer on this <!-- backlog: 1792647028, done: 1792714897, id: card_01M5H1DR0HWJ2WXTV4JKFDYK5A, in_progress: 1792714828, ready: 1792714696 -->
 - Create CHANGELOG.md according to https://keepachangelog.com/en/1.1.0/ <!-- backlog: 1792724628, done: 1792724896, id: card_01M5KBDX8G597JP2DHEGR64CB4, in_progress: 1792724856, ready: 1792724668 -->
+- The "Add an on_update trigger" card gets split upon parse. <!-- backlog: 1793069699, done: 1793070166, id: card_01M5XMGM1DD006BJ37E12NKGQW, in_progress: 1793070072, tags: [bug] -->

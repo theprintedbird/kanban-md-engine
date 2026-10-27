@@ -384,6 +384,28 @@ as it was. A card that lands in an empty column is written below a new blank lin
 column is empty again and its documentation is only blank lines, the writer leaves out the first
 of them. Documentation with any prose in it is written verbatim, with or without cards.
 
+Lines between two cards of a column — prose, blank lines, a fenced block — stay in that column, in
+place. Each run is held on `column.interleaved_markdown`, anchored to the card written directly
+below it, and is written back above that card:
+
+```markdown
+###### Backlog
+
+- First card
+
+Waiting on the supplier:
+
+- Second card
+```
+
+Moving a card rewrites only the list item. While the card below a run is in the column, the run is
+written above it, wherever that card now is. Once that card has left, the run moves down to the
+next card, in the order they were parsed, that is still in the column, or to the end of the column
+if none is. A card added to the column goes below every run. Anchors are set afresh on every parse.
+A run that ends up above the column's first card is treated as documentation when the writer
+applies `blank_line_after_column_header`. Lines after a column's last card are not part of the
+column; they are written after it, before the next header.
+
 ### 7.3 Special sections
 
 A column name wrapped in double underscores is a special section:

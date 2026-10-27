@@ -510,6 +510,16 @@ local function finalize_card(board, column, card_data)
 	end
 
 	column:add_card(card)
+
+	-- Prose written above this card, below an earlier one, is anchored to it
+	-- so the writer can put it back in place (SPEC.md section 7.2).
+	if card_data.leading_markdown then
+		column.interleaved_markdown = column.interleaved_markdown or {}
+		table.insert(column.interleaved_markdown, {
+			before = card,
+			lines = card_data.leading_markdown,
+		})
+	end
 end
 
 -- Parse markdown content and populate this Board instance
@@ -828,12 +838,18 @@ function ParserMixin:parse(content)
 
 				-- Handle list items
 				elseif is_task then
+					-- Anything buffered since the previous card -- blank lines,
+					-- prose -- sits between two cards of this column. It goes
+					-- above the new card rather than into a board-level block,
+					-- which would be written after the column's last card.
+					local leading_markdown = nil
+					if column_has_cards and #markdown_buffer > 0 then
+						leading_markdown = TblUtils.deepcopy(markdown_buffer)
+						markdown_buffer = {}
+					end
+
 					-- Flush current card if any
 					if current_card then
-						-- Flush markdown buffer before finalizing card
-						flush_markdown_buffer(self, markdown_buffer)
-						markdown_buffer = {}
-
 						-- Apply pending config if any
 						if pending_config then
 							for k, v in pairs(pending_config.properties) do
@@ -853,15 +869,12 @@ function ParserMixin:parse(content)
 							-- round trip, so nothing is trimmed here.
 							current_column.header_markdown = TblUtils.deepcopy(markdown_buffer)
 							markdown_buffer = {}
-						else
-							-- Flush markdown buffer before starting new card
-							flush_markdown_buffer(self, markdown_buffer)
-							markdown_buffer = {}
 						end
 					end
 
 					-- Start new card
 					current_card = parse_task(line)
+					current_card.leading_markdown = leading_markdown
 					current_card.line_number = line_number
 					current_card.column = current_column.name
 					blank_line_seen = false
@@ -941,6 +954,22 @@ function ParserMixin:parse(content)
 
 		-- Flush remaining markdown buffer at the end
 		flush_markdown_buffer(self, markdown_buffer)
+
+		-- The writer needs the cards' document order to re-anchor prose whose
+		-- card has since left the column.
+		local sections = {}
+		for _, column in ipairs(self.columns) do
+			table.insert(sections, column)
+		end
+		table.insert(sections, self.archive)
+		for _, column in ipairs(sections) do
+			if column.interleaved_markdown then
+				column.parsed_cards = {}
+				for _, card in ipairs(column.cards) do
+					table.insert(column.parsed_cards, card)
+				end
+			end
+		end
 	end
 
 	-- Post-processing - resolve types for columns without explicit config

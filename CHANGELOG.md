@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A blank line inside a card split it, turning the rest into column prose and its list items into new cards
 - Cards indented with `task_indent` were read as continuation lines of the card above
+- Prose and blank lines between two cards were moved below the column's last card on write
 
 ## [0.2.0] - 2026-10-23
 

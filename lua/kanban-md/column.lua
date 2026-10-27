@@ -21,7 +21,12 @@ function Column:new(id, name)
     config = TypeConverter:new({}),
     triggers = {},
     trigger_order = {},
-    header_markdown = nil  -- Lines between column header and first card
+    header_markdown = nil,  -- Lines between column header and first card
+    -- Lines between two cards, each entry { before = card, lines = {...} }
+    -- anchored to the card written below them; set by the parser along with
+    -- parsed_cards, the cards in document order.
+    interleaved_markdown = nil,
+    parsed_cards = nil,
   }
   setmetatable(obj, Column)
 

@@ -198,18 +198,10 @@ Some documentation here
       local todo_col = board:get_column_by_name("TODO")
       assert.equals(2, #todo_col.cards)
 
-      -- Check content blocks for documentation
-      local found_doc = false
-      for _, block in ipairs(board.content_blocks) do
-        if block.type == "markdown" then
-          local content_str = table.concat(block.lines or {}, "\n")
-          if content_str:match("Some documentation here") then
-            found_doc = true
-            break
-          end
-        end
-      end
-      assert.is_true(found_doc)
+      -- The documentation is held by the column, above the card it precedes
+      assert.same({
+        { before = todo_col.cards[2], lines = { "", "Some documentation here", "" } },
+      }, todo_col.interleaved_markdown)
     end)
   end)
 

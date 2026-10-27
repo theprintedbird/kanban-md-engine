@@ -284,6 +284,51 @@ local function is_all_blank(lines)
 	return true
 end
 
+-- Work out where each run of prose between two cards goes (SPEC.md section
+-- 7.2). A run stays above the card it was written above while that card is in
+-- the column. Once the card has left, the run moves down to the next card from
+-- the parsed order that is still there, or to the end of the column, so the
+-- prose stays in its column and keeps its place relative to the rest.
+-- @param column table
+-- @return table - card -> array of line arrays to write above it
+-- @return table - array of line arrays to write after the last card
+local function place_interleaved_markdown(column)
+	local above, at_end = {}, {}
+	if not column.interleaved_markdown then
+		return above, at_end
+	end
+
+	local present = {}
+	for _, card in ipairs(column.cards or {}) do
+		present[card] = true
+	end
+	local parsed = column.parsed_cards or {}
+	local position = {}
+	for i, card in ipairs(parsed) do
+		position[card] = i
+	end
+
+	for _, entry in ipairs(column.interleaved_markdown) do
+		local anchor = present[entry.before] and entry.before or nil
+		if not anchor and position[entry.before] then
+			for i = position[entry.before] + 1, #parsed do
+				if present[parsed[i]] then
+					anchor = parsed[i]
+					break
+				end
+			end
+		end
+		if anchor then
+			above[anchor] = above[anchor] or {}
+			table.insert(above[anchor], entry.lines)
+		else
+			table.insert(at_end, entry.lines)
+		end
+	end
+
+	return above, at_end
+end
+
 -- Write a task line
 -- @param task table
 -- @param column_name string
@@ -520,39 +565,64 @@ function WriterMixin:write_from_blocks()
 				end
 			end
 
-			-- Add blank line after header/config if configured and there are cards
-			-- BUT only if header_markdown doesn't already start with a blank line
-			local should_add_blank = config.blank_line_after_column_header
-				and column.cards and #column.cards > 0
-			if should_add_blank then
-				-- Check if header_markdown already provides a blank line
-				local header_has_leading_blank = column.header_markdown
-					and #column.header_markdown > 0
-					and column.header_markdown[1] == ""
-				if not header_has_leading_blank then
-					table.insert(lines, "")
+			local cards = column.cards or {}
+			local above, at_end = place_interleaved_markdown(column)
+
+			-- What is written between the header and the first card: the
+			-- column's documentation, then any prose that now falls above the
+			-- first card because the cards before it have left. In an empty
+			-- column that is everything left over. It reads back as header
+			-- markdown, so it is treated as header markdown here.
+			local opening = {}
+			for _, line in ipairs(column.header_markdown or {}) do
+				table.insert(opening, line)
+			end
+			local leftover = {}
+			if cards[1] then
+				leftover = above[cards[1]] or {}
+				above[cards[1]] = nil
+			else
+				leftover = at_end
+				at_end = {}
+			end
+			for _, run in ipairs(leftover) do
+				for _, line in ipairs(run) do
+					table.insert(opening, line)
 				end
 			end
 
+			-- Add blank line after header/config if configured and there are cards
+			-- BUT only if the opening lines don't already start with a blank line
+			local should_add_blank = config.blank_line_after_column_header
+				and #cards > 0
+			if should_add_blank and opening[1] ~= "" then
+				table.insert(lines, "")
+			end
+
 			-- Header markdown (content between column header and first card)
-			if column.header_markdown and #column.header_markdown > 0 then
+			if #opening > 0 then
 				-- A card landing in an empty column gets the blank line above, which
 				-- reads back as header markdown. If that card leaves again and the
 				-- header markdown is nothing but blank lines, drop that one so the
 				-- column goes back to how it was; otherwise each round trip adds a line.
 				local first = 1
 				if config.blank_line_after_column_header
-					and not (column.cards and #column.cards > 0)
-					and is_all_blank(column.header_markdown) then
+					and #cards == 0
+					and is_all_blank(opening) then
 					first = 2
 				end
-				for n = first, #column.header_markdown do
-					table.insert(lines, column.header_markdown[n])
+				for n = first, #opening do
+					table.insert(lines, opening[n])
 				end
 			end
 
-			-- Cards
-			for _, task in ipairs(column.cards or {}) do
+			-- Cards, each below any prose written above it
+			for _, task in ipairs(cards) do
+				for _, run in ipairs(above[task] or {}) do
+					for _, line in ipairs(run) do
+						table.insert(lines, line)
+					end
+				end
 				local task_output = write_task(task, column.name, config, timestamp_keys)
 				if type(task_output) == "table" then
 					for _, line in ipairs(task_output) do
@@ -560,6 +630,13 @@ function WriterMixin:write_from_blocks()
 					end
 				else
 					table.insert(lines, task_output)
+				end
+			end
+
+			-- Prose whose card, and every card after it, has left the column
+			for _, run in ipairs(at_end) do
+				for _, line in ipairs(run) do
+					table.insert(lines, line)
 				end
 			end
 		end
